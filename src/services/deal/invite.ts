@@ -6,6 +6,7 @@ import { createActivityLog } from "@/lib/audit";
 import { NotificationService } from "@/services/notification.service";
 import { getDealTotalAmount } from "@/lib/utils";
 import { DealWithRelations, invalidateDealCache, lockAndFetchDealForAction, releaseWalletHold } from "./helpers";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 async function refundRejectPendingInvite(tx: Prisma.TransactionClient, deal: DealWithRelations) {
 if (deal.brand?.userId && deal.reservedFromWallet) {
@@ -96,13 +97,19 @@ if (deal.status !== "PENDING_SIGNATURE") {
 throw AppError.badRequest("Only pending signature invites can be rejected");
 }
 
-await tx.deal.update({
-where: { id: dealId },
-data: {
-status: "CANCELLED",
-rejectionReason: reasonText,
-},
-});
+    await transitionDealState({
+      dealId,
+      fromState: "PENDING_SIGNATURE",
+      toState: "CANCELLED",
+      actor: { userId, role: "INFLUENCER" },
+      reason: reasonText,
+      tx,
+    });
+
+    await tx.deal.update({
+      where: { id: dealId },
+      data: { rejectionReason: reasonText },
+    });
 
 await tx.application.updateMany({
 where: {

@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { sendDealNotificationEmail } from "@/lib/email";
 import { NotificationService } from "@/services/notification.service";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 async function sendAutoApproveEmails(deal: ExpiredDealCandidate) {
 try {
@@ -53,18 +54,25 @@ data: { status: "APPROVED", reviewedAt: now },
       throw new Error("SUBMISSION_ALREADY_PROCESSED");
     }
 
-    const dealUpdate = await tx.deal.updateMany({
-      where: { id: deal.id, status: "CONTENT_SUBMITTED" },
+    await transitionDealState({
+      dealId: deal.id,
+      fromState: "CONTENT_SUBMITTED",
+      toState: "CONTENT_APPROVED",
+      actor: { userId: "SYSTEM_AUTO_APPROVE", role: "SYSTEM" },
+      reason: `Auto-approved by system because ${deal.reviewPeriodHours ?? 48}-hour brand review window expired without action.`,
+      metadata: {
+        autoApproved: true,
+        submissionId: latestSubmission.id,
+      },
+      tx,
+    });
+
+    await tx.deal.update({
+      where: { id: deal.id },
       data: {
-        status: "CONTENT_APPROVED",
-        approvedAt: now,
         rejectionReason: null,
       },
     });
-
-    if (dealUpdate.count === 0) {
-      throw new Error("DEAL_NOT_ELIGIBLE_FOR_AUTO_APPROVE");
-    }
 
 await NotificationService.createNotification({
 userId: deal.influencer.userId,

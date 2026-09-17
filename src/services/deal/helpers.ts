@@ -72,41 +72,54 @@ mode?: "INCREMENT_PENDING" | "INCREMENT_BALANCE" | "SHIFT_PENDING_TO_BALANCE"
 
 if (!wallet) return;
 
-let finalAmount = amount;
-if (mode === "SHIFT_PENDING_TO_BALANCE") {
-finalAmount = Math.min(wallet.pendingBalance, amount);
-}
+  let finalAmount = amount;
+  if (mode === "SHIFT_PENDING_TO_BALANCE") {
+    finalAmount = Math.min(wallet.pendingBalance, amount);
+  }
 
-if (finalAmount <= 0) return;
+  if (finalAmount <= 0) return;
 
-let updateData = {};
-if (mode === "INCREMENT_PENDING") {
-updateData = { pendingBalance: { increment: finalAmount } };
-} else if (mode === "INCREMENT_BALANCE") {
-updateData = { balance: { increment: finalAmount } };
-} else {
-updateData = {
-pendingBalance: { decrement: finalAmount },
-balance: { increment: finalAmount },
-};
-}
+  if (mode === "INCREMENT_PENDING") {
+    await tx.wallet.update({
+      where: { id: wallet.id },
+      data: { pendingBalance: { increment: finalAmount } },
+    });
+  } else if (mode === "INCREMENT_BALANCE") {
+    await tx.wallet.update({
+      where: { id: wallet.id },
+      data: { balance: { increment: finalAmount } },
+    });
+  } else {
+    // SHIFT_PENDING_TO_BALANCE or default decrement pendingBalance and increment balance
+    // Enforce atomic conditional update: pendingBalance >= finalAmount and not frozen
+    const updated = await tx.wallet.updateMany({
+      where: {
+        id: wallet.id,
+        pendingBalance: { gte: finalAmount },
+        isFrozen: false,
+      },
+      data: {
+        pendingBalance: { decrement: finalAmount },
+        balance: { increment: finalAmount },
+      },
+    });
 
-await tx.wallet.update({
-where: { id: wallet.id },
-data: updateData,
-});
+    if (updated.count === 0) {
+      throw AppError.badRequest("INSUFFICIENT_PENDING_ESCROW: Insufficient pending balance or wallet is frozen");
+    }
+  }
 
-await tx.transaction.create({
-data: {
-walletId: wallet.id,
-dealId: dealId,
-type: "REFUND",
-amount: finalAmount,
-status: "COMPLETED",
-description,
-...(metadata ? { metadata: metadata as Prisma.InputJsonValue } : {}),
-},
-});
+  await tx.transaction.create({
+    data: {
+      walletId: wallet.id,
+      dealId: dealId,
+      type: "REFUND",
+      amount: finalAmount,
+      status: "COMPLETED",
+      description,
+      ...(metadata ? { metadata: metadata as Prisma.InputJsonValue } : {}),
+    },
+  });
 }
 
 export function normalizeMandatoryElements(
@@ -190,12 +203,12 @@ draftContractTerms: ContractTerms;
 }
 ) {
 const reserveResult = await tx.wallet.updateMany({
-where: { userId: params.brandUserId, pendingBalance: { gte: params.paymentAmounts.totalAmount } },
+where: { userId: params.brandUserId, pendingBalance: { gte: params.paymentAmounts.totalAmount }, isFrozen: false },
 data: { pendingBalance: { decrement: params.paymentAmounts.totalAmount } },
 });
 
 if (reserveResult.count === 0) {
-throw AppError.badRequest("Insufficient held campaign funds.");
+throw AppError.badRequest("Insufficient held campaign funds or brand wallet is frozen.");
 }
 
 const deal = await tx.deal.create({

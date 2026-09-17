@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Button, Input, Select } from "@/components/ui";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 import { taxComplianceSchema } from "@/lib/validations/auth";
 
 type TaxComplianceData = {
@@ -107,23 +108,20 @@ async function loadCompliance() {
 setLoading(true);
 setError("");
 try {
-const res = await fetch("/api/compliance/india-tax", { cache: "no-store" });
-const payload = await res.json();
-if (!res.ok) throw new Error(payload.message || "Failed to load tax compliance");
-
-const next = payload.data as TaxComplianceData;
-setData(next);
-setDraft({
-...emptyDraft(),
-gstRegistrationType:
-next.compliance?.gstRegistrationType || "UNREGISTERED",
-gstTurnoverSlab: next.compliance?.gstTurnoverSlab || "",
-itrAssessmentYear: next.compliance?.itrAssessmentYear || "",
-});
+  const payload = await apiClient.settings.getComplianceInfo({ cache: "no-store" } as RequestInit) as { data?: TaxComplianceData; message?: string };
+  const next = payload.data as TaxComplianceData;
+  setData(next);
+  setDraft({
+    ...emptyDraft(),
+    gstRegistrationType:
+      next.compliance?.gstRegistrationType || "UNREGISTERED",
+    gstTurnoverSlab: next.compliance?.gstTurnoverSlab || "",
+    itrAssessmentYear: next.compliance?.itrAssessmentYear || "",
+  });
 } catch (err) {
-setError(err instanceof Error ? err.message : "Failed to load tax compliance");
+  setError(err instanceof ApiClientError ? err.message : "Failed to load tax compliance");
 } finally {
-setLoading(false);
+  setLoading(false);
 }
 }
 
@@ -171,24 +169,12 @@ payload.itrAcknowledgementNumber = draft.itrAcknowledgementNumber.trim();
 }
 
 try {
-const res = await fetch("/api/compliance/india-tax", {
-method: "PUT",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(payload),
-});
-const result = await res.json();
+  const result = await apiClient.settings.saveComplianceInfo(payload) as { errors?: Record<string, string[]>; message?: string };
 
-if (!res.ok) {
-const details = result.errors
-? Object.values(result.errors).flat().filter(Boolean).join(" ")
-: "";
-throw new Error(details || result.message || "Failed to save tax compliance");
-}
-
-setSuccess("India tax compliance updated.");
-await loadCompliance();
+  setSuccess("India tax compliance updated.");
+  await loadCompliance();
 } catch (err) {
-setError(err instanceof Error ? err.message : "Failed to save tax compliance");
+  setError(err instanceof ApiClientError ? err.message : "Failed to save tax compliance");
 } finally {
 setSaving(false);
 }

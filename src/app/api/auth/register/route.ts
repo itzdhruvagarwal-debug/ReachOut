@@ -30,21 +30,27 @@ return { success: true, data: parsed.data };
 function handleRegisterError(error: unknown) {
 logger.error("Registration route error", { error: (error instanceof Error ? error.message : String(error)) });
 
-if (error instanceof AppError) {
-return ApiResponse.error(error.message, error.statusCode);
-}
-
 const errMsg = error instanceof Error ? error.message : String(error);
 
+// Anti-enumeration: Never tell an attacker specifically whether the email or phone exists
+if (errMsg === "Email already registered" || errMsg === "Phone number already registered") {
+  return ApiResponse.error(
+    "An account with this email or phone number is already registered. Please sign in or reset your password.",
+    400
+  );
+}
+
+if (error instanceof AppError) {
+  return ApiResponse.error(error.message, error.statusCode);
+}
+
 const safeErrors = [
-"Email already registered",
-"Phone number already registered",
-"Invalid referral code",
-"Registration blocked. Please contact support.",
+  "Invalid referral code",
+  "Registration blocked. Please contact support.",
 ];
 
 if (safeErrors.includes(errMsg) || errMsg.includes("Rate limit")) {
-return ApiResponse.error(errMsg);
+  return ApiResponse.error(errMsg);
 }
 
 return ApiResponse.error("Registration failed. Please try again.", 500);

@@ -60,31 +60,41 @@ return timingSafeEqual(actualHash, expectedHash);
 }
 
 interface HealthCheckResponse {
-uptime: number;
-timestamp: number;
-status: string;
-services: {
-database: string;
-redis: string;
-razorpay: string;
-storage: string;
-email: string;
-cronReconcilePayouts: string;
-};
+  uptime: number;
+  timestamp: number;
+  status: string;
+  services: {
+    database: string;
+    redis: string;
+    qstash: string;
+    razorpay?: string;
+    storage?: string;
+    email?: string;
+    cronReconcilePayouts?: string;
+  };
 }
 
 async function checkDatabaseHealth(healthCheck: HealthCheckResponse) {
-try {
-await prisma.user.findFirst({ select: { id: true } });
-healthCheck.services.database = "OK";
-} catch (error) {
-healthCheck.services.database = "DOWN";
-healthCheck.status = "DEGRADED";
-logger.error("[Health] Database health check failed", error);
-systemErrorsTotal
-.labels({ error_type: "database_health_check", route: "/api/health" })
-.inc();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    healthCheck.services.database = "OK";
+  } catch (error) {
+    healthCheck.services.database = "DOWN";
+    healthCheck.status = "DEGRADED";
+    logger.error("[Health] Database health check failed", error);
+    systemErrorsTotal
+      .labels({ error_type: "database_health_check", route: "/api/health" })
+      .inc();
+  }
 }
+
+function checkQStashHealth(healthCheck: HealthCheckResponse) {
+  const token = process.env.QSTASH_TOKEN;
+  if (!token || token.length < 8) {
+    healthCheck.services.qstash = "UNCONFIGURED";
+  } else {
+    healthCheck.services.qstash = "OK";
+  }
 }
 
 async function checkRedisHealth(healthCheck: HealthCheckResponse) {
@@ -197,61 +207,72 @@ logger.warn("[Health] Could not read cron last_run key from Redis", { error: err
 }
 
 export async function GET(request: NextRequest) {
-const deep = request.nextUrl.searchParams.get("deep") === "1";
+  const simulate = request.nextUrl.searchParams.get("simulate");
+  const simulateDbDown = simulate === "db_down";
+  const deep = request.nextUrl.searchParams.get("deep") === "1";
 
-if (!deep) {
-return NextResponse.json({
-status: "OK",
-timestamp: Date.now(),
-});
-}
+  const healthCheck: HealthCheckResponse = {
+    uptime: process.uptime(),
+    timestamp: Date.now(),
+    status: "OK",
+    services: {
+      database: "UNKNOWN",
+      redis: "UNKNOWN",
+      qstash: "UNKNOWN",
+    },
+  };
 
-if (!isAuthorizedDeepHealth(request)) {
-return NextResponse.json(
-{ success: false, message: "Unauthorized" },
-{ status: 401 },
-);
-}
+  // 1. Database check (or simulated failure)
+  if (simulateDbDown) {
+    healthCheck.services.database = "DOWN (SIMULATED)";
+    healthCheck.status = "DEGRADED";
+  } else {
+    await checkDatabaseHealth(healthCheck);
+  }
 
-const healthCheck: HealthCheckResponse = {
-uptime: process.uptime(),
-timestamp: Date.now(),
-status: "OK",
-services: {
-database: "UNKNOWN",
-redis: "UNKNOWN",
-razorpay: "UNKNOWN",
-storage: "UNKNOWN",
-email: "UNKNOWN",
-cronReconcilePayouts: "UNKNOWN",
-},
-};
+  // 2. Redis check
+  await checkRedisHealth(healthCheck);
 
-await checkDatabaseHealth(healthCheck);
-await checkRedisHealth(healthCheck);
-await checkRazorpayHealth(healthCheck);
-await checkStorageHealth(healthCheck);
-await checkEmailHealth(healthCheck);
-await checkCronHealth(healthCheck);
+  // 3. QStash configuration check
+  checkQStashHealth(healthCheck);
 
-const envCheck: Record<string, string> = {};
-const CRITICAL_KEYS = [
-"DATABASE_URL", "PGBOUNCER_URL", "PRISMA_ACCELERATE_URL", "NEXTAUTH_URL",
-"NEXTAUTH_SECRET", "AUTH_SECRET", "REDIS_URL", "RAZORPAY_KEY_ID",
-"RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", "RAZORPAY_ACCOUNT_NUMBER",
-"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "CRON_SECRET", "HMAC_KEY",
-"ENCRYPTION_KEYS", "CONTRACT_SIGNING_SECRET", "RESEND_API_KEY",
-"PROMETHEUS_AUTH_TOKEN", "SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN",
-"SENTRY_ENVIRONMENT", "NEXT_PUBLIC_SENTRY_ENVIRONMENT", "STORAGE_PROVIDER",
-"NEXT_PUBLIC_APP_URL", "APP_BASE_URL", "KYC_PROVIDER", "KYC_API_KEY",
-"MSG91_TEMPLATE_ID"
-];
-for (const k of CRITICAL_KEYS) {
-const val = process.env[k];
-envCheck[k] = val ? `SET (length: ${val.length})` : "MISSING";
-}
+  // If non-deep, return standard uptime monitoring payload
+  if (!deep) {
+    const statusCode = healthCheck.status === "OK" ? 200 : 503;
+    return NextResponse.json(healthCheck, { status: statusCode });
+  }
 
-const statusCode = healthCheck.status === "OK" ? 200 : 503;
+  // Deep health check authorization
+  if (!isAuthorizedDeepHealth(request)) {
+    return NextResponse.json(
+      { success: false, message: "Unauthorized for deep health check" },
+      { status: 401 },
+    );
+  }
 
-return NextResponse.json({ ...healthCheck, envAudit: envCheck }, { status: statusCode });
+  // Extended deep service checks
+  await checkRazorpayHealth(healthCheck);
+  await checkStorageHealth(healthCheck);
+  await checkEmailHealth(healthCheck);
+  await checkCronHealth(healthCheck);
+
+  const envCheck: Record<string, string> = {};
+  const CRITICAL_KEYS = [
+    "DATABASE_URL", "PGBOUNCER_URL", "PRISMA_ACCELERATE_URL", "NEXTAUTH_URL",
+    "NEXTAUTH_SECRET", "AUTH_SECRET", "REDIS_URL", "RAZORPAY_KEY_ID",
+    "RAZORPAY_KEY_SECRET", "RAZORPAY_WEBHOOK_SECRET", "RAZORPAY_ACCOUNT_NUMBER",
+    "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "CRON_SECRET", "HMAC_KEY",
+    "ENCRYPTION_KEYS", "CONTRACT_SIGNING_SECRET", "RESEND_API_KEY",
+    "PROMETHEUS_AUTH_TOKEN", "SENTRY_DSN", "NEXT_PUBLIC_SENTRY_DSN",
+    "SENTRY_ENVIRONMENT", "NEXT_PUBLIC_SENTRY_ENVIRONMENT", "STORAGE_PROVIDER",
+    "NEXT_PUBLIC_APP_URL", "APP_BASE_URL", "KYC_PROVIDER", "KYC_API_KEY",
+    "MSG91_TEMPLATE_ID"
+  ];
+  for (const k of CRITICAL_KEYS) {
+    const val = process.env[k];
+    envCheck[k] = val ? `SET (length: ${val.length})` : "MISSING";
+  }
+
+  const statusCode = healthCheck.status === "OK" ? 200 : 503;
+  return NextResponse.json({ ...healthCheck, envAudit: envCheck }, { status: statusCode });
 }

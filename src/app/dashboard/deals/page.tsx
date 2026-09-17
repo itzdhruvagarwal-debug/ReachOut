@@ -4,7 +4,13 @@
 
 import { useState, useMemo } from "react";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import {
+  type Deal,
+  type RawDealItem as RawDeal,
+  type DealsListResponse as DealsApiResponse,
+  dealsListResponseSchema,
+} from "@/lib/schemas";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
@@ -85,34 +91,7 @@ if (tone === "cyan") return "primary";
 return "ghost";
 }
 
-interface Deal {
-id: string;
-status: string;
-amount: number;
-createdAt: string;
-postingDeadline: string;
-campaign: { title: string };
-brand: { companyName: string; logo: string | null };
-deliverables: { type: string; count: number }[];
-}
 
-interface RawDeal {
-id: string;
-status: string;
-amount: number;
-createdAt: string | Date;
-postingDeadline?: string;
-campaign?: {
-title?: string;
-postingDeadline?: string;
-deliverables?: unknown;
-};
-brand?: {
-companyName?: string;
-logo?: string | null;
-};
-deliverables?: unknown;
-}
 
 function normalizeDeal(raw: RawDeal): Deal {
 const campaign = raw?.campaign || {};
@@ -137,16 +116,7 @@ deliverables: normalizeDeliverables(raw?.deliverables || campaign?.deliverables)
 };
 }
 
-interface DealsApiResponse {
-data?: {
-deals?: RawDeal[];
-pagination?: { totalPages?: number };
-stats?: { active?: number; completed?: number; totalEarnings?: number };
-};
-deals?: RawDeal[];
-pagination?: { totalPages?: number };
-stats?: { active?: number; completed?: number; totalEarnings?: number };
-}
+
 
 function getDeliverableIcon(type: string): string {
 const icons: Record<string, string> = {
@@ -461,9 +431,10 @@ const DEALS_PER_PAGE = 50;
 const isInfluencer = session?.user?.userType === "INFLUENCER";
 
 const statusParam = statusFilter === "all" ? "" : `&status=${statusFilter}`;
+const dealsListFetcher = createSchemaFetcher(dealsListResponseSchema);
 const { data: payload, isLoading: loading } = useSWR<DealsApiResponse>(
 `/api/deals?page=${currentPage}&limit=${DEALS_PER_PAGE}${statusParam}`,
-fetcher
+dealsListFetcher
 );
 
 const { deals, totalPages, stats } = useMemo(() => {

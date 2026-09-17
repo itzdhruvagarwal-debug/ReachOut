@@ -43,31 +43,35 @@ const { searchParams } = new URL(req.url);
 const params = parseQueryParams(searchParams);
 const { page, limit } = parsePagination(searchParams);
 
-const filterParams: ListInfluencersParams = { page, limit };
-if (params.category) filterParams.category = params.category;
-if (params.city) filterParams.city = params.city;
-if (typeof params.minFollowers === "number") filterParams.minFollowers = params.minFollowers;
-if (typeof params.minEngagementRate === "number") filterParams.minEngagementRate = params.minEngagementRate;
-if (typeof params.minRate === "number") filterParams.minRate = params.minRate;
-if (typeof params.maxRate === "number") filterParams.maxRate = params.maxRate;
-if (params.platform) filterParams.platform = params.platform;
-if (params.searchTerm) filterParams.searchTerm = params.searchTerm;
-if (params.sortBy) filterParams.sortBy = params.sortBy;
-if (isBrand(session.user.userType)) {
-filterParams.brandUserId = session.user.id;
-}
+  const cursor = searchParams.get("cursor")?.trim() || undefined;
 
-const result = await UserService.listInfluencers(filterParams);
+  const filterParams: ListInfluencersParams = { page, limit, cursor };
+  if (params.category) filterParams.category = params.category;
+  if (params.city) filterParams.city = params.city;
+  if (typeof params.minFollowers === "number") filterParams.minFollowers = params.minFollowers;
+  if (typeof params.minEngagementRate === "number") filterParams.minEngagementRate = params.minEngagementRate;
+  if (typeof params.minRate === "number") filterParams.minRate = params.minRate;
+  if (typeof params.maxRate === "number") filterParams.maxRate = params.maxRate;
+  if (params.platform) filterParams.platform = params.platform;
+  if (params.searchTerm) filterParams.searchTerm = params.searchTerm;
+  if (params.sortBy) filterParams.sortBy = params.sortBy;
+  if (isBrand(session.user.userType)) {
+    filterParams.brandUserId = session.user.id;
+  }
 
-return NextResponse.json({
-influencers: result.influencers,
-pagination: {
-page,
-limit,
-total: result.total,
-totalPages: Math.ceil(result.total / (limit || 1)),
-},
-});
+  const result = await UserService.listInfluencers(filterParams);
+
+  return NextResponse.json({
+    influencers: result.influencers,
+    pagination: {
+      page,
+      limit,
+      total: result.total,
+      totalPages: Math.ceil(result.total / (limit || 1)),
+      nextCursor: "nextCursor" in result ? (result as { nextCursor?: string | null }).nextCursor : null,
+      hasMore: "hasMore" in result ? (result as { hasMore?: boolean }).hasMore : false,
+    },
+  });
 }, {
 requirePermission: "VIEW_INFLUENCERS",
 });

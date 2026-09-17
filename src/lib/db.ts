@@ -124,16 +124,21 @@ return data;
 }
 
 const MODELS_WITH_SOFT_DELETE = new Set([
-"User",
-"Campaign",
-"Application",
-"Deal",
-"BankAccount",
-"Transaction",
-"Dispute",
-"DisputeEvidence",
-"Review",
-"Message",
+  "User",
+  "Campaign",
+  "Application",
+  "Deal",
+  "BankAccount",
+  "Transaction",
+  "Dispute",
+  "DisputeEvidence",
+  "Review",
+  "Message",
+  // InfluencerProfile and BrandProfile have deletedAt columns in the schema.
+  // Adding them here ensures the Prisma middleware soft-deletes them consistently
+  // instead of relying on manual deletedAt = new Date() calls scattered in routes.
+  "InfluencerProfile",
+  "BrandProfile",
 ]);
 
 function applySoftDeleteBeforeQuery<T>(model: string, operation: string, args: T): { operation: string; args: T } {
@@ -295,6 +300,25 @@ throw AppError.internal(message);
 }
 }
 
+  // Supavisor / PgBouncer connection-pool validation
+  // At 10L-user scale on serverless each cold-start lambda opens its own connection.
+  // Without a pooler, Postgres hits its max_connections limit and crashes.
+  if (isProd && !usesManagedPrismaTransport && !isBuildTime()) {
+    const url = datasourceUrl ?? "";
+    const hasSupavisor = url.includes(":6543") || url.includes("pgbouncer=true") || url.includes("pooler.supabase.com");
+    const hasBouncer = Boolean(process.env.PGBOUNCER_URL);
+    if (!hasSupavisor && !hasBouncer) {
+      logger.warn(
+        "[DB CONNECTION] DATABASE_URL does not appear to point to a connection pooler " +
+        "(Supavisor port 6543 / pgbouncer=true not detected). " +
+        "On serverless (Vercel), this WILL cause connection exhaustion at scale. " +
+        "Set DATABASE_URL to the Supavisor pooler URL (port 6543, pgbouncer=true, connection_limit=1) " +
+        "and DIRECT_URL to the direct connection (port 5432) for migrations.",
+        { datasourceUrl: datasourceUrl?.replace(/:[^@]*@/, ":***@") },
+      );
+    }
+  }
+
 // Warm up database connection pool asynchronously to avoid cold starts
 if (!isBuildTime()) {
 baseClient.$connect().catch((err) => {
@@ -316,8 +340,17 @@ let finalArgs = sdPre.args;
 // 2. Encryption (Before Query)
 finalArgs = applyEncryptionBeforeQuery(finalOperation, finalArgs);
 
-// Execute Query
-let result = await query(finalArgs);
+      // Execute Query
+      let result;
+      const modelKey = model ? model.charAt(0).toLowerCase() + model.slice(1) : "";
+      const baseRecord = baseClient as unknown as Record<string, { update: (args: unknown) => Promise<unknown>; updateMany: (args: unknown) => Promise<unknown> }>;
+      if (MODELS_WITH_SOFT_DELETE.has(model || "") && operation === "delete" && baseRecord[modelKey]) {
+        result = await baseRecord[modelKey].update(finalArgs);
+      } else if (MODELS_WITH_SOFT_DELETE.has(model || "") && operation === "deleteMany" && baseRecord[modelKey]) {
+        result = await baseRecord[modelKey].updateMany(finalArgs);
+      } else {
+        result = await query(finalArgs);
+      }
 
 // 3. Soft Delete (After Query)
 result = applySoftDeleteAfterQuery(model || "", finalOperation, result);
@@ -343,16 +376,20 @@ return result;
 // Default interactive transaction options: extend default timeout from 5s to 15s
 // and maxWait from 2s to 10s to prevent cloud database WAN latency timeouts.
 const originalTx = extendedClient.$transaction.bind(extendedClient);
-(extendedClient as any).$transaction = function (arg1: any, arg2?: any) {
+type TransactionOptions = { maxWait?: number; timeout?: number; [key: string]: unknown };
+const extendedWithTx = extendedClient as unknown as {
+  $transaction: (arg1: unknown, arg2?: TransactionOptions) => unknown;
+};
+extendedWithTx.$transaction = function (arg1: unknown, arg2?: TransactionOptions) {
   if (typeof arg1 === "function") {
-    const options = {
+    const options: TransactionOptions = {
       maxWait: 10000,
       timeout: 15000,
       ...(arg2 || {}),
     };
-    return originalTx(arg1, options);
+    return (originalTx as unknown as (fn: unknown, opts: unknown) => unknown)(arg1, options);
   }
-  return originalTx(arg1, arg2);
+  return (originalTx as unknown as (ops: unknown, opts?: unknown) => unknown)(arg1, arg2);
 };
 
 return extendedClient;

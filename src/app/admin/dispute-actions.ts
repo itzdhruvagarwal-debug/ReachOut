@@ -18,6 +18,7 @@ creditInfluencerPayoutWithTax,
 recordPlatformFeeRevenue,
 } from "@/lib/deal-settlement";
 import { refundPayment, capturePayment } from "@/lib/razorpay";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 type DisputeWithDeal = Prisma.DisputeGetPayload<{
 include: {
@@ -145,35 +146,33 @@ const brandWallet = await tx.wallet.findUnique({ where: { userId: brandUserId } 
 }
 
 async function handleRefundBrand(tx: Prisma.TransactionClient, dispute: DisputeWithDeal, reason: string) {
-  // Cancel Deal atomically with status check
-  const cancelResult = await tx.deal.updateMany({
-    where: {
-      id: dispute.dealId,
-      status: { notIn: ["COMPLETED", "CANCELLED"] },
+  // Cancel Deal atomically with central state machine
+  await transitionDealState({
+    dealId: dispute.dealId,
+    fromState: dispute.deal.status,
+    toState: "CANCELLED",
+    actor: { userId: dispute.raisedByUserId || "ADMIN_DISPUTE", role: "ADMIN" },
+    reason,
+    financialHandler: async () => {
+      // Handle Funds (Internal Wallet Deal)
+      if (dispute.deal.brandId) {
+        const brand = await tx.brandProfile.findUnique({
+          where: { id: dispute.deal.brandId },
+        });
+        if (brand) {
+          await processBrandWalletRefund(tx, brand.userId, dispute, reason);
+        }
+      }
+
+      await tx.campaign.update({
+        where: { id: dispute.deal.campaignId },
+        data: {
+          reservedAmount: { decrement: dispute.deal.amount },
+          reservedTotalAmount: { decrement: dispute.deal.totalAmount || dispute.deal.amount },
+        },
+      });
     },
-    data: { status: "CANCELLED" },
-  });
-
-  if (cancelResult.count === 0) {
-    throw AppError.badRequest("Invalid deal state for brand refund. The deal may have already been completed or cancelled.");
-  }
-
-  // Handle Funds (Internal Wallet Deal)
-  if (dispute.deal.brandId) {
-    const brand = await tx.brandProfile.findUnique({
-      where: { id: dispute.deal.brandId },
-    });
-    if (brand) {
-      await processBrandWalletRefund(tx, brand.userId, dispute, reason);
-    }
-  }
-
-  await tx.campaign.update({
-    where: { id: dispute.deal.campaignId },
-    data: {
-      reservedAmount: { decrement: dispute.deal.amount },
-      reservedTotalAmount: { decrement: dispute.deal.totalAmount || dispute.deal.amount },
-    },
+    tx,
   });
 }
 
@@ -218,66 +217,64 @@ async function secureBrandFundsForRelease(
 }
 
 async function handleReleaseInfluencer(tx: Prisma.TransactionClient, dispute: DisputeWithDeal, payoutAmount: number) {
-  // Mark Deal as Completed atomically with status check
-  const completeResult = await tx.deal.updateMany({
-    where: {
-      id: dispute.dealId,
-      status: { notIn: ["COMPLETED", "CANCELLED"] },
-    },
-    data: { status: "COMPLETED", completedAt: new Date() },
-  });
-
-  if (completeResult.count === 0) {
-    throw AppError.badRequest("Invalid deal state for influencer release. The deal may have already been completed or cancelled.");
-  }
-
-  if (dispute.deal.brandId) {
-    await tx.brandProfile.update({
-      where: { id: dispute.deal.brandId },
-      data: { totalSpent: { increment: dispute.deal.totalAmount || dispute.deal.amount } },
-    });
-  }
-
   let gamificationReferrerId: string | null = null;
 
-  // Credit Influencer Wallet (Internal Wallet Deal)
-  if (dispute.deal.influencerId) {
-    const influencer = await tx.influencerProfile.findUnique({
-      where: { id: dispute.deal.influencerId },
-    });
-    if (influencer) {
-      await secureBrandFundsForRelease(tx, dispute.deal);
+  // Mark Deal as Completed atomically with central state machine
+  await transitionDealState({
+    dealId: dispute.dealId,
+    fromState: dispute.deal.status,
+    toState: "COMPLETED",
+    actor: { userId: dispute.raisedByUserId || "ADMIN_DISPUTE", role: "ADMIN" },
+    reason: "Dispute resolved in influencer favor with full payout release",
+    financialHandler: async () => {
+      if (dispute.deal.brandId) {
+        await tx.brandProfile.update({
+          where: { id: dispute.deal.brandId },
+          data: { totalSpent: { increment: dispute.deal.totalAmount || dispute.deal.amount } },
+        });
+      }
 
-      await creditInfluencerPayoutWithTax(
-        tx,
-        {
-          userId: influencer.userId,
-          dealId: dispute.deal.id,
-          grossPayout: payoutAmount,
-          description: `Dispute Resolved in Favor: ${dispute.deal.campaignId}`,
-          metadata: {
-            balanceImpact: true,
-            source: "admin_wallet_dispute_resolution",
-          },
+      // Credit Influencer Wallet (Internal Wallet Deal)
+      if (dispute.deal.influencerId) {
+        const influencer = await tx.influencerProfile.findUnique({
+          where: { id: dispute.deal.influencerId },
+        });
+        if (influencer) {
+          await secureBrandFundsForRelease(tx, dispute.deal);
+
+          await creditInfluencerPayoutWithTax(
+            tx,
+            {
+              userId: influencer.userId,
+              dealId: dispute.deal.id,
+              grossPayout: payoutAmount,
+              description: `Dispute Resolved in Favor: ${dispute.deal.campaignId}`,
+              metadata: {
+                balanceImpact: true,
+                source: "admin_wallet_dispute_resolution",
+              },
+            },
+          );
+
+          await recordPlatformFeeRevenue(tx, {
+            brandUserId: dispute.deal.brand?.userId,
+            deal: dispute.deal,
+            source: "admin_dispute_resolution",
+          });
+          const gamificationResult = await finalizeDealGamification(influencer.userId, payoutAmount, tx);
+          gamificationReferrerId = gamificationResult?.referrerId ?? null;
+        }
+      }
+
+      await tx.campaign.update({
+        where: { id: dispute.deal.campaignId },
+        data: {
+          reservedAmount: { decrement: dispute.deal.amount },
+          reservedTotalAmount: { decrement: dispute.deal.totalAmount || dispute.deal.amount },
         },
-      );
-
-      await recordPlatformFeeRevenue(tx, {
-        brandUserId: dispute.deal.brand?.userId,
-        deal: dispute.deal,
-        source: "admin_dispute_resolution",
       });
-      const gamificationResult = await finalizeDealGamification(influencer.userId, payoutAmount, tx);
-      gamificationReferrerId = gamificationResult?.referrerId ?? null;
-    }
-  }
-
-  await tx.campaign.update({
-    where: { id: dispute.deal.campaignId },
-    data: {
-      reservedAmount: { decrement: dispute.deal.amount },
-      reservedTotalAmount: { decrement: dispute.deal.totalAmount || dispute.deal.amount },
     },
+    tx,
   });
 
   return { gamificationReferrerId };

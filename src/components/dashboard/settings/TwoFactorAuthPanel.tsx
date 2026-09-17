@@ -1,9 +1,9 @@
 "use client";
 
-
 import { useState } from "react";
 import Image from "next/image";
 import useSWR from "swr";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 import { fetcher } from "@/lib/fetcher";
 import { Badge, Button, Input } from "@/components/ui";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -14,9 +14,8 @@ setIsSaving: (val: boolean) => void;
 showToast: (message: string, type?: "success" | "error" | "info") => void;
 }
 
-interface SettingsResponse {
-user?: { isTwoFactorEnabled?: boolean };
-}
+import { type UserSettingsResponse as SettingsResponse } from "@/lib/schemas";
+
 
 export default function TwoFactorAuthPanel({
   isSaving,
@@ -112,19 +111,16 @@ disabled={isSaving}
 onClick={async () => {
   setIsSaving(true);
   try {
-    const res = await fetch("/api/user/2fa/setup", {
-      method: "POST",
-    });
-    const data = await res.json();
-    if (data.qrCodeUrl) {
-      setQrCodeData(data);
+    const data = await apiClient.users.setup2fa() as { qrCodeUrl?: string; secret?: string; error?: string };
+    if (data.qrCodeUrl && data.secret) {
+      setQrCodeData({ qrCodeUrl: data.qrCodeUrl, secret: data.secret });
       setIs2FASetupVisible(true);
     } else {
       showToast(data.error || "Failed to initiate 2FA setup", "error");
     }
+
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Network error";
-    showToast(msg, "error");
+    showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
   } finally {
     setIsSaving(false);
   }
@@ -184,12 +180,7 @@ onClick={async () => {
   }
   setIsSaving(true);
   try {
-    const res = await fetch("/api/user/2fa/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: setupCode }),
-    });
-    const data = await res.json();
+    const data = await apiClient.users.verify2fa({ token: setupCode }) as { success?: boolean; recoveryCodes?: string[]; error?: string };
     if (data.success) {
       setIs2FAEnabled(true);
       setIs2FASetupVisible(false);
@@ -205,8 +196,7 @@ onClick={async () => {
       showToast(data.error || "Invalid code", "error");
     }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Network error";
-    showToast(msg, "error");
+    showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
   } finally {
     setIsSaving(false);
   }
@@ -248,14 +238,7 @@ onClick={async () => {
   }
   setIsSaving(true);
   try {
-    const res = await fetch("/api/user/2fa/disable", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        password: disable2FAPassword,
-      }),
-    });
-    const data = await res.json();
+    const data = await apiClient.users.disable2fa({ token: disable2FAPassword }) as { success?: boolean; error?: string };
     if (data.success) {
       setIs2FAEnabled(false);
       setDisable2FAPassword("");
@@ -267,8 +250,7 @@ onClick={async () => {
       showToast(data.error || "Failed to disable 2FA", "error");
     }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Network error";
-    showToast(msg, "error");
+    showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
   } finally {
     setIsSaving(false);
   }

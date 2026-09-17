@@ -69,50 +69,12 @@ estimatedCpvPaise: number;
 dealId?: string | null;
 dealStatus?: string | null;
 }
+import {
+  type SingleCampaignResponse as CampaignDetailResponse,
+  type CampaignDetail as RawCampaign,
+} from "@/lib/schemas";
+export type { CampaignDetailResponse, RawCampaign };
 
-export interface RawCampaign {
-id: string;
-title?: string;
-description?: string;
-requirements?: string;
-guidelines?: string | null;
-status?: string;
-totalBudget?: number;
-perInfluencerBudget?: number | null;
-minFollowers?: number;
-maxFollowers?: number | null;
-targetCategories?: unknown;
-targetCities?: unknown;
-targetLanguages?: unknown;
-applicationDeadline?: string | null;
-contentDeadline?: string | null;
-postingDeadline?: string | null;
-totalApplications?: number;
-selectedInfluencers?: number;
-maxInfluencers?: number | null;
-requiresProduct?: boolean;
-productName?: string;
-productValue?: number;
-productDescription?: string;
-deliverables?: unknown;
-brand?: { userId?: string; companyName?: string; logo?: string | null; averageRating?: number; isGstVerified?: boolean };
-createdAt?: string;
-updatedAt?: string;
-_count?: { applications?: number; deals?: number };
-applications?: { id: string; proposedRate: number; [key: string]: unknown }[];
-hasApplied?: boolean;
-applicationStatus?: string | null;
-dealId?: string | null;
-}
-
-export interface CampaignDetailResponse {
-data?: { campaign?: RawCampaign; hasApplied?: boolean; applicationStatus?: string; dealId?: string | null };
-campaign?: RawCampaign;
-hasApplied?: boolean;
-applicationStatus?: string;
-dealId?: string | null;
-message?: string;
-}
 
 export function normalizeCampaign(raw: RawCampaign): CampaignDetail {
 return {

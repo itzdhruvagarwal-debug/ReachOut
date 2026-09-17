@@ -19,6 +19,7 @@ import { useSecureSession } from "@/hooks/useSecureSession";
 import { useTokenRefreshGuard } from "@/hooks/useTokenRefreshGuard";
 import { EnterpriseWatermark } from "./EnterpriseWatermark";
 import { Button } from "@/components/ui";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 
 // Inactivity warning modal
 function InactivityWarningModal({
@@ -177,20 +178,14 @@ const handleVisibilityChange = async () => {
 if (document.visibilityState === "visible") {
 // Re-check session validity by hitting a lightweight endpoint
 try {
-const res = await fetch("/api/auth/session", {
-credentials: "same-origin",
-cache: "no-store",
-headers: {
-"Content-Type": "application/json",
-},
-});
-if (res.status === 401) {
+await apiClient.auth.getSession();
+} catch (err: unknown) {
+if (err instanceof ApiClientError && err.status === 401) {
 await signOut({
 redirect: true,
 callbackUrl: "/login?reason=session_expired",
 });
 }
-} catch {
 // Network error: do not sign out aggressively.
 }
 }

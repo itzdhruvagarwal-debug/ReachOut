@@ -6,21 +6,15 @@ import EmptyState from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui";
 import { useState, useMemo } from "react";
 
-interface LoginActivity {
-device: string;
-location: string;
-time: string;
-success: boolean;
-active?: boolean;
-}
+import {
+  type LoginActivityItem as LoginActivity,
+  type LoginActivityResponse as ActivityResponse,
+} from "@/lib/schemas";
 
 interface LoginActivityPanelProps {
-showToast: (message: string, type?: "success" | "error" | "info") => void;
+  showToast: (message: string, type?: "success" | "error" | "info") => void;
 }
 
-interface ActivityResponse {
-activity?: LoginActivity[];
-}
 
 export default function LoginActivityPanel({ showToast: _showToast }: Readonly<LoginActivityPanelProps>) {
 const [showAllLogins, setShowAllLogins] = useState(false);
@@ -93,7 +87,7 @@ className="font-normal text-muted"
 <div
 className={`text-xs ${login.success ? "text-secondary" : "text-rose"}`}
 >
-{new Date(login.time).toLocaleString()}{" "}
+{new Date(login.time || login.lastActive || Date.now()).toLocaleString()}{" "}
 {login.success ? "" : "(Failed Attempt)"}
 </div>
 </div>

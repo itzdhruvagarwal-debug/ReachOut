@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import {
+  type DashboardInfluencer as Influencer,
+  creatorsListResponseSchema,
+  type CreatorsListResponse,
+} from "@/lib/schemas";
 import Link from "next/link";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
@@ -24,20 +29,7 @@ minRate: z.string().max(20).optional(),
 maxRate: z.string().max(20).optional(),
 });
 
-interface Influencer {
-id: string;
-displayName: string;
-bio: string | null;
-avatar: string | null;
-city: string | null;
-instagramFollowers: number | null;
-youtubeSubscribers: number | null;
-categories: string;
-totalCompletedDeals: number;
-trustScore: number;
-userId: string;
-isFeatured?: boolean;
-}
+
 
 export default function DiscoverInfluencersPage() {
 const [search, setSearch] = useState("");
@@ -75,12 +67,26 @@ if (validData.maxRate) queryParams.append("maxRate", validData.maxRate);
 if (validData.city) queryParams.append("city", validData.city);
 if (validData.platform) queryParams.append("platform", validData.platform);
 
-const { data: payload, isLoading: loading } = useSWR<{ influencers?: Influencer[]; data?: { influencers?: Influencer[] } }>(
+const creatorsFetcher = createSchemaFetcher(creatorsListResponseSchema);
+const { data: payload, isLoading: loading } = useSWR<CreatorsListResponse>(
 canDiscover ? `/api/influencers?${queryParams.toString()}` : null,
-fetcher
+creatorsFetcher
 );
 
-const influencers: Influencer[] = payload?.influencers || payload?.data?.influencers || [];
+const influencers: Influencer[] = (payload?.influencers || payload?.data?.influencers || []).map((inf) => ({
+  id: inf.id || inf.userId || "",
+  displayName: inf.displayName || inf.name || "Creator",
+  bio: null,
+  avatar: inf.avatar || null,
+  city: inf.city || null,
+  instagramFollowers: inf.instagramFollowers ?? inf.followers ?? null,
+  youtubeSubscribers: inf.youtubeSubscribers ?? null,
+  categories: inf.categories || inf.category || "General",
+  totalCompletedDeals: inf.totalCompletedDeals ?? 0,
+  trustScore: inf.trustScore ?? 750,
+  userId: inf.userId || inf.id || "",
+  isFeatured: inf.isFeatured,
+}));
 
 const handleSearch = (e: React.FormEvent) => {
 e.preventDefault();

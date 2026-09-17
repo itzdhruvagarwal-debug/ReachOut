@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
+import { dispatchPushNotification } from "@/lib/push-notifications";
 
 type NotificationType =
 | "deal_update"
@@ -74,7 +75,7 @@ static async createNotification(
 ) {
   const client = _tx || prisma;
   try {
-    return await client.notification.create({
+    const created = await client.notification.create({
       data: {
         userId: data.userId,
         type: data.type,
@@ -83,6 +84,21 @@ static async createNotification(
         data: (data.data || {}) as Prisma.InputJsonValue,
       },
     });
+
+    // Asynchronously dispatch push notification to user's registered devices
+    dispatchPushNotification(data.userId, {
+      title: data.title,
+      message: data.message,
+      type: data.type,
+      data: data.data,
+    }).catch((pushErr) => {
+      logger.warn("[Notification Service] Non-blocking push notification dispatch failed", {
+        userId: data.userId,
+        error: pushErr,
+      });
+    });
+
+    return created;
   } catch (error) {
     logger.error("[Notification Service] Failed to create notification", error, { data });
     return null;

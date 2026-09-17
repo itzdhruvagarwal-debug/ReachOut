@@ -5,9 +5,9 @@ import prisma from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { validateCronSecret } from "../guard";
 import { getDealTotalAmount } from "@/lib/utils";
-import { AppError } from "@/lib/errors";
 
 import { acquireDistributedLock, releaseDistributedLock } from "@/lib/lock";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 type ExpiredSignatureDeal = Prisma.DealGetPayload<{
   include: {
@@ -234,17 +234,21 @@ async function handlePendingBalanceShift(
 }
 
 async function expireSingleDealSignature(tx: Prisma.TransactionClient, deal: ExpiredSignatureDeal) {
-const lockResult = await tx.deal.updateMany({
-where: { id: deal.id, status: "PENDING_SIGNATURE" },
-data: {
-status: "CANCELLED",
-rejectionReason: "Invite signature deadline expired (auto-cancelled)",
-},
-});
+  await transitionDealState({
+    dealId: deal.id,
+    fromState: "PENDING_SIGNATURE",
+    toState: "CANCELLED",
+    actor: { userId: "SYSTEM_EXPIRE_SIGNATURES", role: "SYSTEM" },
+    reason: "Invite signature deadline expired (auto-cancelled)",
+    tx,
+  });
 
-if (lockResult.count === 0) {
-throw AppError.conflict("Deal is no longer in PENDING_SIGNATURE status");
-}
+  await tx.deal.update({
+    where: { id: deal.id },
+    data: {
+      rejectionReason: "Invite signature deadline expired (auto-cancelled)",
+    },
+  });
 
 await tx.application.updateMany({
 where: {

@@ -1,15 +1,23 @@
 import { z } from "zod";
 
+const shouldSkipValidation =
+  typeof process !== "undefined" &&
+  (
+    process.env.SKIP_ENV_VALIDATION === "true" ||
+    process.env.NODE_ENV === "test" ||
+    process.env.VITEST === "true"
+  );
+
 const isBuildTime =
-typeof process !== "undefined" &&
-(
-process.env.NEXT_PHASE === "phase-production-build" ||
-process.env.NEXT_PHASE?.includes("build") ||
-process.env.npm_lifecycle_event === "build" ||
-process.env.npm_lifecycle_event === "deploy:check" ||
-process.argv.some((arg) => /next|build/i.test(arg)) ||
-process.env.SKIP_ENV_VALIDATION === "true"
-);
+  typeof process !== "undefined" &&
+  !shouldSkipValidation &&
+  (
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_PHASE?.includes("build") ||
+    process.env.npm_lifecycle_event === "build" ||
+    process.env.npm_lifecycle_event === "deploy:check" ||
+    process.argv.some((arg) => /next|build/i.test(arg))
+  );
 
 const detectedAppUrl =
   process.env.NEXTAUTH_URL ||
@@ -19,11 +27,14 @@ const detectedAppUrl =
   (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
   "https://vyaparmediaa.vercel.app";
 
+const emptyAsUndefined = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((val) => (typeof val === "string" && val.trim() === "" ? undefined : val), schema);
+
 const envSchema = z.object({
   // Server-side
   DATABASE_URL: z.string().min(1),
-  PGBOUNCER_URL: z.string().min(1).optional(),
-  PRISMA_ACCELERATE_URL: z.string().min(1).optional(),
+  PGBOUNCER_URL: emptyAsUndefined(z.string().min(1).optional()),
+  PRISMA_ACCELERATE_URL: emptyAsUndefined(z.string().min(1).optional()),
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -42,27 +53,27 @@ const envSchema = z.object({
     .default("rzp_test_placeholder"),
   RAZORPAY_KEY_SECRET: z.string().optional().default("placeholder_secret"),
   RAZORPAY_WEBHOOK_SECRET: z.string().optional().default("placeholder_webhook_secret"),
-  RAZORPAY_ACCOUNT_NUMBER: z.string().min(1).optional(),
-  RESEND_API_KEY: z.string().min(1).optional(),
-  GOOGLE_CLIENT_ID: z.string().optional(),
-  GOOGLE_CLIENT_SECRET: z.string().optional(),
-  DIGILOCKER_CLIENT_ID: z.string().min(1).optional(),
-  DIGILOCKER_CLIENT_SECRET: z.string().min(1).optional(),
+  RAZORPAY_ACCOUNT_NUMBER: emptyAsUndefined(z.string().min(1).optional()),
+  RESEND_API_KEY: emptyAsUndefined(z.string().min(1).optional()),
+  GOOGLE_CLIENT_ID: emptyAsUndefined(z.string().optional()),
+  GOOGLE_CLIENT_SECRET: emptyAsUndefined(z.string().optional()),
+  DIGILOCKER_CLIENT_ID: emptyAsUndefined(z.string().min(1).optional()),
+  DIGILOCKER_CLIENT_SECRET: emptyAsUndefined(z.string().min(1).optional()),
   REPLY_TO_EMAIL: z.string().email().default("support@VyaparMedia.in"),
 
-// Logging and monitoring
-LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-PROMETHEUS_AUTH_TOKEN: z.string().min(32).optional(),
-HEALTHCHECK_SECRET: z.string().min(32).optional(),
-SENTRY_DSN: z.string().url().optional(),
-NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
-SENTRY_ENVIRONMENT: z.string().min(1).optional(),
-NEXT_PUBLIC_SENTRY_ENVIRONMENT: z.string().min(1).optional(),
-SENTRY_RELEASE: z.string().min(1).optional(),
-NEXT_PUBLIC_SENTRY_RELEASE: z.string().min(1).optional(),
-SENTRY_AUTH_TOKEN: z.string().min(1).optional(),
-SENTRY_ORG: z.string().min(1).optional(),
-SENTRY_PROJECT: z.string().min(1).optional(),
+  // Logging and monitoring
+  LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  PROMETHEUS_AUTH_TOKEN: emptyAsUndefined(z.string().min(32).optional()),
+  HEALTHCHECK_SECRET: emptyAsUndefined(z.string().min(32).optional()),
+  SENTRY_DSN: emptyAsUndefined(z.string().url().optional()),
+  NEXT_PUBLIC_SENTRY_DSN: emptyAsUndefined(z.string().url().optional()),
+  SENTRY_ENVIRONMENT: emptyAsUndefined(z.string().min(1).optional()),
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT: emptyAsUndefined(z.string().min(1).optional()),
+  SENTRY_RELEASE: emptyAsUndefined(z.string().min(1).optional()),
+  NEXT_PUBLIC_SENTRY_RELEASE: emptyAsUndefined(z.string().min(1).optional()),
+  SENTRY_AUTH_TOKEN: emptyAsUndefined(z.string().min(1).optional()),
+  SENTRY_ORG: emptyAsUndefined(z.string().min(1).optional()),
+  SENTRY_PROJECT: emptyAsUndefined(z.string().min(1).optional()),
 SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
 NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
 NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE: z.coerce
@@ -245,7 +256,7 @@ const isServer = typeof window === "undefined";
 
 const _env = envSchema.safeParse(process.env);
 
-if (!_env.success) {
+if (!_env.success && !shouldSkipValidation) {
   const formatted = _env.error.format();
   const errorMessage = `Invalid environment variables:\n${JSON.stringify(
     formatted,

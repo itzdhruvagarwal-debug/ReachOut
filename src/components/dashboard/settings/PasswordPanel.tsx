@@ -1,8 +1,8 @@
 "use client";
 
-
-import { logger } from "@/lib/logger-client";
 import { useState } from "react";
+import { logger } from "@/lib/logger-client";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 import type { User } from "./ProfileTab";
 import { Button, Input } from "@/components/ui";
 import { passwordChangeSchema } from "@/lib/validations/auth";
@@ -110,25 +110,20 @@ body.oldPassword = passwordData.currentPassword;
 }
 
 try {
-const res = await fetch("/api/auth/change-password", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(body),
-});
-const data = await res.json();
-if (res.ok) {
-setPasswordSuccess("Password updated successfully!");
-setPasswordData({
-currentPassword: "",
-newPassword: "",
-confirmPassword: "",
-});
-} else {
-setPasswordError(data.error || "Failed to update password");
-}
-} catch (_error) {
-logger.error("Password change error:", _error);
-setPasswordError("An error occurred");
+  const data = await apiClient.users.changePassword(body) as { success?: boolean; error?: string };
+  if (data.success !== false) {
+    setPasswordSuccess("Password updated successfully!");
+    setPasswordData({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+  } else {
+    setPasswordError(data.error || "Failed to update password");
+  }
+} catch (err) {
+  logger.error("Password change error:", err);
+  setPasswordError(err instanceof ApiClientError ? err.message : "An error occurred");
 } finally {
 setIsSaving(false);
 if (forgotPasswordState.active) {
@@ -152,26 +147,18 @@ return;
 }
 
 try {
-const res = await fetch("/api/user/send-otp", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
-type: method,
-contact: contact
-}),
-});
-const data = await res.json();
-if (res.ok) {
-setForgotPasswordState(prev => ({ ...prev, method, step: 'otp', active: true }));
-setPasswordSuccess(`OTP sent to your ${method}`);
-} else {
-setPasswordError(data.error || "Failed to send OTP");
-setForgotPasswordState({ active: false, step: 'method', method: null, otp: '' });
-}
-} catch (_err) {
-logger.error("Forgot password OTP send error:", _err);
-setPasswordError("Network error. Please try again.");
-setForgotPasswordState({ active: false, step: 'method', method: null, otp: '' });
+  const data = await apiClient.users.sendOtp({ type: method, value: contact }) as { success?: boolean; error?: string };
+  if (data.success !== false) {
+    setForgotPasswordState(prev => ({ ...prev, method, step: 'otp', active: true }));
+    setPasswordSuccess(`OTP sent to your ${method}`);
+  } else {
+    setPasswordError(data.error || "Failed to send OTP");
+    setForgotPasswordState({ active: false, step: 'method', method: null, otp: '' });
+  }
+} catch (err) {
+  logger.error("Forgot password OTP send error:", err);
+  setPasswordError(err instanceof ApiClientError ? err.message : "Network error. Please try again.");
+  setForgotPasswordState({ active: false, step: 'method', method: null, otp: '' });
 } finally {
 setIsSaving(false);
 }

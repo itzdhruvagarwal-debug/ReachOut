@@ -435,32 +435,29 @@ if (!treasuryWallet) {
 throw AppError.badRequest("Treasury wallet could not be resolved");
 }
 
-// Floor-guard: match the updateMany+gte pattern used in all other wallet debit paths.
-const treasuryDebitResult = await db.wallet.updateMany({
-where: {
-id: treasuryWallet.id,
-balance: { gte: totalReward },
-},
-data: { balance: { decrement: totalReward } },
-});
+    // Floor-guard: match the updateMany+gte pattern used in all other wallet debit paths.
+    const treasuryDebitResult = await db.wallet.updateMany({
+      where: {
+        id: treasuryWallet.id,
+        balance: { gte: totalReward },
+        isFrozen: false,
+      },
+      data: { balance: { decrement: totalReward } },
+    });
 
-if (treasuryDebitResult.count === 0) {
-// Treasury is underfunded debit anyway to keep double-entry accurate, but log loudly.
-await db.wallet.update({
-where: { id: treasuryWallet.id },
-data: { balance: { decrement: totalReward } },
-});
-logger.error(
-"CRITICAL: PLATFORM_TREASURY underfunded during referral payout. Treasury balance is negative. Immediate funding required.",
-{
-treasuryWalletId: treasuryWallet.id,
-totalReward,
-referrerId,
-userId,
-tier: currentTier.name,
-},
-);
-}
+    if (treasuryDebitResult.count === 0) {
+      logger.error(
+        "CRITICAL: PLATFORM_TREASURY underfunded or frozen during referral payout. Operation aborted to uphold check_wallet_balance_nonnegative constraint.",
+        {
+          treasuryWalletId: treasuryWallet.id,
+          totalReward,
+          referrerId,
+          userId,
+          tier: currentTier.name,
+        },
+      );
+      throw AppError.badRequest("TREASURY_INSUFFICIENT_FUNDS: Platform treasury has insufficient funds or is frozen for referral payout");
+    }
 
 // Record DEBIT transaction for treasury
 await db.transaction.create({

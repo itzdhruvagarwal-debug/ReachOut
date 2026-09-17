@@ -1,5 +1,7 @@
 "use client";
 
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 
 import { logger } from "@/lib/logger-client";
 import { useState } from "react";
@@ -49,28 +51,19 @@ return;
 
 setIsSaving(true);
 try {
-const res = await fetch("/api/user/delete-account", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ password, reason }),
-});
-const data = await res.json();
-if (res.ok) {
+await apiClient.users.deleteAccount({ password, reason });
 showToast("Account deleted successfully. Logging you out...", "success");
 // Wait briefly for the toast to display then sign out and redirect to home
 setTimeout(() => {
 signOut({ callbackUrl: "/" });
 }, 1500);
-} else {
-setError(data.error || "Failed to delete account");
-setIsSaving(false);
-}
 } catch (err: unknown) {
 logger.error("[delete-account] error:", err);
-setError("An error occurred during account deletion");
+setError(err instanceof ApiClientError ? err.message : "An error occurred during account deletion");
 setIsSaving(false);
 }
 };
+
 
 return (
 <div className="card border-rose-subtle">

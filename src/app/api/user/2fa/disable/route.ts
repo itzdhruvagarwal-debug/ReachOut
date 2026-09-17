@@ -5,6 +5,8 @@ import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { createActivityLog, ActivityAction } from "@/lib/audit";
+import { getSecureClientIp } from "@/lib/ip";
 
 async function _handler_POST(req: NextRequest) {
 try {
@@ -18,34 +20,72 @@ if (!limit.success) {
 return NextResponse.json({ error: "Too many 2FA requests" }, { status: 429 });
 }
 
-const { password } = await req.json();
-if (!password) {
-return NextResponse.json(
-{ error: "Password is required to disable 2FA" },
-{ status: 400 },
-);
+const body = await req.json().catch(() => ({}));
+const { password, code, otp } = body as { password?: string; code?: string; otp?: string };
+
+if (!password && !code && !otp) {
+  return NextResponse.json(
+    { error: "Re-authentication required: Please provide your password, 6-digit 2FA code, or phone OTP to disable 2FA." },
+    { status: 400 },
+  );
 }
 
 const user = await prisma.user.findUnique({
-where: { email: session.user.email },
-select: { id: true, passwordHash: true },
+  where: { email: session.user.email },
+  select: { id: true, phone: true, passwordHash: true, twoFactorSecret: true, isTwoFactorEnabled: true },
 });
 
 if (!user) {
-return NextResponse.json({ error: "User not found" }, { status: 404 });
+  return NextResponse.json({ error: "User not found" }, { status: 404 });
 }
 
-if (!user.passwordHash) {
-  return NextResponse.json({ error: "OAuth account. Please set a password first to disable 2FA." }, { status: 400 });
+if (!user.isTwoFactorEnabled) {
+  return NextResponse.json({ error: "2FA is not currently enabled" }, { status: 400 });
 }
 
-// Verify that the user knows their password before disabling security settings
-const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-if (!isValidPassword) {
-return NextResponse.json(
-{ error: "Incorrect password" },
-{ status: 403 },
-);
+let isAuthorized = false;
+
+// Re-auth Option 1: Account Password
+if (password && user.passwordHash) {
+  isAuthorized = await bcrypt.compare(password, user.passwordHash);
+}
+
+// Re-auth Option 2: Current 6-digit TOTP Authenticator Code
+if (!isAuthorized && code && user.twoFactorSecret) {
+  try {
+    const { verify } = await import("otplib");
+    const { decrypt } = await import("@/lib/encryption");
+    let secret = user.twoFactorSecret;
+    try {
+      secret = decrypt(user.twoFactorSecret);
+    } catch {}
+    const verifyResult = await verify({ token: String(code).trim(), secret });
+    isAuthorized = typeof verifyResult === "object" && verifyResult !== null
+      ? (verifyResult as { valid: boolean }).valid
+      : Boolean(verifyResult);
+  } catch (totpErr) {
+    logger.warn("Failed to verify TOTP code during 2FA disable", { error: totpErr });
+  }
+}
+
+// Re-auth Option 3: Phone SMS OTP
+if (!isAuthorized && otp && user.phone) {
+  try {
+    const { verifyOTP } = await import("@/lib/sms");
+    const otpResult = await verifyOTP(user.phone, String(otp).trim(), {
+      purpose: "phone_verification",
+    });
+    isAuthorized = otpResult.success;
+  } catch (otpErr) {
+    logger.warn("Failed to verify phone OTP during 2FA disable", { error: otpErr });
+  }
+}
+
+if (!isAuthorized) {
+  return NextResponse.json(
+    { error: "Re-authentication failed: Incorrect password, 2FA code, or OTP" },
+    { status: 403 },
+  );
 }
 
 // Disable 2FA
@@ -56,6 +96,21 @@ isTwoFactorEnabled: false,
 twoFactorSecret: null,
 twoFactorRecoveryCodes: null,
 },
+});
+
+// Audit security log
+await createActivityLog({
+  userId: user.id,
+  action: ActivityAction.TWO_FACTOR_DISABLED,
+  entityType: "User",
+  entityId: user.id,
+  ipAddress: getSecureClientIp(req),
+  metadata: {
+    reAuthMethod: password ? "password" : code ? "totp" : "otp",
+    disabledAt: new Date().toISOString(),
+  },
+}).catch((err) => {
+  logger.warn("Failed to log TWO_FACTOR_DISABLED activity", { error: err });
 });
 
 return NextResponse.json({

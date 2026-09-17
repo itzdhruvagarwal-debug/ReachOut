@@ -6,7 +6,7 @@ import { apiWrapper } from "@/lib/api-wrapper";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { DocumentType } from "@prisma/client";
+import { DocumentType, Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { uploadFile } from "@/lib/storage";
 import {
@@ -21,6 +21,8 @@ verifyPAN,
 verifyGST,
 verifyBankAccount,
 hasMatchingNameTokens,
+assertNoDuplicateDocument,
+invalidateUserKYCCache,
 } from "@/lib/kyc";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { bytesToAscii } from "@/lib/utils";
@@ -204,110 +206,224 @@ return NextResponse.json(
 }
 
 async function handleVerifyAadhaar(userId: string, aadhaarNumber: string) {
-const result = await verifyAadhaar(aadhaarNumber, userId);
-if (result.success && result.status === "VERIFIED") {
-await prisma.user.update({
-where: { id: userId },
-data: { verificationLevel: "IDENTITY" },
-});
-}
-return result;
+  const cleanAadhaar = aadhaarNumber.replace(/[\s-]/g, "");
+  const { hash, encrypted } = await assertNoDuplicateDocument(cleanAadhaar, "AADHAAR", userId);
+  const result = await verifyAadhaar(cleanAadhaar, userId);
+  if (result.success && result.status === "VERIFIED") {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { verificationLevel: "IDENTITY" },
+    });
+
+    const existingDoc = await prisma.verificationDocument.findFirst({
+      where: { userId, type: "AADHAAR" },
+      select: { id: true },
+    });
+    if (existingDoc) {
+      await prisma.verificationDocument.update({
+        where: { id: existingDoc.id },
+        data: {
+          documentNumber: encrypted,
+          documentNumberHash: hash,
+          status: "VERIFIED",
+          verifiedAt: new Date(),
+          metadata: (result.data as Prisma.InputJsonValue) || {},
+        },
+      });
+    } else {
+      await prisma.verificationDocument.create({
+        data: {
+          userId,
+          type: "AADHAAR",
+          documentUrl: "VERIFIED_ONLINE",
+          documentNumber: encrypted,
+          documentNumberHash: hash,
+          status: "VERIFIED",
+          verifiedAt: new Date(),
+          metadata: (result.data as Prisma.InputJsonValue) || {},
+        },
+      });
+    }
+    await invalidateUserKYCCache(userId);
+  }
+  return result;
 }
 
 async function handleVerifyAadhaarOtp(userId: string, clientId: string, otp: string) {
-const result = await verifyAadhaarOTP(clientId, otp);
-if (result.success && result.status === "VERIFIED") {
-const user = await prisma.user.findUnique({
-where: { id: userId },
-select: {
-influencerProfile: { select: { displayName: true } },
-brandProfile: { select: { companyName: true } },
-email: true,
-},
-});
-const registeredName =
-user?.influencerProfile?.displayName ||
-user?.brandProfile?.companyName ||
-user?.email?.split("@")[0] ||
-"";
-const returnedName = result.data?.name || "";
-if (returnedName && registeredName && !hasMatchingNameTokens(returnedName, registeredName)) {
-return {
-success: false,
-status: "REJECTED" as const,
-error: "The name on the verified Aadhaar does not match your registered profile name.",
-};
-}
-await prisma.user.update({
-where: { id: userId },
-data: { verificationLevel: "IDENTITY" },
-});
-}
-return result;
+  const result = await verifyAadhaarOTP(clientId, otp);
+  if (result.success && result.status === "VERIFIED") {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        influencerProfile: { select: { displayName: true } },
+        brandProfile: { select: { companyName: true } },
+        email: true,
+      },
+    });
+    const registeredName =
+      user?.influencerProfile?.displayName ||
+      user?.brandProfile?.companyName ||
+      user?.email?.split("@")[0] ||
+      "";
+    const returnedName = result.data?.name || "";
+    if (returnedName && registeredName && !hasMatchingNameTokens(returnedName, registeredName)) {
+      return {
+        success: false,
+        status: "REJECTED" as const,
+        error: "The name on the verified Aadhaar does not match your registered profile name.",
+      };
+    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: { verificationLevel: "IDENTITY" },
+    });
+    await invalidateUserKYCCache(userId);
+  }
+  return result;
 }
 
 async function handleVerifyPan(userId: string, panNumber: string) {
-const result = await verifyPAN(panNumber);
-if (result.success && result.status === "VERIFIED") {
-const user = await prisma.user.findUnique({
-where: { id: userId },
-select: {
-influencerProfile: { select: { displayName: true } },
-brandProfile: { select: { companyName: true } },
-email: true,
-},
-});
-const registeredName =
-user?.influencerProfile?.displayName ||
-user?.brandProfile?.companyName ||
-user?.email?.split("@")[0] ||
-"";
-const returnedName = result.data?.name || "";
-if (returnedName && registeredName && !hasMatchingNameTokens(returnedName, registeredName)) {
-return {
-success: false,
-status: "REJECTED" as const,
-error: "The name on the verified PAN card does not match your registered profile name.",
-};
-}
-await prisma.user.update({
-where: { id: userId },
-data: { verificationLevel: "IDENTITY" },
-});
-}
-return result;
+  const cleanPAN = panNumber.toUpperCase().trim();
+  const { hash, encrypted } = await assertNoDuplicateDocument(cleanPAN, "PAN_CARD", userId);
+  const result = await verifyPAN(cleanPAN, userId);
+  if (result.success && result.status === "VERIFIED") {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        influencerProfile: { select: { displayName: true } },
+        brandProfile: { select: { companyName: true } },
+        email: true,
+      },
+    });
+    const registeredName =
+      user?.influencerProfile?.displayName ||
+      user?.brandProfile?.companyName ||
+      user?.email?.split("@")[0] ||
+      "";
+    const returnedName = result.data?.name || "";
+    if (returnedName && registeredName && !hasMatchingNameTokens(returnedName, registeredName)) {
+      return {
+        success: false,
+        status: "REJECTED" as const,
+        error: "The name on the verified PAN card does not match your registered profile name.",
+      };
+    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: { verificationLevel: "IDENTITY" },
+    });
+
+    const existingDoc = await prisma.verificationDocument.findFirst({
+      where: { userId, type: "PAN_CARD" },
+      select: { id: true },
+    });
+    if (existingDoc) {
+      await prisma.verificationDocument.update({
+        where: { id: existingDoc.id },
+        data: {
+          documentNumber: encrypted,
+          documentNumberHash: hash,
+          status: "VERIFIED",
+          verifiedAt: new Date(),
+          metadata: (result.data as Prisma.InputJsonValue) || {},
+        },
+      });
+    } else {
+      await prisma.verificationDocument.create({
+        data: {
+          userId,
+          type: "PAN_CARD",
+          documentUrl: "VERIFIED_ONLINE",
+          documentNumber: encrypted,
+          documentNumberHash: hash,
+          status: "VERIFIED",
+          verifiedAt: new Date(),
+          metadata: (result.data as Prisma.InputJsonValue) || {},
+        },
+      });
+    }
+
+    // Also update tax compliance if exists
+    await prisma.indiaTaxCompliance.updateMany({
+      where: { userId },
+      data: {
+        panNumber: encrypted,
+        panLast4: cleanPAN.slice(-4),
+        panNumberHash: hash,
+        status: "VERIFIED",
+        verifiedAt: new Date(),
+      },
+    });
+
+    await invalidateUserKYCCache(userId);
+  }
+  return result;
 }
 
 async function handleVerifyGst(userId: string, gstNumber: string) {
-const result = await verifyGST(gstNumber);
-if (result.success && result.status === "VERIFIED") {
-const user = await prisma.user.findUnique({
-where: { id: userId },
-select: {
-influencerProfile: { select: { displayName: true } },
-brandProfile: { select: { companyName: true } },
-email: true,
-},
-});
-const registeredName =
-user?.brandProfile?.companyName ||
-user?.influencerProfile?.displayName ||
-user?.email?.split("@")[0] ||
-"";
-const returnedName = result.data?.name || "";
-if (returnedName && registeredName && !hasMatchingNameTokens(returnedName, registeredName)) {
-return {
-success: false,
-status: "REJECTED" as const,
-error: "The business name on the verified GST does not match your registered company name.",
-};
-}
-await prisma.user.update({
-where: { id: userId },
-data: { verificationLevel: "IDENTITY" },
-});
-}
-return result;
+  const cleanGST = gstNumber.toUpperCase().trim();
+  const { hash, encrypted } = await assertNoDuplicateDocument(cleanGST, "GST_CERTIFICATE", userId);
+  const result = await verifyGST(cleanGST, userId);
+  if (result.success && result.status === "VERIFIED") {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        influencerProfile: { select: { displayName: true } },
+        brandProfile: { select: { companyName: true } },
+        email: true,
+      },
+    });
+    const registeredName =
+      user?.brandProfile?.companyName ||
+      user?.influencerProfile?.displayName ||
+      user?.email?.split("@")[0] ||
+      "";
+    const returnedName = result.data?.name || "";
+    if (returnedName && registeredName && !hasMatchingNameTokens(returnedName, registeredName)) {
+      return {
+        success: false,
+        status: "REJECTED" as const,
+        error: "The business name on the verified GST does not match your registered company name.",
+      };
+    }
+    await prisma.user.update({
+      where: { id: userId },
+      data: { verificationLevel: "IDENTITY" },
+    });
+
+    const existingDoc = await prisma.verificationDocument.findFirst({
+      where: { userId, type: "GST_CERTIFICATE" },
+      select: { id: true },
+    });
+    if (existingDoc) {
+      await prisma.verificationDocument.update({
+        where: { id: existingDoc.id },
+        data: {
+          documentNumber: encrypted,
+          documentNumberHash: hash,
+          status: "VERIFIED",
+          verifiedAt: new Date(),
+          metadata: (result.data as Prisma.InputJsonValue) || {},
+        },
+      });
+    } else {
+      await prisma.verificationDocument.create({
+        data: {
+          userId,
+          type: "GST_CERTIFICATE",
+          documentUrl: "VERIFIED_ONLINE",
+          documentNumber: encrypted,
+          documentNumberHash: hash,
+          status: "VERIFIED",
+          verifiedAt: new Date(),
+          metadata: (result.data as Prisma.InputJsonValue) || {},
+        },
+      });
+    }
+
+    await invalidateUserKYCCache(userId);
+  }
+  return result;
 }
 
 // PUT - Perform verification actions (Aadhaar OTP, PAN, GST, Bank, etc.)
@@ -347,13 +463,13 @@ break;
 case "VERIFY_GST":
 result = await handleVerifyGst(userId, body.gstNumber);
 break;
-case "VERIFY_BANK":
-result = await verifyBankAccount({
-accountNumber: body.accountNumber,
-ifscCode: body.ifscCode,
-beneficiaryName: body.beneficiaryName,
-});
-break;
+      case "VERIFY_BANK":
+        result = await verifyBankAccount(
+          body.accountNumber,
+          body.ifscCode,
+          body.beneficiaryName,
+        );
+        break;
 }
 
 return NextResponse.json(result);
@@ -482,26 +598,43 @@ return NextResponse.json(
 );
 }
 
-// Create DB record
-const document = await prisma.verificationDocument.create({
-data: {
-userId: session.user.id,
-type: type as DocumentType,
-documentUrl: uploadRes.url,
-status: "PENDING",
-metadata: {
-originalName: file.name,
-size: file.size,
-mimeType: file.type,
-},
-},
-});
+    const docNumber = formData.get("documentNumber") as string | null;
+    let documentNumber: string | null = null;
+    let documentNumberHash: string | null = null;
+    if (docNumber && docNumber.trim()) {
+      const { hash, encrypted } = await assertNoDuplicateDocument(
+        docNumber.trim(),
+        type as DocumentType,
+        session.user.id,
+      );
+      documentNumber = encrypted;
+      documentNumberHash = hash;
+    }
 
-return NextResponse.json({
-success: true,
-document,
-message: "Document uploaded successfully. Verification pending.",
-});
+    // Create DB record
+    const document = await prisma.verificationDocument.create({
+      data: {
+        userId: session.user.id,
+        type: type as DocumentType,
+        documentUrl: uploadRes.url,
+        documentNumber,
+        documentNumberHash,
+        status: "PENDING",
+        metadata: {
+          originalName: file.name,
+          size: file.size,
+          mimeType: file.type,
+        },
+      },
+    });
+
+    await invalidateUserKYCCache(session.user.id);
+
+    return NextResponse.json({
+      success: true,
+      document,
+      message: "Document uploaded successfully. Verification pending.",
+    });
 } catch (error) {
 logger.error("Verification upload error", error);
 return NextResponse.json(

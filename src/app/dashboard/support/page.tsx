@@ -6,6 +6,8 @@ import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 import { createSupportSchema } from "@/lib/validations/campaign";
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 
 export default function SupportPage() {
 const { data: session } = useSession();
@@ -28,26 +30,16 @@ setUploadingScreenshot(true);
 setErrorMsg("");
 setStatusMsg("");
 
-const formData = new FormData();
-formData.append("file", file);
-formData.append("folder", "feedback");
-
 try {
-const res = await fetch("/api/upload", {
-method: "POST",
-body: formData,
-});
-const data = await res.json();
-if (!res.ok) {
-throw new Error(data.error || "Failed to upload screenshot.");
-}
-setScreenshotUrl(data.data.url);
+  const data = await apiClient.upload.file(file, "feedback");
+  setScreenshotUrl(data.data?.url || data.url || "");
 } catch (err: unknown) {
-setErrorMsg(err instanceof Error ? err.message : "Screenshot upload failed.");
+  setErrorMsg(err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Screenshot upload failed."));
 } finally {
-setUploadingScreenshot(false);
+  setUploadingScreenshot(false);
 }
 };
+
 
 const handleSubmit = async (e: React.FormEvent) => {
 e.preventDefault();
@@ -69,28 +61,31 @@ return;
 
 setLoading(true);
 try {
-const res = await fetch("/api/users/feedback", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ type, title, description, screenshotUrl }),
-});
-const data = await res.json();
-if (!res.ok) {
-throw new Error(data.error || "Failed to submit request.");
-}
-setStatusMsg(data.message);
-setTitle("");
-setDescription("");
-setScreenshotUrl("");
-if (data.data?.badgeAwarded) {
-setBadgeAwarded(data.data.badgeAwarded);
-}
+  const data = (await apiClient.users.submitFeedback({
+    type,
+    title,
+    description,
+    screenshotUrl: screenshotUrl || undefined,
+  })) as { message?: string; data?: { badgeAwarded?: string } };
+
+  setStatusMsg(data?.message || "Submitted successfully.");
+  setTitle("");
+  setDescription("");
+  setScreenshotUrl("");
+  if (data?.data?.badgeAwarded) {
+    setBadgeAwarded(data.data.badgeAwarded);
+  }
 } catch (err: unknown) {
-setErrorMsg(err instanceof Error ? err.message : "An error occurred.");
+  setErrorMsg(
+    err instanceof ApiClientError
+      ? err.message
+      : (err instanceof Error ? err.message : "An error occurred.")
+  );
 } finally {
-setLoading(false);
+  setLoading(false);
 }
 };
+
 
 return (
 <DashboardShell user={session?.user}>

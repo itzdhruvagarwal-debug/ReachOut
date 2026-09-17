@@ -10,6 +10,7 @@ import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { parseNotificationPreferences, notificationPreferencesSchema } from "@/lib/utils";
 import { isBrand, isInfluencer, hasPermission, hasAnyPermission, getPermissions } from "@/lib/rbac";
+import { invalidateCreatorSearchCache } from "@/lib/search";
 
 const updateProfileSchema = z.object({
   displayName: z.preprocess(
@@ -369,6 +370,11 @@ async function updateInfluencerProfile(userId: string, email: string, data: Upda
     },
     update: updateData,
   });
+
+  // Invalidate discovery cache so updated creator profile appears in search results
+  invalidateCreatorSearchCache().catch((err) => {
+    logger.warn("Failed to invalidate creator search cache after profile update", { err });
+  });
 }
 
 async function updateBrandProfile(userId: string, email: string, data: UpdateProfileInput) {
@@ -486,3 +492,5 @@ async function _handler_PUT(req: NextRequest) {
 // Wrapped handlers via apiWrapper
 export const GET = apiWrapper(_handler_GET);
 export const PUT = apiWrapper(_handler_PUT);
+export const PATCH = apiWrapper(_handler_PUT);
+

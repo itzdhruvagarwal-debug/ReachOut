@@ -13,6 +13,7 @@ import { hasPermission, isAdmin, isInfluencer, isBrand } from "@/lib/rbac";
 import prisma from "@/lib/db";
 import { PaymentService } from "@/services/payment.service";
 import { invalidateDealCache } from "@/services/deal/helpers";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 export const GET = apiWrapper(async (req) => {
 const session = await auth();
@@ -133,12 +134,15 @@ async function handleCompleteDeal(userId: string, userType: string, body: unknow
 
   // If deal is in POSTED, VERIFICATION_PENDING, or CONTENT_APPROVED, transition to VERIFIED so processDealCompletion can execute cleanly
   if (["POSTED", "VERIFICATION_PENDING", "CONTENT_APPROVED"].includes(deal.status)) {
-    await prisma.deal.update({
-      where: { id: dealId },
-      data: {
-        status: "VERIFIED",
-        verifiedAt: new Date(),
+    await transitionDealState({
+      dealId,
+      fromState: deal.status,
+      toState: "VERIFIED",
+      actor: {
+        userId,
+        role: isAdmin(userType) ? "ADMIN" : "BRAND",
       },
+      reason: "Deal marked verified for payout completion",
     });
   }
 

@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import {
+  type ApplicationItem as Application,
+  type ApplicationsResponse,
+  applicationsResponseSchema,
+} from "@/lib/schemas";
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
@@ -10,32 +15,7 @@ import { formatCurrency } from "@/lib/utils-client";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Skeleton, Spinner } from "@/components/ui";
 
-interface Application {
-id: string;
-status: string;
-proposedRate: number;
-finalRate?: number | null;
-dealId?: string | null;
-rejectionReason?: string | null;
-createdAt: string;
-campaign: {
-id: string;
-title: string;
-perInfluencerBudget: number;
-brand: {
-companyName: string;
-logo: string | null;
-} | null;
-};
-}
 
-interface ApplicationsResponse {
-success?: boolean;
-message?: string;
-data?: { applications?: Application[]; totalPages?: number };
-applications?: Application[];
-totalPages?: number;
-}
 
 function getStatusVariant(status: string): "success" | "danger" | "warning" {
   switch (status.toUpperCase()) {
@@ -136,9 +116,10 @@ const { data: session } = useSession();
 const [page, setPage] = useState(1);
 const limit = 10;
 
+const applicationsFetcher = createSchemaFetcher(applicationsResponseSchema);
 const { data: payload, isLoading: loading, error: fetchErr } = useSWR<ApplicationsResponse>(
 session?.user ? `/api/applications?page=${page}&limit=${limit}` : null,
-fetcher
+applicationsFetcher
 );
 
 const applications = payload?.data?.applications || payload?.applications || [];

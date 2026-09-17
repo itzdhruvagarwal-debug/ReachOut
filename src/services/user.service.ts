@@ -1,257 +1,134 @@
 import { AppError } from "@/lib/errors";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/db";
-import { WalletService } from "./wallet.service";
 import { logger } from "@/lib/logger";
+import { searchCreators, invalidateCreatorSearchCache } from "@/lib/search";
+
+type CreatorSortField = NonNullable<Parameters<typeof searchCreators>[0]["sortBy"]>;
 
 export interface ListInfluencersParams {
-category?: string;
-minFollowers?: number;
-city?: string;
-minEngagementRate?: number; // In basis points
-minRate?: number; // In paise
-maxRate?: number; // In paise
-platform?: string;
-page: number;
-limit: number;
-searchTerm?: string;
-brandUserId?: string;
-sortBy?: string;
+  category?: string | undefined;
+  minFollowers?: number | undefined;
+  city?: string | undefined;
+  minEngagementRate?: number | undefined; // In basis points
+  minRate?: number | undefined; // In paise
+  maxRate?: number | undefined; // In paise
+  platform?: string | undefined;
+  page: number;
+  limit: number;
+  searchTerm?: string | undefined;
+  brandUserId?: string | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: "asc" | "desc" | undefined;
+  cursor?: string | undefined;
 }
 
 export class UserService {
+  private static applyEngagementFilter(
+    where: Prisma.InfluencerProfileWhereInput,
+    platform?: string,
+    minEngagementRate?: number,
+  ) {
+    if (minEngagementRate === undefined) return;
+    if (platform === "instagram") {
+      where.instagramEngagementRate = { gte: minEngagementRate };
+    } else if (platform === "youtube") {
+      where.youtubeEngagementRate = { gte: minEngagementRate };
+    }
+  }
 
-private static applyEngagementFilter(
-where: Prisma.InfluencerProfileWhereInput,
-platform?: string,
-minEngagementRate?: number
-) {
-if (minEngagementRate === undefined) return;
-if (platform === "instagram") {
-where.instagramEngagementRate = { gte: minEngagementRate };
-} else if (platform === "youtube") {
-where.youtubeEngagementRate = { gte: minEngagementRate };
-} else {
-// No specific platform require either platform to meet threshold
-const existing = where.AND;
-let andConditions: Prisma.InfluencerProfileWhereInput[] = [];
-if (existing) {
-if (Array.isArray(existing)) {
-andConditions = [...existing];
-} else {
-andConditions = [existing as Prisma.InfluencerProfileWhereInput];
-}
-}
-andConditions.push({
-OR: [
-{ instagramEngagementRate: { gte: minEngagementRate } },
-{ youtubeEngagementRate: { gte: minEngagementRate } },
-],
-});
-where.AND = andConditions;
-}
-}
+  private static applyRateFilter(
+    where: Prisma.InfluencerProfileWhereInput,
+    minRate?: number,
+    maxRate?: number,
+  ) {
+    if (minRate !== undefined && maxRate !== undefined) {
+      where.OR = [
+        { minRate: { gte: minRate, lte: maxRate } },
+        { maxRate: { gte: minRate, lte: maxRate } },
+      ];
+    } else if (minRate !== undefined) {
+      where.minRate = { gte: minRate };
+    } else if (maxRate !== undefined) {
+      where.maxRate = { lte: maxRate };
+    }
+  }
 
-private static applyRateFilter(
-where: Prisma.InfluencerProfileWhereInput,
-minRate?: number,
-maxRate?: number
-) {
-if (minRate !== undefined || maxRate !== undefined) {
-const rateFilter: { gte?: number; lte?: number } = {};
-if (minRate !== undefined) rateFilter.gte = minRate;
-if (maxRate !== undefined) rateFilter.lte = maxRate;
-where.minRate = rateFilter;
-}
-}
+  private static applyBrandBudgetFilter(
+    where: Prisma.InfluencerProfileWhereInput,
+    brandBalance: number,
+  ) {
+    where.minRate = { lte: brandBalance };
+  }
 
-private static applyBrandBudgetFilter(
-where: Prisma.InfluencerProfileWhereInput,
-maxAllowedRate: number
-) {
-where.OR = where.OR || [];
-if (where.OR.length > 0) {
-// Existing OR conditions must be merged into AND to combine with rate filter
-const existing = where.AND;
-let andConditions: Prisma.InfluencerProfileWhereInput[] = [];
-if (existing) {
-if (Array.isArray(existing)) {
-andConditions = [...existing];
-} else {
-andConditions = [existing as Prisma.InfluencerProfileWhereInput];
-}
-}
-andConditions.push(
-{ OR: where.OR },
-{
-OR: [
-{ minRate: { lte: maxAllowedRate } },
-{ minRate: null },
-{ minRate: 0 },
-],
-}
-);
-where.AND = andConditions;
-delete where.OR;
-} else {
-where.OR = [
-{ minRate: { lte: maxAllowedRate } },
-{ minRate: null },
-{ minRate: 0 },
-];
-}
-}
+  private static applySocialHandlesFilter(where: Prisma.InfluencerProfileWhereInput) {
+    const hasSocialHandleCondition: Prisma.InfluencerProfileWhereInput = {
+      OR: [
+        { instagramHandle: { not: null, notIn: [""] } },
+        { youtubeHandle: { not: null, notIn: [""] } },
+      ],
+    };
+    const existing = where.AND;
+    let andConditions: Prisma.InfluencerProfileWhereInput[] = [];
+    if (existing) {
+      if (Array.isArray(existing)) {
+        andConditions = [...existing];
+      } else {
+        andConditions = [existing as Prisma.InfluencerProfileWhereInput];
+      }
+    }
+    andConditions.push(hasSocialHandleCondition);
+    where.AND = andConditions;
+  }
 
-private static applySocialHandlesFilter(where: Prisma.InfluencerProfileWhereInput) {
-const hasSocialHandleCondition = {
-OR: [
-{ AND: [{ instagramHandle: { not: null } }, { instagramHandle: { not: "" } }] },
-{ AND: [{ youtubeHandle: { not: null } }, { youtubeHandle: { not: "" } }] },
-]
-};
-const existing = where.AND;
-let andConditions: Prisma.InfluencerProfileWhereInput[] = [];
-if (existing) {
-if (Array.isArray(existing)) {
-andConditions = [...existing];
-} else {
-andConditions = [existing as Prisma.InfluencerProfileWhereInput];
-}
-}
-andConditions.push(hasSocialHandleCondition);
-where.AND = andConditions;
-}
+  static async listInfluencers(params: ListInfluencersParams) {
+    try {
+      // 0. Automatically clean up expired featured statuses
+      try {
+        await prisma.influencerProfile.updateMany({
+          where: {
+            isFeatured: true,
+            featuredUntil: { lt: new Date() },
+          },
+          data: {
+            isFeatured: false,
+          },
+        });
+      } catch (err) {
+        logger.warn("Failed to clean up expired featured creators in listInfluencers", { err });
+      }
 
-static async listInfluencers(params: ListInfluencersParams) {
-try {
-// 0. Automatically clean up expired featured statuses
-try {
-await prisma.influencerProfile.updateMany({
-where: {
-isFeatured: true,
-featuredUntil: { lt: new Date() },
-},
-data: {
-isFeatured: false,
-},
-});
-} catch (err) {
-logger.warn("Failed to clean up expired featured creators in listInfluencers", { err });
-}
+      const searchResult = await searchCreators({
+        searchTerm: params.searchTerm,
+        category: params.category,
+        city: params.city,
+        minFollowers: params.minFollowers,
+        minEngagementRate: params.minEngagementRate,
+        minRate: params.minRate,
+        maxRate: params.maxRate,
+        platform: params.platform,
+        brandUserId: params.brandUserId,
+        sortBy: (params.sortBy as CreatorSortField) || "relevance",
+        sortOrder: params.sortOrder,
+        cursor: params.cursor,
+        limit: params.limit,
+        page: params.page,
+      });
 
-const where: Prisma.InfluencerProfileWhereInput = {};
+      return {
+        influencers: searchResult.items,
+        nextCursor: searchResult.nextCursor,
+        hasMore: searchResult.hasMore,
+        total: searchResult.items.length,
+        durationMs: searchResult.durationMs,
+      };
+    } catch (error) {
+      logger.error("Error listing influencers", error, { params });
+      throw AppError.badRequest("Failed to list influencers");
+    }
+  }
 
-if (params.category) {
-where.categories = { contains: params.category, mode: "insensitive" };
-}
-
-if (params.city) {
-where.city = { contains: params.city, mode: "insensitive" };
-}
-
-if (params.minFollowers) {
-where.instagramFollowers = { gte: params.minFollowers };
-}
-
-this.applyEngagementFilter(where, params.platform, params.minEngagementRate);
-this.applyRateFilter(where, params.minRate, params.maxRate);
-
-if (params.platform) {
-if (params.platform === "instagram") {
-where.instagramHandle = { not: null, notIn: [""] };
-} else if (params.platform === "youtube") {
-where.youtubeHandle = { not: null, notIn: [""] };
-}
-}
-
-if (params.searchTerm) {
-where.OR = [
-{ displayName: { contains: params.searchTerm, mode: "insensitive" } },
-{ bio: { contains: params.searchTerm, mode: "insensitive" } },
-{ instagramHandle: { contains: params.searchTerm, mode: "insensitive" } },
-{ youtubeHandle: { contains: params.searchTerm, mode: "insensitive" } },
-];
-}
-
-if (params.brandUserId) {
-const brandWallet = await WalletService.getWalletBasic(params.brandUserId);
-if (brandWallet) {
-this.applyBrandBudgetFilter(where, brandWallet.balance);
-}
-}
-
-this.applySocialHandlesFilter(where);
-
-logger.info("Listing influencers", { params });
-
-const queryArgs: Prisma.InfluencerProfileFindManyArgs = {
-where,
-select: {
-id: true,
-userId: true,
-displayName: true,
-bio: true,
-avatar: true,
-city: true,
-state: true,
-instagramHandle: true,
-instagramFollowers: true,
-instagramEngagementRate: true,
-youtubeHandle: true,
-youtubeSubscribers: true,
-youtubeEngagementRate: true,
-categories: true,
-languages: true,
-minRate: true,
-maxRate: true,
-minInstagramRate: true,
-maxInstagramRate: true,
-minYoutubeRate: true,
-maxYoutubeRate: true,
-followerAuthenticityScore: true,
-contentQualityScore: true,
-isFeatured: true,
-featuredUntil: true,
-totalDeals: true,
-completedDeals: true,
-averageRating: true,
-totalReviews: true,
-createdAt: true,
-updatedAt: true,
-user: {
-select: {
-trustScore: true,
-level: true,
-xp: true,
-badges: {
-select: {
-badge: true,
-},
-},
-},
-},
-},
-skip: (params.page - 1) * params.limit,
-take: params.limit,
-};
-
-if (params.sortBy !== "relevance") {
-queryArgs.orderBy = [
-{ isFeatured: "desc" as const },
-{ user: { xp: "desc" as const } },
-{ totalDeals: "desc" as const },
-];
-}
-
-const [influencers, total] = await Promise.all([
-prisma.influencerProfile.findMany(queryArgs),
-prisma.influencerProfile.count({ where }),
-]);
-
-return { influencers, total };
-} catch (error) {
-logger.error("Error listing influencers", error, { params });
-throw AppError.badRequest("Failed to list influencers");
-}
-}
+  static async invalidateSearchCache() {
+    await invalidateCreatorSearchCache();
+  }
 }

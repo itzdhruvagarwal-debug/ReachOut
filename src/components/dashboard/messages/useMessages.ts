@@ -1,22 +1,31 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { fetcher } from "@/lib/fetcher";
 import { logger } from "@/lib/logger-client";
-import { checkMessageForContacts } from "@/lib/contact-filter";
-import { ToastItem, ToastType } from "@/components/ui/toast";
+import { detectContactLeak, ContactLeakResult } from "@/lib/contact-leak-detector";
 import {
-Message,
-Conversation,
-RawConversation,
-RawMessage,
-normalizeConversation,
-sendMessageSchema,
-reportUserSchema,
+  subscribeToIncomingMessages,
+  subscribeToTypingPresence,
+} from "@/lib/supabase-messaging-realtime";
+import { ToastItem, ToastType } from "@/components/ui/toast";
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
+import {
+  Message,
+  Conversation,
+  RawConversation,
+  RawMessage,
+  normalizeConversation,
+  sendMessageSchema,
+  reportUserSchema,
 } from "./MessagesHelpers";
+import { DealContextData } from "./DealContextMiniCard";
+import { type SingleDealResponse as DealPartnerDetailResponse } from "@/lib/schemas";
+
 
 export function useMessages() {
   const { data: session, status } = useSession();
@@ -24,16 +33,25 @@ export function useMessages() {
   const dealIdParam = searchParams?.get("deal");
   const withParam = searchParams?.get("with");
   const processedDealRef = useRef<string | null>(null);
+
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(withParam || null);
   const [currentDealId, setCurrentDealId] = useState<string | null>(dealIdParam || null);
+  const [dealDetails, setDealDetails] = useState<DealContextData | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isPeerTyping, setIsPeerTyping] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollPositionsRef = useRef<Record<string, number>>({});
+
   const typingRefreshRef = useRef<number>(0);
   const typingStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const broadcastTypingRef = useRef<((isTyping: boolean) => void) | null>(null);
+
   const [isChatUserBlocked, setIsChatUserBlocked] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -51,10 +69,15 @@ export function useMessages() {
     setTimeout(() => removeToast(toastId), 5000);
   };
 
-  const { data: messagesData, isLoading: loadingConversations } = useSWR<RawConversation[] | { conversations?: RawConversation[] }>(
-    session ? "/api/messages" : null,
-    fetcher
-  );
+  // Live Contact Leak Detection while typing
+  const contactLeakResult: ContactLeakResult = useMemo(() => {
+    return detectContactLeak(newMessage);
+  }, [newMessage]);
+
+  // Load conversations
+  const { data: messagesData, isLoading: loadingConversations } = useSWR<
+    RawConversation[] | { conversations?: RawConversation[] }
+  >(session ? "/api/messages" : null, fetcher);
 
   useEffect(() => {
     if (!messagesData) return;
@@ -68,7 +91,6 @@ export function useMessages() {
       for (const c of convs) {
         mergedMap.set(c.userId, c);
       }
-      // Preserve any local stubs (e.g. newly initiated chats) not yet returned by API
       for (const p of prev) {
         if (!mergedMap.has(p.userId)) {
           mergedMap.set(p.userId, p);
@@ -84,24 +106,27 @@ export function useMessages() {
     });
   }, [messagesData, withParam]);
 
-  const addConversationStub = useCallback((partner: { userId: string; name: string; avatar?: string; userType: string }) => {
-    setConversations((prev) => {
-      const exists = prev.some((c) => c.userId === partner.userId);
-      if (exists) return prev;
+  const addConversationStub = useCallback(
+    (partner: { userId: string; name: string; avatar?: string; userType: string }) => {
+      setConversations((prev) => {
+        const exists = prev.some((c) => c.userId === partner.userId);
+        if (exists) return prev;
 
-      const stubConv: Conversation = {
-        id: partner.userId,
-        userId: partner.userId,
-        name: partner.name,
-        avatar: partner.avatar || null,
-        userType: partner.userType,
-        lastMessage: "",
-        lastMessageTime: "",
-        unread: 0,
-      };
-      return [stubConv, ...prev];
-    });
-  }, []);
+        const stubConv: Conversation = {
+          id: partner.userId,
+          userId: partner.userId,
+          name: partner.name,
+          avatar: partner.avatar || null,
+          userType: partner.userType,
+          lastMessage: "",
+          lastMessageTime: "",
+          unread: 0,
+        };
+        return [stubConv, ...prev];
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     if (withParam && withParam !== selectedConversation) {
@@ -115,6 +140,34 @@ export function useMessages() {
     }
   }, [dealIdParam]);
 
+  // Fetch deal details when currentDealId is present
+  useEffect(() => {
+    if (!currentDealId || !session) {
+      setDealDetails(null);
+      return;
+    }
+
+    apiClient.deals
+      .getById<DealPartnerDetailResponse>(currentDealId)
+      .then((data) => {
+        if (data?.deal) {
+          setDealDetails({
+            id: data.deal.id,
+            title: data.deal.campaign?.title || "Campaign Deal",
+            amountInPaise: data.deal.totalAmount || data.deal.amount || 0,
+            status: data.deal.status,
+            submissionDeadline: data.deal.submissionDeadline || null,
+            brandName: data.deal.brand?.companyName || null,
+            creatorName: data.deal.influencer?.displayName || null,
+          });
+        }
+      })
+      .catch((err) => {
+        logger.error("[messages] Error loading deal details:", err);
+      });
+  }, [currentDealId, session]);
+
+  // Load deal partner from URL deal param if needed
   useEffect(() => {
     if (!dealIdParam || !session || loadingConversations) return;
     if (processedDealRef.current === dealIdParam) return;
@@ -124,14 +177,12 @@ export function useMessages() {
 
     processedDealRef.current = dealIdParam;
 
-    fetch(`/api/deals/${encodeURIComponent(dealIdParam)}`)
-      .then(async (res) => {
-        if (!res.ok) throw new Error("Failed to fetch deal details");
-        return res.json();
-      })
+    apiClient.deals
+      .getById<DealPartnerDetailResponse>(dealIdParam)
       .then((data) => {
-        const deal = data.deal;
+        const deal = data?.deal;
         if (!deal) return;
+
 
         const isInfluencer = deal.influencer?.userId === currentUserId;
         const partner = isInfluencer
@@ -148,10 +199,16 @@ export function useMessages() {
               userType: "INFLUENCER",
             };
 
-        if (!partner.userId) return;
+        const partnerUserId = partner.userId;
+        if (!partnerUserId) return;
 
-        setSelectedConversation(partner.userId);
-        addConversationStub(partner);
+        setSelectedConversation(partnerUserId);
+        addConversationStub({
+          userId: partnerUserId,
+          name: partner.name,
+          ...(partner.avatar ? { avatar: partner.avatar } : {}),
+          userType: partner.userType,
+        });
       })
       .catch((err) => {
         if (err?.name !== "AbortError") {
@@ -160,156 +217,280 @@ export function useMessages() {
       });
   }, [dealIdParam, session, loadingConversations, addConversationStub]);
 
-const fetchMessages = useCallback(
-async (showLoading = false) => {
-if (!selectedConversation || !session) return;
+  // Fetch messages for selected conversation
+  const fetchMessages = useCallback(
+    async (showLoading = false) => {
+      if (!selectedConversation || !session) return;
 
-if (showLoading) setLoadingMessages(true);
-try {
-const response = await fetch(`/api/messages?with=${encodeURIComponent(selectedConversation)}`, {
-cache: "no-store",
-});
-const data = await response.json();
-if (!response.ok) {
-throw new Error(data?.error || "Failed to load messages");
-}
+      if (showLoading) setLoadingMessages(true);
+      try {
+        const data = (await apiClient.messages.list({
+          with: selectedConversation,
+        })) as {
+          messages?: RawMessage[];
+          dealId?: string | null;
+          presence?: { isTyping?: boolean };
+          hasActiveDeal?: boolean;
+        };
 
-try {
-const blockRes = await fetch(`/api/users/block?checkUserId=${encodeURIComponent(selectedConversation)}`);
-if (blockRes.ok) {
-const blockData = await blockRes.json();
-setIsChatUserBlocked(blockData.data?.isBlocked || false);
-}
-} catch (blockErr) {
-logger.error("[messages] Failed to fetch block status:", blockErr);
-}
+        try {
+          const blockData = await apiClient.users.checkBlock(selectedConversation);
+          setIsChatUserBlocked(blockData?.data?.isBlocked || false);
+        } catch (blockErr) {
+          logger.error("[messages] Failed to fetch block status:", blockErr);
+        }
 
-    const mappedMessages = (data.messages || []).map((m: RawMessage) => ({
-      id: m.id,
-      senderId: m.senderId,
-      content: m.content,
-      createdAt: new Date(m.createdAt).toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      rawCreatedAt: m.createdAt,
-      isMe: m.senderId === session?.user?.id,
-      isBlocked: m.isBlocked,
-      hasWarning: m.hasWarning,
-      isRead: Boolean(m.isRead),
-      readAt: m.readAt || null,
-      messageType: m.messageType || "TEXT",
-      fileUrl: m.fileUrl || null,
-      metadata: m.metadata || null,
-    }));
-      setMessages(mappedMessages);
-      setIsPeerTyping(Boolean(data.presence?.isTyping));
-      setHasActiveDeal(data.hasActiveDeal ?? true);
-      if (data.dealId) {
-        setCurrentDealId(data.dealId);
+        const mappedMessages: Message[] = (data.messages || []).map((m: RawMessage) => ({
+          id: m.id,
+          senderId: m.senderId,
+          content: m.content,
+          createdAt: new Date(m.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          rawCreatedAt: m.createdAt,
+          isMe: m.senderId === session?.user?.id,
+          isBlocked: Boolean(m.isBlocked),
+          hasWarning: Boolean(m.hasWarning),
+          isRead: Boolean(m.isRead),
+          readAt: m.readAt || null,
+          messageType: m.messageType || "TEXT",
+          fileUrl: m.fileUrl || null,
+          dealId: data.dealId || null,
+          status: "sent",
+          metadata: m.metadata || null,
+        }));
+
+
+        setMessages(mappedMessages);
+        setIsPeerTyping(Boolean(data.presence?.isTyping));
+        setHasActiveDeal(data.hasActiveDeal ?? true);
+        if (data.dealId && !currentDealId) {
+          setCurrentDealId(data.dealId);
+        }
+      } catch (err) {
+        logger.error("[messages] Failed to fetch messages:", err);
+        setIsPeerTyping(false);
+      } finally {
+        if (showLoading) setLoadingMessages(false);
       }
+    },
+    [selectedConversation, session, currentDealId]
+  );
+
+  // 1. Initial message load & Fast Fallback Polling (2.5s for fast delivery)
+  useEffect(() => {
+    if (!selectedConversation || !session) return;
+
+    fetchMessages(true);
+    const interval = globalThis.setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchMessages(false);
+      }
+    }, 2500);
+
+    return () => globalThis.clearInterval(interval);
+  }, [fetchMessages, selectedConversation, session]);
+
+  // 2. Real-time Incoming Message Subscription (Supabase Realtime)
+  useEffect(() => {
+    const currentUserId = session?.user?.id;
+    if (!currentUserId) return;
+
+    const unsubscribe = subscribeToIncomingMessages(currentUserId, (incomingMsg) => {
+      // If the incoming message belongs to our currently open conversation
+      if (
+        incomingMsg.senderId === selectedConversation ||
+        incomingMsg.receiverId === selectedConversation
+      ) {
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === incomingMsg.id)) {
+            return prev;
+          }
+          const formattedMsg: Message = {
+            id: incomingMsg.id,
+            senderId: incomingMsg.senderId,
+            content: incomingMsg.content,
+            createdAt: new Date(incomingMsg.createdAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            rawCreatedAt: incomingMsg.createdAt,
+            isMe: incomingMsg.senderId === currentUserId,
+            messageType: (incomingMsg.messageType as Message["messageType"]) || "TEXT",
+            fileUrl: incomingMsg.fileUrl || null,
+            dealId: incomingMsg.dealId || null,
+            status: "sent",
+            metadata: (incomingMsg.metadata as Message["metadata"]) || null,
+          };
+          return [...prev, formattedMsg];
+        });
+      }
+
+      // Also refresh conversation previews
+      fetchMessages(false);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [session, selectedConversation, fetchMessages]);
+
+  // 3. Real-time Typing Presence Subscription
+  useEffect(() => {
+    const currentUserId = session?.user?.id;
+    if (!currentUserId || !selectedConversation) return;
+
+    const convKey = [currentUserId, selectedConversation].sort().join("-");
+    const { broadcastTyping, unsubscribe } = subscribeToTypingPresence(convKey, (isTyping) => {
+      setIsPeerTyping(isTyping);
+    });
+
+    broadcastTypingRef.current = broadcastTyping;
+
+    return () => {
+      unsubscribe();
+      broadcastTypingRef.current = null;
+    };
+  }, [session, selectedConversation]);
+
+  // Save and Restore Scroll Positions
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container || !selectedConversation) return;
+
+    // Restore scroll position
+    const savedPos = scrollPositionsRef.current[selectedConversation];
+    if (typeof savedPos === "number") {
+      container.scrollTop = savedPos;
+    } else {
+      container.scrollTop = container.scrollHeight;
+    }
+
+    const handleScroll = () => {
+      if (selectedConversation) {
+        scrollPositionsRef.current[selectedConversation] = container.scrollTop;
+      }
+    };
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [selectedConversation]);
+
+  // Scroll to bottom when new messages arrive
+  const lastMessageId = messages.at(-1)?.id ?? "";
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [lastMessageId]);
+
+  // Typing emitter
+  const publishTyping = useCallback(
+    async (isTyping: boolean) => {
+      if (!selectedConversation) return;
+
+      // 1. Broadcast via Supabase Realtime channel
+      if (broadcastTypingRef.current) {
+        broadcastTypingRef.current(isTyping);
+      }
+
+      // 2. Also send lightweight backend PATCH
+      try {
+        await apiClient.messages.setTyping({
+          with: selectedConversation,
+          isTyping,
+        });
+      } catch {
+        // Best-effort typing indicator
+      }
+    },
+    [selectedConversation]
+  );
+
+
+  const handleInputChange = (value: string) => {
+    setNewMessage(value);
+    if (!selectedConversation) return;
+
+    const now = Date.now();
+    if (value.trim() && now - typingRefreshRef.current > 2000) {
+      typingRefreshRef.current = now;
+      publishTyping(true);
+    }
+
+    if (typingStopTimerRef.current) {
+      clearTimeout(typingStopTimerRef.current);
+    }
+    typingStopTimerRef.current = setTimeout(() => {
+      publishTyping(false);
+    }, 2500);
+  };
+
+  // Optimistic Message Send & Failure Retry
+  const executeSendMessage = async (tempId: string, content: string) => {
+    try {
+      const payload = (await apiClient.messages.send({
+        receiverId: selectedConversation || undefined,
+        content,
+        ...(currentDealId ? { dealId: currentDealId } : {}),
+      })) as { success?: boolean; message?: RawMessage; error?: string };
+
+      if (!payload?.success) {
+        throw new Error(payload?.error || "Failed to send message");
+      }
+
+
+      if (payload?.message) {
+        const sentMsg = payload.message;
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === tempId
+              ? {
+                  ...msg,
+                  id: sentMsg.id || msg.id,
+                  createdAt: sentMsg.createdAt
+                    ? new Date(sentMsg.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : msg.createdAt,
+                  rawCreatedAt: sentMsg.createdAt || msg.rawCreatedAt,
+                  status: "sent",
+                  isBlocked: Boolean(sentMsg.isBlocked),
+                  hasWarning: Boolean(sentMsg.hasWarning),
+                  isRead: Boolean(sentMsg.isRead),
+                  readAt: sentMsg.readAt || null,
+                }
+              : msg
+          )
+        );
+      }
+
+      fetchMessages(false);
     } catch (err) {
-logger.error("[messages] Failed to fetch messages:", err);
-setMessages([]);
-setIsPeerTyping(false);
-} finally {
-if (showLoading) setLoadingMessages(false);
-}
-},
-[selectedConversation, session]
-);
+      logger.error("[messages] Failed to send message:", err);
+      // Keep the message bubble in failed state with retry button
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? { ...msg, status: "failed" } : msg))
+      );
+      showToast("error", err instanceof Error ? err.message : "Message send failed. Tap to retry.");
+    }
+  };
 
-useEffect(() => {
-if (!selectedConversation || !session) return;
+  const handleSend = async () => {
+    if (!selectedConversation) return;
 
-fetchMessages(true);
-const interval = globalThis.setInterval(() => {
-fetchMessages(false);
-}, 10000);
+    const validation = sendMessageSchema.safeParse({ content: newMessage });
+    if (!validation.success) {
+      showToast("error", validation.error.issues[0]?.message || "Message cannot be empty");
+      return;
+    }
 
-return () => globalThis.clearInterval(interval);
-}, [fetchMessages, selectedConversation, session]);
+    const trimmedMessage = validation.data.content.trim();
+    const tempId = `temp-${Date.now()}`;
 
-useEffect(() => {
-setIsChatUserBlocked(false);
-setReportReason("");
-setReportDescription("");
-}, [selectedConversation]);
-
-const lastMessageId = messages.at(-1)?.id ?? "";
-useEffect(() => {
-  messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-}, [lastMessageId]);
-
-const publishTyping = useCallback(
-async (isTyping: boolean) => {
-if (!selectedConversation) return;
-
-try {
-await fetch("/api/messages", {
-method: "PATCH",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
-with: selectedConversation,
-isTyping,
-}),
-});
-} catch {
-// Typing presence is best-effort; messages still work without Redis.
-}
-},
-[selectedConversation]
-);
-
-const handleInputChange = (value: string) => {
-setNewMessage(value);
-if (!selectedConversation) return;
-
-const now = Date.now();
-if (value.trim() && now - typingRefreshRef.current > 3000) {
-typingRefreshRef.current = now;
-publishTyping(true);
-}
-
-if (typingStopTimerRef.current) {
-clearTimeout(typingStopTimerRef.current);
-}
-typingStopTimerRef.current = setTimeout(() => {
-publishTyping(false);
-}, 2500);
-};
-
-useEffect(() => {
-setIsPeerTyping(false);
-typingRefreshRef.current = 0;
-
-return () => {
-if (typingStopTimerRef.current) {
-clearTimeout(typingStopTimerRef.current);
-}
-publishTyping(false);
-};
-}, [publishTyping, selectedConversation]);
-
-const handleSend = async () => {
-if (!selectedConversation) return;
-
-const validation = sendMessageSchema.safeParse({ content: newMessage });
-if (!validation.success) {
-showToast("error", validation.error.issues[0]?.message || "Message cannot be empty");
-return;
-}
-
-const trimmedMessage = validation.data.content.trim();
-
-const filterResult = checkMessageForContacts(trimmedMessage);
-if (filterResult.hasContactInfo) {
-showToast("error", "Warning: Contact details detected. You cannot share emails, phone numbers, links, or social handles before a contract is finalized.");
-return;
-}
-
-const tempId = `temp-${Date.now()}`;
-
+    // Optimistic UI push
     setMessages((prev) => [
       ...prev,
       {
@@ -322,59 +503,70 @@ const tempId = `temp-${Date.now()}`;
         }),
         rawCreatedAt: new Date().toISOString(),
         isMe: true,
+        status: "sending",
       },
     ]);
 
-    const messageCopy = trimmedMessage;
     setNewMessage("");
     publishTyping(false);
 
-    try {
-      const response = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          receiverId: selectedConversation,
-          content: messageCopy,
-          ...(currentDealId ? { dealId: currentDealId } : {}),
-        }),
+    await executeSendMessage(tempId, trimmedMessage);
+  };
+
+  const handleRetryMessage = async (failedId: string) => {
+    const targetMsg = messages.find((m) => m.id === failedId);
+    if (!targetMsg) return;
+
+    // Reset status to sending
+    setMessages((prev) =>
+      prev.map((m) => (m.id === failedId ? { ...m, status: "sending" } : m))
+    );
+
+    await executeSendMessage(failedId, targetMsg.content);
+  };
+
+  // Upload file with progress tracking
+  const uploadFileWithProgress = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("folder", "chat");
+
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          setUploadProgress(percent);
+        }
       });
 
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || payload?.message || "Failed to send message");
-      }
+      xhr.addEventListener("load", () => {
+        setUploadProgress(null);
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            const fileUrl = data?.data?.url || data?.url;
+            if (fileUrl) {
+              resolve(fileUrl);
+            } else {
+              reject(new Error(data?.message || "File upload URL missing"));
+            }
+          } catch {
+            reject(new Error("Invalid response format from upload"));
+          }
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      });
 
-      if (payload?.message) {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === tempId
-              ? {
-                  ...msg,
-                  id: payload.message.id || msg.id,
-                  createdAt: payload.message.createdAt
-                    ? new Date(payload.message.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    : msg.createdAt,
-                  rawCreatedAt: payload.message.createdAt || msg.rawCreatedAt,
-                  isBlocked: Boolean(payload.message.isBlocked),
-                  hasWarning: Boolean(payload.message.hasWarning),
-                  isRead: Boolean(payload.message.isRead),
-                  readAt: payload.message.readAt || null,
-                }
-              : msg
-          )
-        );
-      }
-      fetchMessages(false);
-    } catch (err) {
-      logger.error("[messages] Failed to send message:", err);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setNewMessage(messageCopy);
-      showToast("error", err instanceof Error ? err.message : "Message send failed. Please try again.");
-    }
+      xhr.addEventListener("error", () => {
+        setUploadProgress(null);
+        reject(new Error("Network error during file upload"));
+      });
+
+      xhr.open("POST", "/api/upload");
+      xhr.send(formData);
+    });
   };
 
   const handleSendFile = async (fileUrl: string, fileName: string, fileType: string) => {
@@ -397,40 +589,42 @@ const tempId = `temp-${Date.now()}`;
         isMe: true,
         messageType: "FILE",
         fileUrl,
+        status: "sending",
         metadata: { fileName, fileType },
       },
     ]);
 
     try {
-      const response = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          receiverId: selectedConversation,
-          content: displayContent,
-          messageType: "FILE",
-          fileUrl,
-          metadata: { fileName, fileType },
-          ...(currentDealId ? { dealId: currentDealId } : {}),
-        }),
-      });
+      const payload = (await apiClient.messages.send({
+        receiverId: selectedConversation,
+        content: displayContent,
+        messageType: "FILE",
+        fileUrl,
+        metadata: { fileName, fileType },
+        ...(currentDealId ? { dealId: currentDealId } : {}),
+      })) as { success?: boolean; error?: string; message?: unknown };
 
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || payload?.message || "Failed to send file");
+      if (!payload?.success) {
+        throw new Error(payload?.error || "Failed to send file");
       }
 
+
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? { ...msg, status: "sent" } : msg))
+      );
       fetchMessages(false);
     } catch (err) {
       logger.error("[messages] Failed to send file message:", err);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? { ...msg, status: "failed" } : msg))
+      );
       showToast("error", "File sharing failed. Please try again.");
     }
   };
 
   const handleSendOffer = async (offerDetails: {
     title: string;
-    amount: number; // in paise
+    amount: number;
     description: string;
     deliverables: string;
     contentDeadline: string;
@@ -439,7 +633,9 @@ const tempId = `temp-${Date.now()}`;
     if (!selectedConversation) return;
 
     const tempId = `temp-${Date.now()}`;
-    const displayContent = `Custom Offer: ${offerDetails.title} (₹${(offerDetails.amount / 100).toLocaleString()})`;
+    const displayContent = `Custom Offer: ${offerDetails.title} (₹${(
+      offerDetails.amount / 100
+    ).toLocaleString("en-IN")})`;
 
     setMessages((prev) => [
       ...prev,
@@ -453,50 +649,49 @@ const tempId = `temp-${Date.now()}`;
         }),
         isMe: true,
         messageType: "OFFER",
+        status: "sending",
         metadata: { ...offerDetails, status: "PENDING" },
       },
     ]);
 
     try {
-      const response = await fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          receiverId: selectedConversation,
-          content: displayContent,
-          messageType: "OFFER",
-          metadata: { ...offerDetails, status: "PENDING" },
-          ...(currentDealId ? { dealId: currentDealId } : {}),
-        }),
-      });
+      const payload = (await apiClient.messages.send({
+        receiverId: selectedConversation,
+        content: displayContent,
+        messageType: "OFFER",
+        metadata: { ...offerDetails, status: "PENDING" },
+        ...(currentDealId ? { dealId: currentDealId } : {}),
+      })) as { success?: boolean; error?: string; message?: unknown };
 
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || payload?.message || "Failed to send offer");
+      if (!payload?.success) {
+        throw new Error(payload?.error || "Failed to send offer");
       }
 
+
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? { ...msg, status: "sent" } : msg))
+      );
       fetchMessages(false);
     } catch (err) {
       logger.error("[messages] Failed to send offer message:", err);
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setMessages((prev) =>
+        prev.map((msg) => (msg.id === tempId ? { ...msg, status: "failed" } : msg))
+      );
       showToast("error", "Offer creation failed. Please try again.");
     }
   };
 
-  const handleUpdateOfferStatus = async (messageId: string, status: "ACCEPTED" | "DECLINED") => {
+  const handleUpdateOfferStatus = async (messageId: string, offerStatus: "ACCEPTED" | "DECLINED") => {
     try {
-      const response = await fetch(`/api/messages/${encodeURIComponent(messageId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      });
+      const payload = (await apiClient.messages.update(messageId, {
+        status: offerStatus,
+      })) as { success?: boolean; error?: string; message?: string };
 
-      const payload = await response.json();
-      if (!response.ok || !payload?.success) {
+      if (!payload?.success) {
         throw new Error(payload?.error || payload?.message || "Failed to update offer");
       }
 
-      if (status === "ACCEPTED") {
+      if (offerStatus === "ACCEPTED") {
         showToast("success", "Offer accepted! Escrow funds secured and Deal is active.");
       } else {
         showToast("info", "Offer declined.");
@@ -504,10 +699,12 @@ const tempId = `temp-${Date.now()}`;
       fetchMessages(false);
     } catch (err) {
       logger.error("[messages] Failed to update offer:", err);
-      const errorMsg = err instanceof Error ? err.message : "Failed to update offer status. Please try again.";
+      const errorMsg =
+        err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Failed to update offer status. Please try again.");
       showToast("error", errorMsg);
     }
   };
+
 
   const handleBlockUser = async () => {
     if (!selectedConversation) return;
@@ -517,58 +714,26 @@ const tempId = `temp-${Date.now()}`;
     if (!confirmBlock) return;
 
     try {
-      const res = await fetch("/api/users/block", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blockedUserId: selectedConversation,
-          action: "block",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to block user");
-      }
-
-      showToast("success", "User blocked successfully");
+      await apiClient.users.blockUser({ blockedUserId: selectedConversation, action: "block" });
       setIsChatUserBlocked(true);
-      setConversations((prev) => prev.filter((c) => c.userId !== selectedConversation));
-      setSelectedConversation(null);
+      showToast("success", "User blocked.");
     } catch (err) {
-      logger.error("[messages] Block error:", err);
-      showToast("error", err instanceof Error ? err.message : "Failed to block user");
+      showToast("error", err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Failed to block user."));
     }
   };
 
   const handleUnblockUser = async () => {
     if (!selectedConversation) return;
-
     try {
-      const res = await fetch("/api/users/block", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          blockedUserId: selectedConversation,
-          action: "unblock",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to unblock user");
-      }
-
-      showToast("success", "User unblocked successfully");
+      await apiClient.users.blockUser({ blockedUserId: selectedConversation, action: "unblock" });
       setIsChatUserBlocked(false);
-      fetchMessages(true);
+      showToast("success", "User unblocked.");
     } catch (err) {
-      logger.error("[messages] Unblock error:", err);
-      showToast("error", err instanceof Error ? err.message : "Failed to unblock user");
+      showToast("error", err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Failed to unblock user."));
     }
   };
 
-  const handleReportUserSubmit = async (e: React.FormEvent) => {
+  const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedConversation) return;
 
@@ -576,56 +741,62 @@ const tempId = `temp-${Date.now()}`;
       reason: reportReason,
       description: reportDescription,
     });
-
     if (!validation.success) {
-      showToast("error", validation.error.issues[0]?.message || "Invalid report details");
+      showToast("error", validation.error.issues[0]?.message || "Invalid report input");
       return;
     }
 
     setSubmittingReport(true);
     try {
-      const res = await fetch("/api/users/report", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportedUserId: selectedConversation,
-          reason: reportReason,
-          description: reportDescription,
-        }),
+      await apiClient.users.reportUser({
+        reportedUserId: selectedConversation,
+        reason: reportReason,
+        description: reportDescription,
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to submit report");
-      }
-
-      showToast("success", "User reported successfully. Our team will review this report.");
+      showToast("success", "Report submitted. Our moderation team will investigate.");
       setIsReportModalOpen(false);
       setReportReason("");
       setReportDescription("");
     } catch (err) {
-      logger.error("[messages] Report error:", err);
-      showToast("error", err instanceof Error ? err.message : "Failed to report user");
+      showToast("error", err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Failed to submit report."));
     } finally {
       setSubmittingReport(false);
     }
   };
 
-  const selectedChat = conversations.find((c) => c.userId === selectedConversation);
+
+  const selectedChat = useMemo(() => {
+    return conversations.find((c) => c.userId === selectedConversation) || null;
+  }, [conversations, selectedConversation]);
 
   return {
-    session,
     status,
+    session,
     conversations,
     selectedConversation,
     setSelectedConversation,
+    currentDealId,
+    dealDetails,
     messages,
     newMessage,
-    setNewMessage,
+    handleInputChange,
+    publishTyping,
+    handleSend,
+    handleRetryMessage,
+    uploadProgress,
+    uploadFileWithProgress,
+    handleSendFile,
+    handleSendOffer,
+    handleUpdateOfferStatus,
+    handleBlockUser,
+    handleUnblockUser,
+    handleReportSubmit,
+    handleReportUserSubmit: handleReportSubmit,
     isPeerTyping,
-    loadingConversations,
     loadingMessages,
+    loadingConversations,
     messagesEndRef,
+    scrollContainerRef,
     isChatUserBlocked,
     isReportModalOpen,
     setIsReportModalOpen,
@@ -634,19 +805,11 @@ const tempId = `temp-${Date.now()}`;
     reportDescription,
     setReportDescription,
     submittingReport,
+    hasActiveDeal,
+    selectedChat,
+    contactLeakResult,
     toasts,
     removeToast,
-    handleInputChange,
-    handleSend,
-    handleSendFile,
-    handleSendOffer,
-    handleUpdateOfferStatus,
-    handleBlockUser,
-    handleUnblockUser,
-    handleReportUserSubmit,
-    selectedChat,
     showToast,
-    publishTyping,
-    hasActiveDeal,
   };
 }

@@ -227,88 +227,116 @@ conditions.push(budgetCond);
 conditions.push({ isDirectInvite: false });
 return conditions;
 }
+import { searchCampaigns } from "@/lib/search";
+
 export async function listCampaigns(
-userId: string | undefined,
-userType: string | undefined,
-params: ListCampaignsParams,
+  userId: string | undefined,
+  userType: string | undefined,
+  params: ListCampaignsParams,
 ) {
-try {
-const page = Math.max(1, params.page || 1);
-const limit = Math.min(50, Math.max(1, params.limit || 10));
+  try {
+    const page = Math.max(1, params.page || 1);
+    const limit = Math.min(50, Math.max(1, params.limit || 10));
 
-const validSortFields = [
-"createdAt",
-"totalBudget",
-"perInfluencerBudget",
-"applicationDeadline",
-] as const;
-const sortBy = validSortFields.includes(
-(params.sortBy || "") as (typeof validSortFields)[number],
-)
-? (params.sortBy as (typeof validSortFields)[number])
-: "createdAt";
-const sortOrder = params.sortOrder === "asc" ? "asc" : "desc";
+    // If a search query or cursor pagination is requested, route through the enterprise search engine
+    if (params.search || params.cursor) {
+      const searchResult = await searchCampaigns({
+        search: params.search,
+        status: params.status,
+        category: params.category,
+        city: params.city,
+        minBudget: params.minBudget,
+        maxBudget: params.maxBudget,
+        sortBy: params.sortBy,
+        sortOrder: params.sortOrder || "desc",
+        limit,
+        cursor: params.cursor,
+      });
 
-const statusFilter = resolveStatusFilter(params, userId, userType);
+      const totalCount = searchResult.total ?? searchResult.items.length;
 
-const where: Prisma.CampaignWhereInput = {
-deletedAt: null,
-...(statusFilter ? { status: statusFilter } : {}),
-};
+      return {
+        campaigns: searchResult.items,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        nextCursor: searchResult.nextCursor,
+        hasMore: searchResult.hasMore,
+      };
+    }
 
-const andConditions: Prisma.CampaignWhereInput[] = [
-...buildTextAndCategoryFilters(params),
-];
+    const validSortFields = [
+      "createdAt",
+      "totalBudget",
+      "perInfluencerBudget",
+      "applicationDeadline",
+    ] as const;
+    const sortBy = validSortFields.includes(
+      (params.sortBy || "") as (typeof validSortFields)[number],
+    )
+      ? (params.sortBy as (typeof validSortFields)[number])
+      : "createdAt";
+    const sortOrder = params.sortOrder === "asc" ? "asc" : "desc";
 
-const budgetFilter = buildBudgetFilter(params);
-if (budgetFilter) {
-where.perInfluencerBudget = budgetFilter;
-}
+    const statusFilter = resolveStatusFilter(params, userId, userType);
 
-if (userId) {
-andConditions.push(...(await buildOwnershipFilter(params, userId, userType, statusFilter)));
+    const where: Prisma.CampaignWhereInput = {
+      deletedAt: null,
+      ...(statusFilter ? { status: statusFilter } : {}),
+    };
 
-if (isInfluencer(userType)) {
-andConditions.push(
-...(await buildInfluencerEligibilityFilter(userId, params, statusFilter)),
-);
-}
-}
+    const andConditions: Prisma.CampaignWhereInput[] = [
+      ...buildTextAndCategoryFilters(params),
+    ];
 
-if (andConditions.length > 0) {
-where.AND = andConditions;
-}
+    const budgetFilter = buildBudgetFilter(params);
+    if (budgetFilter) {
+      where.perInfluencerBudget = budgetFilter;
+    }
 
-logger.info("Listing campaigns", {
-...(userId ? { userId } : {}),
-page,
-limit,
-filters: where,
-});
+    if (userId) {
+      andConditions.push(...(await buildOwnershipFilter(params, userId, userType, statusFilter)));
 
-const [campaigns, total] = await Promise.all([
-prisma.campaign.findMany({
-where,
-include: CAMPAIGN_INCLUDE,
-orderBy: { [sortBy]: sortOrder },
-skip: (page - 1) * limit,
-take: limit,
-}),
-prisma.campaign.count({ where }),
-]);
+      if (isInfluencer(userType)) {
+        andConditions.push(
+          ...(await buildInfluencerEligibilityFilter(userId, params, statusFilter)),
+        );
+      }
+    }
 
-return {
-campaigns,
-total,
-totalPages: Math.ceil(total / limit),
-};
-} catch (error) {
-logger.error("Error listing campaigns", error, {
-...(userId ? { userId } : {}),
-params,
-});
-throw AppError.badRequest("Failed to list campaigns");
-}
+    if (andConditions.length > 0) {
+      where.AND = andConditions;
+    }
+
+    logger.info("Listing campaigns", {
+      ...(userId ? { userId } : {}),
+      page,
+      limit,
+      filters: where,
+    });
+
+    const [campaigns, total] = await Promise.all([
+      prisma.campaign.findMany({
+        where,
+        include: CAMPAIGN_INCLUDE,
+        orderBy: { [sortBy]: sortOrder },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.campaign.count({ where }),
+    ]);
+
+    return {
+      campaigns,
+      total,
+      totalPages: Math.ceil(total / limit),
+    };
+  } catch (error) {
+    logger.error("Error listing campaigns", error, {
+      ...(userId ? { userId } : {}),
+      params,
+    });
+    throw AppError.badRequest("Failed to list campaigns");
+  }
 }
 function validateTotalBudget(
   requiresProduct: boolean,

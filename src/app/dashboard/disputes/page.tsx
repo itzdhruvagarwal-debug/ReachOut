@@ -7,25 +7,8 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import { useSession } from "next-auth/react";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Spinner } from "@/components/ui";
+import { type DisputeItem as Dispute, type DisputesResponse } from "@/lib/schemas";
 
-interface Dispute {
-id: string;
-type: string;
-status: string;
-description: string;
-createdAt: string;
-deal: {
-id: string;
-amount: number;
-campaign: { title: string };
-influencer: { displayName: string };
-brand: { companyName: string };
-};
-}
-
-interface DisputesResponse {
-disputes?: Dispute[];
-}
 
 export default function DisputesPage() {
 const { data: session } = useSession();

@@ -69,8 +69,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "idx_processed_webhook_id" ON "ProcessedWebhoo
 CREATE TABLE IF NOT EXISTS "WalletAuditLog" (
     id SERIAL PRIMARY KEY,
     wallet_id TEXT NOT NULL,
-    old_balance DECIMAL(18, 4),
-    new_balance DECIMAL(18, 4),
+    old_balance BIGINT, -- In paise (integer, no float/decimal approximation)
+    new_balance BIGINT, -- In paise (integer, no float/decimal approximation)
     updated_by TEXT DEFAULT current_setting('app.current_user_id', true),
     changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

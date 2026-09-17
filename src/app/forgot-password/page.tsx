@@ -7,6 +7,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 
 export default function ForgotPasswordPage() {
 const [email, setEmail] = useState("");
@@ -33,18 +34,7 @@ setMessage("");
 setResetLink("");
 
 try {
-const res = await fetch("/api/auth/reset-password", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ action: "request", email }),
-});
-
-const data = await res.json();
-
-if (!res.ok) {
-setStatus("error");
-setMessage(data.error || "Something went wrong");
-} else {
+const data = await apiClient.auth.requestPasswordReset(email);
 setStatus("success");
 setMessage(
 data.message || "If an account exists, a reset link has been sent.",
@@ -52,11 +42,14 @@ data.message || "If an account exists, a reset link has been sent.",
 if (data.resetLink) {
 setResetLink(data.resetLink);
 }
-}
 } catch (err: unknown) {
 logger.error("[forgot-password] reset request error:", err);
 setStatus("error");
+if (err instanceof ApiClientError) {
+setMessage(err.message || "Something went wrong");
+} else {
 setMessage("Network error. Please try again.");
+}
 }
 };
 

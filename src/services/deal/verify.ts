@@ -8,6 +8,7 @@ import { PaymentService } from "@/services/payment.service";
 import { logger } from "@/lib/logger";
 import { getErrorMessage } from "@/lib/utils";
 import { invalidateDealCache, normalizeMandatoryElements, formatFraudFlags } from "./helpers";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 export async function verifyPost(userId: string, dealId: string, postUrl: string): Promise<{ success: boolean; status: "VERIFIED" | "VERIFICATION_PENDING" }> {
 const deal = await prisma.deal.findUnique({
@@ -84,20 +85,34 @@ if (!["CONTENT_APPROVED", "POSTED"].includes(lockedDeal.status)) {
 throw AppError.badRequest("Deal must be in CONTENT_APPROVED or POSTED status. It might have already been verified.");
 }
 
-const finalStatus = needsReview ? "VERIFICATION_PENDING" : "VERIFIED";
+    const finalStatus = needsReview ? "VERIFICATION_PENDING" : "VERIFIED";
 
-const updated = await tx.deal.update({
-where: { id: dealId },
-data: {
-status: finalStatus,
-postUrl,
-postedAt: new Date(),
-...(needsReview ? {} : { verifiedAt: new Date() }),
-},
-});
+    await transitionDealState({
+      dealId,
+      fromState: lockedDeal.status,
+      toState: finalStatus,
+      actor: { userId, role: "INFLUENCER" },
+      reason: needsReview
+        ? `Post submitted, flagged for manual review: ${formatFraudFlags(verificationFlags)}`
+        : "Post submitted and successfully verified",
+      metadata: {
+        postUrl,
+        verificationFlags,
+      },
+      tx,
+    });
 
-return updated.status;
-});
+    const updated = await tx.deal.update({
+      where: { id: dealId },
+      data: {
+        postUrl,
+        postedAt: new Date(),
+        ...(needsReview ? {} : { verifiedAt: new Date() }),
+      },
+    });
+
+    return updated.status;
+  });
 
 await invalidateDealCache(dealId);
 

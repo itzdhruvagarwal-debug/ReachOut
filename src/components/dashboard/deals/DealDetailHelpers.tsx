@@ -1,7 +1,13 @@
 "use client";
 
-import { Deal, Prisma } from "@prisma/client";
 export { formatCurrency } from "@/lib/utils-client";
+import {
+  type DealDetail,
+  type ContentSubmissionItem as ContentSubmission,
+  type ContentUrlEntry,
+} from "@/lib/schemas";
+
+export type { DealDetail, ContentSubmission, ContentUrlEntry };
 
 export const formatContractDate = (value: unknown) => {
 if (!value || typeof value !== "string") return "Not set";
@@ -43,23 +49,6 @@ label?: string;
 count?: number;
 }
 
-/** Shape of each content submission attached to a deal */
-export interface ContentSubmission {
-id?: string;
-contentUrl?: string;
-notes?: string;
-createdAt?: string;
-status?: string;
-contentUrls?: ContentUrlEntry[];
-}
-
-/** Shape of each URL item inside a content submission */
-export interface ContentUrlEntry {
-type: string;
-url: string;
-status?: string;
-feedback?: string;
-}
 
 export interface ContractTermsJson {
 deliverables?: DeliverableConfig[];
@@ -153,13 +142,17 @@ export const ratingLabelMap: Record<number, string> = {
 5: "Excellent - Outstanding!",
 };
 
+function isDeliverableConfig(item: unknown): item is DeliverableConfig {
+  return typeof item === "object" && item !== null && "type" in item;
+}
+
 export function getFlatDeliverablesList(dealObj: DealDetail | null | undefined) {
   const terms = parseContractTerms(dealObj?.contractTerms);
   const rawDeliverables = terms.deliverables ?? dealObj?.campaign?.deliverables;
   if (!rawDeliverables) return [];
-  const arr = Array.isArray(rawDeliverables)
-    ? (rawDeliverables as unknown as DeliverableConfig[])
-    : ([] as DeliverableConfig[]);
+  const arr: DeliverableConfig[] = Array.isArray(rawDeliverables)
+    ? rawDeliverables.filter(isDeliverableConfig)
+    : [];
   const list: { type: string; label: string }[] = [];
   arr.forEach((d: DeliverableConfig) => {
     const count = typeof d.count === "number" ? d.count : 1;
@@ -175,20 +168,3 @@ export function getFlatDeliverablesList(dealObj: DealDetail | null | undefined) 
   return list;
 }
 
-export interface DealDetail extends Omit<Deal, "contractTerms" | "shippingAddress" | "contractSignature"> {
-campaign: {
-title: string;
-deliverables: Prisma.JsonValue;
-requirements: string;
-};
-influencer: {
-displayName: string;
-};
-brand?: {
-companyName: string;
-};
-contractTerms: Prisma.JsonValue;
-shippingAddress: Prisma.JsonValue;
-contractSignature: Prisma.JsonValue;
-contentSubmissions?: ContentSubmission[];
-}

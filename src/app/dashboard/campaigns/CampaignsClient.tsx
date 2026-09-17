@@ -2,7 +2,13 @@
 
 import Image from "next/image";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import {
+  type DashboardCampaign as Campaign,
+  type RawCampaignApiItem as RawCampaign,
+  type CampaignsListResponse as CampaignsPayload,
+  campaignsListResponseSchema,
+} from "@/lib/schemas";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { formatCurrency, formatNumber, normalizeStringArray, normalizeDeliverables } from "@/lib/utils-client";
 import { Pagination } from "@/components/ui/pagination";
@@ -10,25 +16,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Input, Select, Skeleton } from "@/components/ui";
 import { ALL_CATEGORIES } from "@/lib/categories";
 
-interface Campaign {
-id: string;
-title: string;
-description: string;
-createdAt: string;
-perInfluencerBudget: number;
-minFollowers: number;
-postingDeadline: string;
-targetCategories: string[];
-totalApplications: number;
-brand: {
-companyName: string;
-logo: string | null;
-avgRating: number;
-};
-deliverables: { type: string; count: number }[];
-maxInfluencers: number | null;
-acceptedCount: number;
-}
+
 
 const categories = ["All", ...ALL_CATEGORIES];
 
@@ -40,29 +28,7 @@ YOUTUBE_VIDEO: "YT Video",
 YOUTUBE_SHORT: "YT Short",
 };
 
-interface CampaignsPayload {
-data?: { campaigns?: RawCampaign[]; totalPages?: number };
-campaigns?: RawCampaign[];
-totalPages?: number;
-}
 
-interface RawCampaign {
-id?: string;
-title?: string;
-description?: string;
-createdAt?: string;
-perInfluencerBudget?: number | string;
-minFollowers?: number | string;
-postingDeadline?: string;
-targetCategories?: unknown;
-totalApplications?: number;
-brand?: { companyName?: string; logo?: string | null; avgRating?: number; averageRating?: number };
-deliverables?: unknown;
-maxInfluencers?: number | null;
-acceptedCount?: number;
-_count?: { applications?: number };
-applications?: unknown[];
-}
 
 function CampaignCardSkeleton() {
 return (
@@ -150,7 +116,9 @@ function mapRawCampaigns(rawCampaigns: RawCampaign[]): Campaign[] {
     id: campaign.id || '',
     title: campaign.title || "Untitled Campaign",
     description: campaign.description || "",
-    createdAt: campaign.createdAt || new Date(0).toISOString(),
+    createdAt: campaign.createdAt instanceof Date
+      ? campaign.createdAt.toISOString()
+      : (campaign.createdAt ?? new Date(0).toISOString()),
     perInfluencerBudget: Number(campaign.perInfluencerBudget || 0),
     minFollowers: Number(campaign.minFollowers || 0),
     postingDeadline: campaign.postingDeadline || new Date(0).toISOString(),
@@ -270,9 +238,10 @@ export default function CampaignsClient({ user }: { readonly user: { readonly us
     page
   );
 
+  const campaignsFetcher = createSchemaFetcher(campaignsListResponseSchema);
   const { data: payload, isLoading: loading, error: fetchErr } = useSWR<CampaignsPayload>(
     `/api/campaigns?${queryString}`,
-    fetcher
+    campaignsFetcher
   );
 
   const { campaigns, totalPages } = useMemo(() => {

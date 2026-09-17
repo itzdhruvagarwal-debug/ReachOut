@@ -28,8 +28,8 @@ function maskPIIPrimitive(data: string): string {
   let masked = data;
   // Mask Indian PAN (5 letters, 4 digits, 1 letter)
   masked = masked.replace(/\b[A-Z]{5}[0-9]{4}[A-Z]\b/gi, "[REDACTED_PAN]");
-  // Mask 12-digit Indian Aadhaar
-  masked = masked.replace(/\b\d{4}\s?\d{4}\s?\d{4}\b/g, "[REDACTED_AADHAAR]");
+  // Mask 12-digit Indian Aadhaar (continuous, space-separated, or hyphenated)
+  masked = masked.replace(/\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g, "[REDACTED_AADHAAR]");
   // Mask Email (unanchored, anywhere in string)
   masked = masked.replace(/([a-zA-Z0-9._%+-]{2})[a-zA-Z0-9._%+-]*(@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, "$1***$2");
   // Mask Phone numbers (10-digit Indian numbers with optional country code)
@@ -59,7 +59,12 @@ const sensitiveKeys = [
 "otp",
 "pan",
 "aadhaar",
-"accountNumber",
+"documentnumber",
+"documentnumberhash",
+"accountnumber",
+"bankaccount",
+"upi",
+"gstin",
 ];
 
 for (const key in data) {

@@ -19,17 +19,11 @@ currentProgress?: number;
 targetProgress?: number;
 }
 
-interface GamificationStats {
-xp: number;
-level: number;
-totalBadges: number;
-availableBadges: number;
-}
+import {
+  type GamificationStats,
+  type BadgesResponse,
+} from "@/lib/schemas";
 
-interface BadgesResponse {
-badges?: BadgeWithStatus[];
-stats?: GamificationStats;
-}
 
 const CATEGORY_ITEMS = [
   { id: "ALL", label: "All Badges", icon: "🎯" },

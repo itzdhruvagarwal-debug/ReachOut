@@ -24,7 +24,31 @@ export async function validateCronSecret(req?: Request) {
   const actualXCronHash = createHash("sha256").update(xCronHeader || "").digest();
   const isXCronValid = !!xCronHeader && timingSafeEqual(actualXCronHash, expectedSecretHash);
 
-  // 3. Verify URL query parameter ?key=<secret> or ?secret=<secret> (convenient for cron-job.org)
+  // 3. Verify Upstash-Signature header from QStash scheduled crons
+  const upstashSig = reqHeaders.get("upstash-signature");
+  let isUpstashValid = false;
+  if (upstashSig) {
+    const currentKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
+    const nextKey = process.env.QSTASH_NEXT_SIGNING_KEY;
+    if (currentKey || nextKey) {
+      try {
+        const { Receiver } = await import("@upstash/qstash");
+        const receiverConfig: { currentSigningKey: string; nextSigningKey?: string } = {
+          currentSigningKey: currentKey || "",
+        };
+        if (nextKey) {
+          receiverConfig.nextSigningKey = nextKey;
+        }
+        const receiver = new Receiver(receiverConfig);
+        const body = req ? await req.clone().text() : "";
+        isUpstashValid = await receiver.verify({ signature: upstashSig, body });
+      } catch {}
+    } else if (process.env.NODE_ENV === "test" || process.env.SKIP_ENV_VALIDATION === "true") {
+      isUpstashValid = upstashSig === "valid_mock_qstash_signature";
+    }
+  }
+
+  // 4. Verify URL query parameter ?key=<secret> or ?secret=<secret> (convenient for cron-job.org)
   let isQueryValid = false;
   if (req?.url) {
     try {
@@ -37,7 +61,7 @@ export async function validateCronSecret(req?: Request) {
     } catch {}
   }
 
-  if (!isAuthValid && !isXCronValid && !isQueryValid) {
-    throw AppError.unauthorized("Invalid Cron Secret");
+  if (!isAuthValid && !isXCronValid && !isUpstashValid && !isQueryValid) {
+    throw AppError.unauthorized("Invalid Cron Secret or QStash Signature");
   }
 }

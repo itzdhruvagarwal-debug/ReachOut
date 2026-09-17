@@ -1,12 +1,11 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getSecureClientIp } from "@/lib/ip";
-import { AuthService } from "@/services/auth.service";
 import { logger } from "@/lib/logger";
 import prisma from "@/lib/db";
 import redis from "@/lib/redis";
 import { sendOTP, verifyOTP } from "@/lib/sms";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimit } from "@/lib/rate-limit";
 import { apiWrapper, ApiResponse } from "@/lib/api-wrapper";
 import { AppError } from "@/lib/errors";
 
@@ -25,12 +24,6 @@ phone: z
 .regex(/^[6-9]\d{9}$/, "Must be a valid 10-digit Indian phone number"),
 otp: z.string().regex(/^\d{6}$/, "OTP must be exactly 6 digits"),
 type: z.enum(["registration", "phone_verification"]),
-});
-
-const verifyLegacyOtpSchema = z.object({
-userId: z.string().cuid(),
-code: z.string().length(6, "OTP must be exactly 6 characters"),
-type: z.enum(["EMAIL_VERIFICATION", "PHONE_VERIFICATION", "LOGIN_OTP"]),
 });
 
 function validatePutPayload(body: unknown) {
@@ -101,8 +94,17 @@ export const PUT = apiWrapper(async function PUT(request: NextRequest) {
     const { phone, type } = validation.data!;
 
     const ip = getSecureClientIp(request);
-    const ipRateLimit = await checkRateLimit(ip, "AUTH");
-    if (!ipRateLimit.success) {
+    const [ipRateLimit, phoneRateLimit] = await Promise.all([
+      checkRateLimit(ip, "AUTH"),
+      rateLimit({
+        uniqueToken: `otp:send:phone:${phone}`,
+        limit: 5,
+        window: 3600, // max 5 OTP requests per hour per phone
+        securityCritical: true,
+      }),
+    ]);
+
+    if (!ipRateLimit.success || !phoneRateLimit.success) {
       return ApiResponse.tooManyRequests("Too many OTP requests. Please try again later.");
     }
 
@@ -130,21 +132,6 @@ return ApiResponse.success(responseData, message);
 return handlePutError(error);
 }
 });
-
-function validateLegacyPayload(body: unknown) {
-const parsedLegacy = verifyLegacyOtpSchema.safeParse(body);
-if (!parsedLegacy.success) {
-const firstIssue = parsedLegacy.error.issues[0];
-const fieldName = firstIssue?.path.join(".") || "";
-const issueMsg = firstIssue?.message || "Invalid value";
-const prefix = fieldName ? `${fieldName} - ` : "";
-return {
-success: false,
-message: `Invalid request payload: ${prefix}${issueMsg}`
-};
-}
-return { success: true, data: parsedLegacy.data };
-}
 
 function validateRegistrationPayload(body: unknown) {
 const parsedRegistration = verifyRegistrationOtpSchema.safeParse(body);
@@ -198,24 +185,25 @@ export const POST = apiWrapper(async function POST(request: NextRequest) {
       return ApiResponse.error("Invalid request body");
     }
 
-if (body && typeof body === "object" && Object.hasOwn(body, "userId")) {
-const validation = validateLegacyPayload(body);
-if (!validation.success) {
-return ApiResponse.error(validation.message!);
-}
-
-const { userId, code, type } = validation.data!;
-await AuthService.verifyOtp(userId, code, type);
-
-return ApiResponse.success(null, "OTP verified successfully.");
-}
-
 const validation = validateRegistrationPayload(body);
 if (!validation.success) {
 return ApiResponse.error(validation.message!);
 }
 
 const { phone, otp, type } = validation.data!;
+
+    const phoneVerifyLimit = await rateLimit({
+      uniqueToken: `otp:verify:phone:${phone}`,
+      limit: 5,
+      window: 900, // max 5 verification attempts per 15 minutes per phone (anti-brute force)
+      securityCritical: true,
+    });
+    if (!phoneVerifyLimit.success) {
+      return ApiResponse.tooManyRequests(
+        "Too many failed verification attempts for this phone number. Please wait 15 minutes or request a new OTP.",
+      );
+    }
+
 const key = `phone-otp:${type}:${phone}`;
 const exists = await redis.get(key);
 

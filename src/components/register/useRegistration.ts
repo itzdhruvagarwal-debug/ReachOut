@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { logger } from "@/lib/logger-client";
 import { registerSchema } from "@/app/register/page";
 import { UserType, getDeviceFingerprint } from "./RegistrationHelpers";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 
 export function useRegistration(
 initialType: UserType | null,
@@ -118,23 +119,18 @@ return;
 setEmailOtpLoading(true);
 setEmailOtpError("");
 try {
-const res = await fetch("/api/auth/verify-email-otp", {
-method: "PUT",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ email: formData.email, type: "registration" }),
-});
-const data = await res.json();
-if (!res.ok) {
-setEmailOtpError(data.error || "Failed to send OTP");
-return;
-}
+const data = await apiClient.auth.sendEmailOtp({ email: formData.email, type: "registration" });
 if (data.otp && process.env.NODE_ENV !== "production") {
 setEmailOtp(data.otp);
 }
 setEmailOtpSent(true);
 startCooldown(setEmailCooldown, 60, "email");
-} catch {
+} catch (err: unknown) {
+if (err instanceof ApiClientError) {
+setEmailOtpError(err.message || "Failed to send OTP");
+} else {
 setEmailOtpError("Network error. Please try again.");
+}
 } finally {
 setEmailOtpLoading(false);
 }
@@ -149,24 +145,19 @@ return;
 setEmailOtpLoading(true);
 setEmailOtpError("");
 try {
-const res = await fetch("/api/auth/verify-email-otp", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
+await apiClient.auth.verifyEmailOtp({
 email: formData.email,
 otp: emailOtp,
 type: "registration",
-}),
 });
-const data = await res.json();
-if (!res.ok) {
-setEmailOtpError(data.error || "Invalid OTP");
-return;
-}
 setEmailOtpVerified(true);
 setVerifiedEmail(formData.email);
-} catch {
+} catch (err: unknown) {
+if (err instanceof ApiClientError) {
+setEmailOtpError(err.message || "Invalid OTP");
+} else {
 setEmailOtpError("Network error. Please try again.");
+}
 } finally {
 setEmailOtpLoading(false);
 }
@@ -181,24 +172,19 @@ return;
 setPhoneOtpLoading(true);
 setPhoneOtpError("");
 try {
-const res = await fetch("/api/auth/verify-otp", {
-method: "PUT",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ phone: formData.phone, type: "registration" }),
-});
-const data = await res.json();
-if (!res.ok) {
-setPhoneOtpError(data.error || "Failed to send OTP");
-return;
-}
+const data = await apiClient.auth.sendPhoneOtp({ phone: formData.phone, type: "registration" });
 setPhoneOtpChannel(data.channel || null);
 if (data.otp && process.env.NODE_ENV !== "production") {
 setPhoneOtp(data.otp);
 }
 setPhoneOtpSent(true);
 startCooldown(setPhoneCooldown, 60, "phone");
-} catch {
+} catch (err: unknown) {
+if (err instanceof ApiClientError) {
+setPhoneOtpError(err.message || "Failed to send OTP");
+} else {
 setPhoneOtpError("Network error. Please try again.");
+}
 } finally {
 setPhoneOtpLoading(false);
 }
@@ -213,24 +199,19 @@ return;
 setPhoneOtpLoading(true);
 setPhoneOtpError("");
 try {
-const res = await fetch("/api/auth/verify-otp", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
+await apiClient.auth.verifyPhoneOtp({
 phone: formData.phone,
 otp: phoneOtp,
 type: "registration",
-}),
 });
-const data = await res.json();
-if (!res.ok) {
-setPhoneOtpError(data.error || "Invalid OTP");
-return;
-}
 setPhoneOtpVerified(true);
 setVerifiedPhone(formData.phone);
-} catch {
+} catch (err: unknown) {
+if (err instanceof ApiClientError) {
+setPhoneOtpError(err.message || "Invalid OTP");
+} else {
 setPhoneOtpError("Network error. Please try again.");
+}
 } finally {
 setPhoneOtpLoading(false);
 }
@@ -287,10 +268,7 @@ setIsLoading(true);
 
 try {
 const deviceFingerprint = await getDeviceFingerprint().catch(() => undefined);
-const response = await fetch("/api/auth/register", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
+await apiClient.auth.register({
 name: formData.name.trim(),
 email: formData.email,
 phone: formData.phone,
@@ -300,26 +278,23 @@ referralCode: formData.referralCode || undefined,
 emailOtpVerified: true,
 phoneOtpVerified: true,
 deviceFingerprint,
-}),
 });
-
-const data = await response.json();
-
-if (!response.ok) {
-if (data.details?.fieldErrors) {
-const firstField = Object.keys(data.details.fieldErrors)[0];
-const firstError = firstField ? data.details.fieldErrors[firstField]?.[0] : undefined;
-setError(firstError || data.error || "Registration failed");
-} else {
-setError(data.error || "Registration failed");
-}
-return;
-}
 
 router.push("/login?registered=true");
 } catch (err: unknown) {
 logger.error("[register] submission error:", err);
+if (err instanceof ApiClientError) {
+const raw = err.raw as { details?: { fieldErrors?: Record<string, string[]> }; error?: string } | null;
+if (raw?.details?.fieldErrors) {
+const firstField = Object.keys(raw.details.fieldErrors)[0];
+const firstError = firstField ? raw.details.fieldErrors[firstField]?.[0] : undefined;
+setError(firstError || err.message || "Registration failed");
+} else {
+setError(err.message || "Registration failed");
+}
+} else {
 setError("An error occurred. Please try again.");
+}
 } finally {
 setIsLoading(false);
 }

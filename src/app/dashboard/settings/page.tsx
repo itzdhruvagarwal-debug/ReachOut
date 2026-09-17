@@ -2,15 +2,15 @@
 
 
 import { logger } from "@/lib/logger-client";
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 import { useState, useEffect, useRef, useCallback } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import IndiaTaxCompliancePanel from "@/components/dashboard/settings/IndiaTaxCompliancePanel";
-import NotificationPreferencesPanel, {
-type NotificationPreferences,
-} from "@/components/dashboard/settings/NotificationPreferencesPanel";
+import NotificationPreferencesPanel from "@/components/dashboard/settings/NotificationPreferencesPanel";
 import ProfileTab, { type Profile, type User } from "@/components/dashboard/settings/ProfileTab";
 import SocialTab, { type SocialConnections } from "@/components/dashboard/settings/SocialTab";
 import RatesTab from "@/components/dashboard/settings/RatesTab";
@@ -54,11 +54,6 @@ const [badgesCount, setBadgesCount] = useState(0);
 const [user, setUser] = useState<User | null>(null);
 const [socialConnections, setSocialConnections] = useState<SocialConnections | null>(null);
 const [verificationData, setVerificationData] = useState<VerificationData | null>(null);
-const [notificationPreferences, setNotificationPreferences] =
-useState<NotificationPreferences>({
-email: { marketing: true, updates: true, security: true },
-push: { marketing: true, updates: true, security: true },
-});
 const [isSaving, setIsSaving] = useState(false);
 
 useEffect(() => {
@@ -99,6 +94,10 @@ window.removeEventListener("social-verified", handleSocialVerified);
 
 useEffect(() => {
 const urlParams = new URLSearchParams(window.location.search);
+const tabParam = urlParams.get("tab");
+if (tabParam) {
+setActiveTab(tabParam);
+}
 const success = urlParams.get("success");
 if (success === "instagram_connected") {
 showToast("Instagram connected successfully!", "success");
@@ -113,32 +112,29 @@ window.history.replaceState({}, document.title, window.location.pathname);
 }, [showToast]);
 
 const { data: settingsData, isLoading: loading } = useSWR<{
-profile?: Partial<Profile>;
-user?: Partial<User> & { referralCode?: string; notificationPreferences?: NotificationPreferences };
-badges?: unknown[];
-socialConnections?: Partial<SocialConnections>;
+  profile?: Partial<Profile>;
+  user?: Partial<User> & { referralCode?: string };
+  badges?: unknown[];
+  socialConnections?: Partial<SocialConnections>;
 }>("/api/settings", fetcher);
 
 useEffect(() => {
-if (!settingsData) return;
-if (settingsData.profile) {
-setProfile({
-...settingsData.profile,
-categories: settingsData.profile.categories || [],
-languages: settingsData.profile.languages || [],
-} as Profile);
-}
-setReferralCode(settingsData.user?.referralCode || "");
-setBadgesCount(settingsData.badges?.length || 0);
-if (settingsData.user) {
-setUser(settingsData.user as User);
-}
-if (settingsData.user?.notificationPreferences) {
-setNotificationPreferences(settingsData.user.notificationPreferences);
-}
-if (settingsData.socialConnections) {
-setSocialConnections(settingsData.socialConnections as SocialConnections);
-}
+  if (!settingsData) return;
+  if (settingsData.profile) {
+    setProfile({
+      ...settingsData.profile,
+      categories: settingsData.profile.categories || [],
+      languages: settingsData.profile.languages || [],
+    } as Profile);
+  }
+  setReferralCode(settingsData.user?.referralCode || "");
+  setBadgesCount(settingsData.badges?.length || 0);
+  if (settingsData.user) {
+    setUser(settingsData.user as User);
+  }
+  if (settingsData.socialConnections) {
+    setSocialConnections(settingsData.socialConnections as SocialConnections);
+  }
 }, [settingsData]);
 
 useEffect(() => {
@@ -161,11 +157,10 @@ setActiveTab(requestedTab);
 
 useEffect(() => {
 if (activeTab === "verification" && !verificationData) {
-fetch("/api/verification")
-.then((res) => res.json())
+apiClient.users.getVerification()
 .then((data) => {
 if (isMounted.current) {
-setVerificationData(data);
+setVerificationData(data as VerificationData);
 }
 })
 .catch((err) => {
@@ -176,74 +171,31 @@ logger.error("[settings] Failed to load verification data:", err);
 }
 }, [activeTab, verificationData]);
 
+
 const handleSave = async () => {
 if (!profile) return;
 setIsSaving(true);
 try {
-const res = await fetch("/api/settings", {
-method: "PUT",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(profile),
-});
-      const data = await res.json();
-      if (res.ok) {
-        try {
-          await update();
-        } catch (e) {
-          logger.warn("[settings] Session update error after profile save:", { error: String(e) });
-        }
-        showToast("Profile saved successfully!", "success");
-      } else {
-        const errorMsg = data.message || data.error || (data.details ? "Invalid input details" : "Failed to save profile");
-        showToast(errorMsg, "error");
-      }
+  await apiClient.settings.save(profile);
+  try {
+    await update();
+  } catch (e) {
+    logger.warn("[settings] Session update error after profile save:", { error: String(e) });
+  }
+  showToast("Profile saved successfully!", "success");
 } catch (error) {
-logger.error("[settings] Failed to save profile:", error);
-showToast("Failed to save profile", "error");
+  logger.error("[settings] Failed to save profile:", error);
+  const errorMsg = error instanceof ApiClientError ? error.message : "Failed to save profile";
+  showToast(errorMsg, "error");
 } finally {
-if (isMounted.current) {
-setIsSaving(false);
-}
-}
-};
-
-const handleNotificationToggle = (
-type: "email" | "push",
-category: "marketing" | "updates" | "security",
-) => {
-setNotificationPreferences((prev) => ({
-...prev,
-[type]: {
-...prev[type],
-[category]: !prev[type][category],
-},
-}));
-};
-
-const saveNotificationPreferences = async () => {
-setIsSaving(true);
-try {
-const res = await fetch("/api/settings", {
-method: "PUT",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ notificationPreferences }),
-});
-if (res.ok) {
-showToast("Preferences saved successfully", "success");
-} else {
-showToast("Failed to save preferences", "error");
-}
-} catch (error) {
-logger.error("[settings] Failed to save preferences:", error);
-showToast("An error occurred", "error");
-} finally {
-if (isMounted.current) {
-setIsSaving(false);
-}
+  if (isMounted.current) {
+    setIsSaving(false);
+  }
 }
 };
 
 if (loading) {
+
 return (
 <DashboardShell user={session?.user || user}>
 <div
@@ -378,12 +330,7 @@ showToast={showToast}
 
 {/* Notifications Tab */}
 {activeTab === "notifications" && (
-<NotificationPreferencesPanel
-preferences={notificationPreferences}
-isSaving={isSaving}
-onToggle={handleNotificationToggle}
-onSave={saveNotificationPreferences}
-/>
+<NotificationPreferencesPanel />
 )}
 
 {/* Security Tab */}

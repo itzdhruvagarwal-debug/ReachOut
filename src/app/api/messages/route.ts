@@ -3,7 +3,8 @@ import { auth } from "@/lib/auth";
 import { apiWrapper } from "@/lib/api-wrapper";
 import { MessageService } from "@/services/message.service";
 import { dbIdSchema, messageSchema } from "@/lib/validations";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, checkTieredRateLimit } from "@/lib/rate-limit";
+import { getSecureClientIp } from "@/lib/ip";
 import { z } from "zod";
 import { parsePagination } from "@/lib/utils";
 
@@ -67,19 +68,30 @@ if (!session?.user?.id) {
 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const limit = await checkRateLimit(session.user.id, "MESSAGES");
-if (!limit.success) {
-const retryAfterSeconds = Math.max(
-1,
-Math.ceil(limit.reset - Date.now() / 1000),
-);
+const clientIp = getSecureClientIp(req);
+const sessionUser = session.user as { id: string; trustScore?: number; kycVerified?: boolean };
 
-return NextResponse.json(
-{
-error: `Rate limit exceeded. Try again in ${retryAfterSeconds}s.`,
-},
-{ status: 429 },
-);
+const limit = await checkTieredRateLimit({
+  userId: sessionUser.id,
+  ip: clientIp,
+  action: "MESSAGES",
+  trustScore: sessionUser.trustScore,
+  isKycVerified: sessionUser.kycVerified,
+});
+
+if (!limit.success) {
+  const retryAfterSeconds = Math.max(
+    1,
+    Math.ceil(limit.reset - Date.now() / 1000),
+  );
+
+  return NextResponse.json(
+    {
+      error: `Messaging rate limit exceeded (${limit.userLimit}/hr for your tier). Try again in ${retryAfterSeconds}s.`,
+      blockedBy: limit.blockedBy,
+    },
+    { status: 429 },
+  );
 }
 
 const body = await req.json();

@@ -1,6 +1,7 @@
 "use client";
 
-
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 import { logger } from "@/lib/logger-client";
 import { useState } from "react";
 import type { User } from "./ProfileTab";
@@ -24,15 +25,12 @@ showToast,
 // verifyContactState manages initial verification of unverified email/phone records.
 const [verifyContactState, setVerifyContactState] = useState<{
 type: 'email' | 'phone' | null;
-step: 'idle' | 'input' | 'code';
+step: 'idle' | 'code' | 'input';
 }>({ type: null, step: 'idle' });
 const [contactVerifyCode, setContactVerifyCode] = useState("");
 const [pendingContact, setPendingContact] = useState("");
 
-// changeContactState controls the secure multi-stage contact change workflow:
-// 1. 'verify-current': Verifies OTPs sent to current active communication channels to prove identity.
-// 2. 'enter-new': Accepts the desired new email or phone number.
-// 3. 'verify-new': Sends and verifies an OTP on the new channel to ensure it is active before commit.
+// changeContactState manages the re-verification pipeline when modifying an already-verified email or phone number.
 const [changeContactState, setChangeContactState] = useState<{
 active: boolean;
 type: 'email' | 'phone' | null;
@@ -58,20 +56,11 @@ return;
 }
 setIsSaving(true);
 try {
-const res = await fetch("/api/user/change-contact", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ action: "init" }),
-});
-const data = await res.json();
-if (res.ok) {
+await apiClient.users.changeContact({ action: "init" });
 setChangeContactState(prev => ({ ...prev, active: true, type, step: 'verify-current' }));
-} else {
-showToast(data.error || "Failed to initiate contact change", "error");
-}
 } catch (err: unknown) {
 logger.error("[change-contact] start contact change error:", err);
-showToast("Network error.", "error");
+showToast(err instanceof ApiClientError ? err.message : "Network error.", "error");
 } finally {
 setIsSaving(false);
 }
@@ -86,24 +75,15 @@ showToast("Please enter the Phone OTP", "error"); return;
 }
 setIsSaving(true);
 try {
-const res = await fetch("/api/user/change-contact", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
+await apiClient.users.changeContact({
 action: "verify-current",
 currentEmailOtp: changeContactState.currentEmailOtp || undefined,
 currentPhoneOtp: changeContactState.currentPhoneOtp || undefined
-}),
 });
-const data = await res.json();
-if (res.ok) {
 setChangeContactState(prev => ({ ...prev, step: 'enter-new' }));
-} else {
-showToast(data.error || "Invalid OTP(s)", "error");
-}
 } catch (err: unknown) {
 logger.error("[change-contact] verify current error:", err);
-showToast("Network error", "error");
+showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
 } finally {
 setIsSaving(false);
 }
@@ -113,19 +93,12 @@ const handleSendNewContactOtp = async () => {
 if (!changeContactState.newContact) { showToast(`Please enter your new ${changeContactState.type}`, "error"); return; }
 setIsSaving(true);
 try {
-const res = await fetch("/api/user/change-contact", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ action: "send-new", type: changeContactState.type, newContact: changeContactState.newContact }),
-});
-const data = await res.json();
-if (res.ok) {
+await apiClient.users.changeContact({ action: "send-new", type: changeContactState.type, newContact: changeContactState.newContact });
 setChangeContactState(prev => ({ ...prev, step: 'verify-new' }));
 showToast(`OTP sent to new ${changeContactState.type}`, "success");
-} else { showToast(data.error || "Failed to send OTP", "error"); }
 } catch (err: unknown) {
 logger.error("[change-contact] send new OTP error:", err);
-showToast("Network error", "error");
+showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
 } finally {
 setIsSaving(false);
 }
@@ -135,20 +108,13 @@ const handleConfirmNewContact = async () => {
 if (!changeContactState.newOtp) { showToast("Please enter the OTP", "error"); return; }
 setIsSaving(true);
 try {
-const res = await fetch("/api/user/change-contact", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ action: "confirm-new", type: changeContactState.type, newContact: changeContactState.newContact, newOtp: changeContactState.newOtp }),
-});
-const data = await res.json();
-if (res.ok) {
+await apiClient.users.changeContact({ action: "confirm-new", type: changeContactState.type, newContact: changeContactState.newContact, newOtp: changeContactState.newOtp });
 showToast(`${changeContactState.type} updated successfully!`, "success");
 setChangeContactState({ active: false, type: null, step: 'idle', currentEmailOtp: '', currentPhoneOtp: '', newContact: '', newOtp: '' });
 window.location.reload(); // Refresh to reflect new session data
-} else { showToast(data.error || "Invalid OTP", "error"); }
 } catch (err: unknown) {
 logger.error("[change-contact] confirm new contact error:", err);
-showToast("Network error", "error");
+showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
 } finally {
 setIsSaving(false);
 }
@@ -172,22 +138,13 @@ return (
 <Button variant="primary" disabled={isSaving} onClick={async () => {
   setIsSaving(true);
   try {
-    const res = await fetch('/api/user/verify-contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'email', code: contactVerifyCode })
-    });
-    const data = await res.json();
-    if (res.ok) {
-      showToast('Email Verified!', 'success');
-      setVerifyContactState({ type: null, step: 'idle' });
-      setContactVerifyCode('');
-      setUser(prev => prev ? { ...prev, emailVerified: true } : null);
-    } else {
-      showToast(data.error || 'Invalid code', 'error');
-    }
+    await apiClient.users.verifyContact({ type: 'email', code: contactVerifyCode });
+    showToast('Email Verified!', 'success');
+    setVerifyContactState({ type: null, step: 'idle' });
+    setContactVerifyCode('');
+    setUser(prev => prev ? { ...prev, emailVerified: true } : null);
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Error occurred';
+    const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : 'Error occurred');
     showToast(msg, 'error');
   } finally {
     setIsSaving(false);
@@ -201,19 +158,11 @@ return (
 if (!user?.email) { showToast('No email found to verify.', 'error'); return; }
 setIsSaving(true);
 try {
-const res = await fetch("/api/user/send-otp", {
-method: "POST",
-body: JSON.stringify({ type: 'email', contact: user.email })
-});
-if (res.ok) {
+await apiClient.users.sendOtp({ type: 'email', contact: user.email });
 showToast(`Verification code sent to ${user.email}`, 'success');
 setVerifyContactState({ type: 'email', step: 'code' });
-} else {
-const errorData = await res.json();
-showToast(errorData.error || 'Failed to send OTP to email.', 'error');
-}
 } catch (err: unknown) {
-const msg = err instanceof Error ? err.message : 'Error occurred';
+const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : 'Error occurred');
 showToast(msg, 'error');
 } finally {
 setIsSaving(false);
@@ -242,28 +191,19 @@ return (
 <Button variant="primary" disabled={isSaving} onClick={async () => {
   setIsSaving(true);
   try {
-    const res = await fetch('/api/user/verify-contact', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'phone', code: contactVerifyCode })
+    await apiClient.users.verifyContact({ type: 'phone', code: contactVerifyCode });
+    showToast('Phone Verified!', 'success');
+    setVerifyContactState({ type: null, step: 'idle' });
+    setContactVerifyCode('');
+    setUser(prev => {
+      if (!prev) return null;
+      const nextUser: User = { ...prev, phoneVerified: true };
+      const p = pendingContact || prev.phone;
+      if (p) nextUser.phone = p;
+      return nextUser;
     });
-    const data = await res.json();
-    if (res.ok) {
-      showToast('Phone Verified!', 'success');
-      setVerifyContactState({ type: null, step: 'idle' });
-      setContactVerifyCode('');
-      setUser(prev => {
-        if (!prev) return null;
-        const nextUser: User = { ...prev, phoneVerified: true };
-        const p = pendingContact || prev.phone;
-        if (p) nextUser.phone = p;
-        return nextUser;
-      });
-    } else {
-      showToast(data.error || 'Invalid code', 'error');
-    }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'Error occurred';
+    const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : 'Error occurred');
     showToast(msg, 'error');
   } finally {
     setIsSaving(false);
@@ -280,19 +220,11 @@ return (
 if (pendingContact) {
 setIsSaving(true);
 try {
-const res = await fetch('/api/user/send-otp', {
-method: 'POST',
-body: JSON.stringify({ type: 'phone', contact: pendingContact })
-});
-if (res.ok) {
+await apiClient.users.sendOtp({ type: 'phone', contact: pendingContact });
 showToast(`OTP sent to ${pendingContact}`, 'success');
 setVerifyContactState({ type: 'phone', step: 'code' });
-} else {
-const errorData = await res.json();
-showToast(errorData.error || 'Failed to send OTP to phone. Ensure correct country code is used.', 'error');
-}
 } catch (err: unknown) {
-const msg = err instanceof Error ? err.message : 'Error occurred';
+const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : 'Error occurred');
 showToast(msg, 'error');
 } finally {
 setIsSaving(false);

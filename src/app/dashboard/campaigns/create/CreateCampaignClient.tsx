@@ -6,6 +6,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, Select, Textarea, Card } from "@/components/ui";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 import {
   CampaignFormData,
   validateCampaignForm,
@@ -13,36 +14,8 @@ import {
 import { ProductSeedingCard } from "@/components/dashboard/campaigns/create/ProductSeedingCard";
 import { DeliverablesList } from "@/components/dashboard/campaigns/create/DeliverablesList";
 import { ALL_CATEGORIES } from "@/lib/categories";
+import { type DraftCampaignData, type DraftCampaignResponse } from "@/lib/schemas";
 
-interface DraftCampaignData {
-  status?: string;
-  title?: string;
-  description?: string;
-  requirements?: string;
-  totalBudget?: number;
-  perInfluencerBudget?: number;
-  targetCategories?: string[];
-  targetCities?: string[];
-  targetGender?: string;
-  targetAgeMin?: number | null;
-  targetAgeMax?: number | null;
-  minFollowers?: number;
-  maxFollowers?: number | null;
-  maxInfluencers?: number | null;
-  applicationDeadline?: string;
-  contentDeadline?: string;
-  postingDeadline?: string;
-  requiresProduct?: boolean;
-  productName?: string;
-  productValue?: number;
-  productDescription?: string;
-  deliverables?: Array<{ type: string; count: number; rate?: number }>;
-}
-
-interface DraftCampaignResponse {
-  campaign?: DraftCampaignData;
-  data?: { campaign?: DraftCampaignData };
-}
 
 const INITIAL_FORM_DATA: CampaignFormData = {
   title: "",
@@ -151,12 +124,9 @@ export default function CreateCampaignClient() {
     if (!invitedInfluencerId) return;
     const fetchInfluencer = async () => {
       try {
-        const res = await fetch(`/api/influencers/${encodeURIComponent(invitedInfluencerId)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.influencer) {
-            setInvitedInfluencer(data.influencer);
-          }
+        const data = await apiClient.users.getInfluencer(invitedInfluencerId) as { influencer?: { displayName: string; instagramHandle?: string; youtubeHandle?: string } };
+        if (data.influencer) {
+          setInvitedInfluencer(data.influencer);
         }
       } catch (err) {
         logger.error("[campaign-create] Failed to fetch invited influencer details:", err);
@@ -236,41 +206,34 @@ export default function CreateCampaignClient() {
       const contentDeadline = new Date(formData.contentDeadline);
       const postingDeadline = new Date(formData.postingDeadline);
 
-      const url = editCampaignId ? `/api/campaigns/${editCampaignId}` : "/api/campaigns";
-      const method = editCampaignId ? "PUT" : "POST";
+      const payload = {
+        ...formData,
+        totalBudget: Math.round(formData.totalBudget),
+        perInfluencerBudget: Math.round(formData.perInfluencerBudget),
+        productValue: Math.round(formData.productValue || 0),
+        deliverables: formData.deliverables.map((d) => ({
+          ...d,
+          rate: Math.round(d.rate || 0),
+        })),
+        maxFollowers: formData.maxFollowers || 0,
+        maxInfluencers: formData.maxInfluencers || null,
+        applicationDeadline: applicationDeadline?.toISOString(),
+        contentDeadline: contentDeadline.toISOString(),
+        postingDeadline: postingDeadline.toISOString(),
+        invitedInfluencerId: invitedInfluencerId || undefined,
+        status: isDraft ? "DRAFT" : "ACTIVE",
+      };
 
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          totalBudget: Math.round(formData.totalBudget),
-          perInfluencerBudget: Math.round(formData.perInfluencerBudget),
-          productValue: Math.round(formData.productValue || 0),
-          deliverables: formData.deliverables.map((d) => ({
-            ...d,
-            rate: Math.round(d.rate || 0),
-          })),
-          maxFollowers: formData.maxFollowers || 0,
-          maxInfluencers: formData.maxInfluencers || null,
-          applicationDeadline: applicationDeadline?.toISOString(),
-          contentDeadline: contentDeadline.toISOString(),
-          postingDeadline: postingDeadline.toISOString(),
-          invitedInfluencerId: invitedInfluencerId || undefined,
-          status: isDraft ? "DRAFT" : "ACTIVE",
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || data.error || "Failed to create campaign");
+      if (editCampaignId) {
+        await apiClient.campaigns.update(editCampaignId, payload);
+      } else {
+        await apiClient.campaigns.create(payload);
       }
 
       router.push("/dashboard/campaigns");
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(err instanceof ApiClientError ? err.message : err instanceof Error ? err.message : String(err));
     } finally {
       setIsLoading(false);
     }

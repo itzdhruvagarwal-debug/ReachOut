@@ -10,6 +10,7 @@ import { type NotificationPreferences } from "./NotificationPreferencesPanel";
 import { isBrand, isInfluencer } from "@/lib/rbac";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 import { ALL_CATEGORIES } from "@/lib/categories";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 
 
 export interface Profile {
@@ -150,29 +151,27 @@ const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) 
     formData.append("folder", isBrand(user?.userType) ? "logos" : "avatars");
 
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
+      const data = await apiClient.upload.file(
+        file,
+        isBrand(user?.userType) ? "logos" : "avatars",
+      ) as { success?: boolean; data?: { url?: string }; url?: string; message?: string; error?: string };
       const uploadedUrl = data?.data?.url || data?.url;
       if (data.success && uploadedUrl) {
         setProfile((prev) =>
           prev ? { ...prev, profileImage: uploadedUrl } : null,
         );
         // Auto-save only the updated profile image field (prevents redundant/noop write of all other profile fields)
-        const saveRes = await fetch("/api/settings", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ profileImage: uploadedUrl }),
-        });
-        if (saveRes.ok) {
+        try {
+          await apiClient.settings.save({ profileImage: uploadedUrl });
           await update(); // Sync session to reflect new image URL on front-end
           showToast("Profile picture updated!", "success");
-        } else {
+        } catch (saveErr) {
           // Revert optimistic update — settings save failed
           setProfile((prev) => (prev ? revertProfileImage(prev) : null));
-          showToast("Failed to save profile picture to settings", "error");
+          showToast(
+            saveErr instanceof ApiClientError ? saveErr.message : "Failed to save profile picture to settings",
+            "error",
+          );
         }
       } else {
         // Revert optimistic update — upload failed
@@ -183,7 +182,7 @@ const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) 
       logger.error("[profile-tab] Failed to upload avatar:", error);
       // Revert optimistic update — network error
       setProfile((prev) => (prev ? revertProfileImage(prev) : null));
-      showToast("Upload failed", "error");
+      showToast(error instanceof ApiClientError ? error.message : "Upload failed", "error");
     } finally {
       setIsUploading(false);
       if (profileImageInputRef.current) profileImageInputRef.current.value = "";

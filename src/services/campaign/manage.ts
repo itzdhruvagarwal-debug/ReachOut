@@ -10,6 +10,7 @@ import { createActivityLog } from "@/lib/audit";
 import { calculateProductHandlingFee, assertSufficientBalance } from "@/lib/utils";
 import { resolveBrandPlatformFee } from "@/lib/platform-fees";
 import { assertNoContactDetails } from "./create";
+import { invalidateCampaignSearchCache } from "@/lib/search";
 
 export async function getCampaignById(
 campaignId: string,
@@ -207,6 +208,9 @@ logger.info("Campaign updated successfully", {
 userId,
 campaignId,
 });
+invalidateCampaignSearchCache().catch((err) => {
+  logger.warn("Failed to invalidate campaign search cache", { err });
+});
 return result;
 } catch (error) {
 logger.error("Error updating campaign", error, { userId, campaignId });
@@ -286,7 +290,7 @@ if (!wallet) {
 assertSufficientBalance(wallet, amountPaise);
 
 const updateResult = await tx.wallet.updateMany({
-where: { id: wallet.id, balance: { gte: amountPaise } },
+where: { id: wallet.id, balance: { gte: amountPaise }, isFrozen: false },
 data: {
 balance: { decrement: amountPaise },
 pendingBalance: { increment: amountPaise },
@@ -294,7 +298,7 @@ pendingBalance: { increment: amountPaise },
 });
 
 if (updateResult.count === 0) {
-throw AppError.badRequest("Insufficient wallet balance or concurrent transaction detected");
+throw AppError.badRequest("Insufficient wallet balance, frozen wallet, or concurrent transaction detected");
 }
 
 await tx.transaction.create({
@@ -347,6 +351,9 @@ logger.warn("[ActivityLog] Failed to log campaign activation", { error: logErr, 
 });
 
 logger.info("Campaign activated successfully", { userId, campaignId });
+invalidateCampaignSearchCache().catch((err) => {
+  logger.warn("Failed to invalidate campaign search cache", { err });
+});
 return result;
 } catch (error) {
 logger.error("Error activating campaign", error, { userId, campaignId });
@@ -418,7 +425,7 @@ if (refundableAmount > 0) {
 // reduced by a concurrent transaction the updateMany returns
 // count=0, we recalculate on retry.
 const walletUpdate = await tx.wallet.updateMany({
-where: { id: wallet.id, pendingBalance: { gte: refundableAmount } },
+where: { id: wallet.id, pendingBalance: { gte: refundableAmount }, isFrozen: false },
 data: {
 pendingBalance: { decrement: refundableAmount },
 balance: { increment: refundableAmount },
@@ -426,7 +433,7 @@ balance: { increment: refundableAmount },
 });
 
 if (walletUpdate.count === 0) {
-throw AppError.badRequest("Concurrent wallet modification detected, retrying");
+throw AppError.badRequest("Concurrent wallet modification detected or wallet is frozen, retrying");
 }
 
 await tx.transaction.create({
@@ -488,6 +495,9 @@ timeout: 15000,
 );
 
 logger.info("Campaign cancelled successfully", { userId, campaignId });
+invalidateCampaignSearchCache().catch((err) => {
+  logger.warn("Failed to invalidate campaign search cache", { err });
+});
 return result;
 } catch (error) {
 const isSerializationConflict =

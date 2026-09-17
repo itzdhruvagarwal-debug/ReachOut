@@ -11,6 +11,7 @@ MediatorAnalysis,
 import { logger } from "@/lib/logger";
 import { getDealAndVerifyParticipant } from "@/lib/utils";
 import { NotificationService } from "@/services/notification.service";
+import { transitionDealState, DealActorRole } from "@/lib/deal-state-machine";
 
 export class DisputeService {
 static async listDisputes(
@@ -120,18 +121,20 @@ throw AppError.badRequest("Cannot raise dispute on a completed or cancelled deal
         },
       });
 
-      // Update deal status conditionally
-      const updatedDeal = await tx.deal.updateMany({
-        where: {
-          id: data.dealId,
-          status: { in: allowedDealStatuses as DealStatus[] },
+      // Transition deal status to DISPUTED via state machine
+      const actorRole: DealActorRole = deal.brand?.userId === userId ? "BRAND" : "INFLUENCER";
+      await transitionDealState({
+        dealId: data.dealId,
+        fromState: lockedDeal.status,
+        toState: "DISPUTED",
+        actor: { userId, role: actorRole },
+        reason: data.description || "Dispute raised by participant",
+        metadata: {
+          disputeType: data.type,
+          disputeId: newDispute.id,
         },
-        data: { status: "DISPUTED" },
+        tx,
       });
-
-      if (updatedDeal.count === 0) {
-        throw AppError.badRequest("Deal status changed concurrently, cannot dispute");
-      }
 
 // Notification 1: Raiser
 await NotificationService.createNotification({

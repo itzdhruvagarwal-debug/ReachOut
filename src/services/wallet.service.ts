@@ -1,14 +1,27 @@
 import { AppError } from "@/lib/errors";
-import { TransactionStatus, TransactionType, DealStatus, Prisma } from "@prisma/client";
+import { TransactionStatus, TransactionType, DealStatus, Prisma, Wallet, Transaction, Withdrawal, UserType } from "@prisma/client";
 import prisma from "@/lib/db";
 import { logger } from "@/lib/logger";
 import { ESCROW_HELD_STATUSES } from "@/lib/utils";
 
-interface WalletTransactionFilters {
-type?: TransactionType;
-status?: TransactionStatus;
-startDate?: Date;
-endDate?: Date;
+export interface WalletTransactionFilters {
+  type?: TransactionType;
+  status?: TransactionStatus;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+export type WalletWithRelations = Wallet & {
+  withdrawals: Withdrawal[];
+  user: { userType: UserType };
+  transactions: Transaction[];
+  totalHeld: number;
+};
+
+export interface GetWalletResult {
+  wallet: WalletWithRelations;
+  totalTransactions: number;
+  totalPages: number;
 }
 
 const WALLET_INCLUDE = {
@@ -108,12 +121,12 @@ in: ESCROW_HELD_STATUSES as DealStatus[],
 return activeDealsAggregate._sum.totalAmount || 0;
 }
 
-static async getWallet(
-userId: string,
-page: number = 1,
-limit: number = 20,
-filters?: WalletTransactionFilters
-) {
+  static async getWallet(
+    userId: string,
+    page: number = 1,
+    limit: number = 20,
+    filters?: WalletTransactionFilters,
+  ): Promise<GetWalletResult> {
 try {
 const safePage = Math.max(1, page);
 const safeLimit = Math.min(100, Math.max(1, limit));

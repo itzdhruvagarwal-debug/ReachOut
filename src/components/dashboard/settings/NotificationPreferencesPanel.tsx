@@ -1,146 +1,431 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
+import {
+  Bell,
+  BellOff,
+  Mail,
+  MessageSquare,
+  Smartphone,
+  Monitor,
+  DollarSign,
+  Handshake,
+  Megaphone,
+  Star,
+  ShieldAlert,
+  Info,
+  ChevronDown,
+  ChevronUp,
+  Wallet,
+  Briefcase,
+  AlertCircle,
+  ShieldCheck,
+  Zap,
+  CheckCircle2,
+  Send,
+} from "lucide-react";
+
 import { Button } from "@/components/ui";
+import { apiClient } from "@/lib/api-client";
+import {
+  GranularNotificationPreferences,
+  DEFAULT_NOTIFICATION_PREFERENCES,
+  NotificationCategory,
+  NotificationChannel,
+} from "@/lib/notification-preferences-types";
 
 export interface NotificationPreferences {
-email: {
-marketing: boolean;
-updates: boolean;
-security: boolean;
-};
-push: {
-marketing: boolean;
-updates: boolean;
-security: boolean;
-};
+  email: {
+    marketing: boolean;
+    updates: boolean;
+    security: boolean;
+  };
+  push: {
+    marketing: boolean;
+    updates: boolean;
+    security: boolean;
+  };
 }
 
-type NotificationCategory = "marketing" | "updates" | "security";
-
-interface NotificationPreferencesPanelProps {
-preferences: NotificationPreferences;
-isSaving: boolean;
-onToggle: (
-type: "email" | "push",
-category: NotificationCategory,
-) => void;
-onSave: () => void;
+export interface NotificationPreferencesPanelProps {
+  onSaved?: () => void;
 }
 
-const notificationLabels: Record<NotificationCategory, string> = {
-marketing: "Marketing",
-updates: "Product updates",
-security: "Security alerts",
-};
+interface CategoryConfig {
+  id: NotificationCategory;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  isCritical?: boolean;
+}
+
+const CATEGORIES: CategoryConfig[] = [
+  {
+    id: "payments",
+    label: "Payments & Escrow",
+    description: "Escrow deposits, milestone releases, wallet payouts, and fee receipts",
+    icon: Wallet,
+    isCritical: true,
+  },
+  {
+    id: "deals",
+    label: "Deals & Contracts",
+    description: "Campaign invitations, deal acceptance, content approval, and reviews",
+    icon: Briefcase,
+    isCritical: true,
+  },
+  {
+    id: "messages",
+    label: "Direct Messages",
+    description: "New client chats, inquiries, and negotiation messages",
+    icon: MessageSquare,
+  },
+  {
+    id: "disputes",
+    label: "Disputes & Claims",
+    description: "Dispute opened, counter-evidence requested, and arbitration resolutions",
+    icon: AlertCircle,
+    isCritical: true,
+  },
+  {
+    id: "security",
+    label: "Account & Security",
+    description: "New device logins, KYC verification results, password alerts, and tax compliance",
+    icon: ShieldCheck,
+    isCritical: true,
+  },
+];
 
 export default function NotificationPreferencesPanel({
-preferences,
-isSaving,
-onToggle,
-onSave,
-}: Readonly<NotificationPreferencesPanelProps>) {
-return (
-<div className="card max-w-800">
-<h2
-className="text-xl font-bold mb-6"
->
-Notification Preferences
-</h2>
+  onSaved,
+}: Readonly<NotificationPreferencesPanelProps> = {}) {
+  const [matrix, setMatrix] = useState<GranularNotificationPreferences>(
+    DEFAULT_NOTIFICATION_PREFERENCES
+  );
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
+  const [testSending, setTestSending] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>("default");
 
-<PreferenceGroup
-title="Email notifications"
-type="email"
-values={preferences.email}
-onToggle={onToggle}
-/>
+  // Check browser push permission on mount
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setPushPermission(Notification.permission);
+    }
+  }, []);
 
+  // Fetch current user preferences
+  useEffect(() => {
+    async function loadPreferences() {
+      try {
+        const data = await apiClient.settings.getNotificationPrefs() as { preferences?: typeof matrix };
+        if (data.preferences) {
+          setMatrix(data.preferences);
+        }
+      } catch {
+        // Fallback to default
+      }
+    }
+    loadPreferences();
+  }, []);
 
-<div className="flex justify-end">
-<Button
-type="button"
-variant="primary"
-onClick={onSave}
-disabled={isSaving}
->
-{isSaving ? "Saving..." : "Save Preferences"}
-</Button>
-</div>
-</div>
-);
+  const handleCellToggle = (category: NotificationCategory, channel: NotificationChannel) => {
+    setMatrix((prev) => ({
+      ...prev,
+      [category]: {
+        ...prev[category],
+        [channel]: !prev[category][channel],
+      },
+    }));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveStatus(null);
+    try {
+      await apiClient.settings.saveNotificationPrefs({ preferences: matrix });
+      setSaveStatus("Preferences saved successfully!");
+      if (onSaved) {
+        onSaved();
+      }
+    } catch {
+      setSaveStatus("Failed to save preferences.");
+    } finally {
+      setSaving(false);
+      setTimeout(() => setSaveStatus(null), 4000);
+    }
+  };
+
+  const handleRequestPushPermission = async () => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      alert("Push notifications are not supported in your browser.");
+      return;
+    }
+
+    try {
+      const perm = await Notification.requestPermission();
+      setPushPermission(perm);
+
+      if (perm === "granted" && "serviceWorker" in navigator) {
+        await navigator.serviceWorker.ready;
+        // In full production, subscribe using VAPID key
+        // Send subscription to server
+        await apiClient.settings.savePushSubscription({
+          endpoint: `https://push.browser.vyapar/${Date.now()}`,
+          keys: { p256dh: "mock_p256dh_key", auth: "mock_auth_key" },
+          userAgent: navigator.userAgent,
+        });
+      }
+    } catch (err) {
+      console.warn("Push permission request error:", err);
+    }
+  };
+
+  const handleSendTestNotification = async () => {
+    setTestSending(true);
+    try {
+      await apiClient.settings.sendTestNotification({ action: "test" });
+    } catch (err) {
+      console.warn("Test notification error:", err);
+    } finally {
+      setTimeout(() => setTestSending(false), 500);
+    }
+  };
+
+  return (
+    <div className="space-y-6 max-w-4xl">
+      {/* Header Info */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-card border border-border/80 shadow-sm">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+            <Bell className="w-5 h-5 text-primary" />
+            <span>Notification Channels & Controls</span>
+          </h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Choose how you receive alerts for each business category. Critical financial and deal events are delivered even when the app is closed.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleSendTestNotification}
+            disabled={testSending}
+            className="text-xs font-semibold gap-1.5"
+            title="Trigger an instant test notification"
+          >
+            <Zap className={`w-3.5 h-3.5 text-amber-500 ${testSending ? "animate-spin" : ""}`} />
+            <span>Send Test Alert</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Web Push PWA Status Banner */}
+      <div className="p-4 rounded-2xl bg-muted/30 border border-border/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+            <Smartphone className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-foreground">Web Push Notifications (PWA)</span>
+              {pushPermission === "granted" ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>Active</span>
+                </span>
+              ) : pushPermission === "denied" ? (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+                  <span>Blocked in Browser</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <span>Permission Required</span>
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Enables background notifications for payments, deal confirmations, and disputes even when app is closed.
+            </p>
+          </div>
+        </div>
+
+        {pushPermission !== "granted" && (
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleRequestPushPermission}
+            className="text-xs font-semibold shrink-0"
+          >
+            Enable Web Push
+          </Button>
+        )}
+      </div>
+
+      {/* Granular Matrix Table */}
+      <div className="bg-card border border-border/80 rounded-2xl shadow-sm overflow-hidden">
+        <div className="grid grid-cols-12 bg-muted/40 border-b border-border/80 p-3.5 text-xs font-bold text-muted-foreground">
+          <div className="col-span-12 sm:col-span-6 uppercase tracking-wider text-[11px]">
+            Event Category
+          </div>
+          <div className="hidden sm:flex col-span-2 items-center justify-center gap-1">
+            <Smartphone className="w-3.5 h-3.5 text-primary" />
+            <span>Push</span>
+          </div>
+          <div className="hidden sm:flex col-span-2 items-center justify-center gap-1">
+            <Mail className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Email</span>
+          </div>
+          <div className="hidden sm:flex col-span-2 items-center justify-center gap-1">
+            <Send className="w-3.5 h-3.5 text-purple-500" />
+            <span>In-App</span>
+          </div>
+        </div>
+
+        <div className="divide-y divide-border/60">
+          {CATEGORIES.map((cat) => {
+            const Icon = cat.icon;
+            const values = matrix[cat.id] || DEFAULT_NOTIFICATION_PREFERENCES[cat.id];
+
+            return (
+              <div
+                key={cat.id}
+                className="grid grid-cols-12 items-center p-4 gap-4 hover:bg-muted/20 transition-colors"
+              >
+                {/* Category Info */}
+                <div className="col-span-12 sm:col-span-6 flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-muted/60 border border-border/80 flex items-center justify-center shrink-0 text-foreground/80 mt-0.5">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-foreground">{cat.label}</span>
+                      {cat.isCritical && (
+                        <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
+                          Critical
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      {cat.description}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mobile Channel Toggles Row */}
+                <div className="col-span-12 sm:hidden flex items-center justify-between pt-2 border-t border-border/40">
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Smartphone className="w-3.5 h-3.5 text-primary" />
+                    <span>Push</span>
+                    <ToggleSwitch
+                      checked={values.push}
+                      ariaLabel={`Push for ${cat.label}`}
+                      onChange={() => handleCellToggle(cat.id, "push")}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Mail className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Email</span>
+                    <ToggleSwitch
+                      checked={values.email}
+                      ariaLabel={`Email for ${cat.label}`}
+                      onChange={() => handleCellToggle(cat.id, "email")}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium">
+                    <Send className="w-3.5 h-3.5 text-purple-500" />
+                    <span>In-App</span>
+                    <ToggleSwitch
+                      checked={values.inApp}
+                      ariaLabel={`In-App for ${cat.label}`}
+                      onChange={() => handleCellToggle(cat.id, "inApp")}
+                    />
+                  </div>
+                </div>
+
+                {/* Desktop Channel Toggles */}
+                <div className="hidden sm:flex col-span-2 items-center justify-center">
+                  <ToggleSwitch
+                    checked={values.push}
+                    ariaLabel={`Push for ${cat.label}`}
+                    onChange={() => handleCellToggle(cat.id, "push")}
+                  />
+                </div>
+                <div className="hidden sm:flex col-span-2 items-center justify-center">
+                  <ToggleSwitch
+                    checked={values.email}
+                    ariaLabel={`Email for ${cat.label}`}
+                    onChange={() => handleCellToggle(cat.id, "email")}
+                  />
+                </div>
+                <div className="hidden sm:flex col-span-2 items-center justify-center">
+                  <ToggleSwitch
+                    checked={values.inApp}
+                    ariaLabel={`In-App for ${cat.label}`}
+                    onChange={() => handleCellToggle(cat.id, "inApp")}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Save Action Footer */}
+      <div className="flex items-center justify-between p-4 rounded-2xl bg-card border border-border/80 shadow-sm">
+        <div>
+          {saveStatus && (
+            <span
+              className={`text-xs font-semibold ${
+                saveStatus.includes("success") ? "text-emerald-500" : "text-destructive"
+              }`}
+            >
+              {saveStatus}
+            </span>
+          )}
+        </div>
+
+        <Button
+          type="button"
+          variant="primary"
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 font-semibold text-xs shadow-md shadow-primary/20"
+        >
+          {saving ? "Saving Preferences..." : "Save Preferences"}
+        </Button>
+      </div>
+    </div>
+  );
 }
 
-function PreferenceGroup({
-title,
-type,
-values,
-onToggle,
+function ToggleSwitch({
+  checked,
+  ariaLabel,
+  onChange,
 }: Readonly<{
-title: string;
-type: "email" | "push";
-values: NotificationPreferences["email"];
-onToggle: NotificationPreferencesPanelProps["onToggle"];
+  checked: boolean;
+  ariaLabel: string;
+  onChange: () => void;
 }>) {
-return (
-<section className="mb-8">
-<h4
-className="text-base font-semibold mb-4"
->
-{title}
-</h4>
-<div
-className="flex flex-col gap-4"
->
-{Object.entries(values).map(([key, value]) => {
-const category = key as NotificationCategory;
-return (
-<div
-key={key}
-className="flex items-center justify-between gap-4 p-3 bg-tertiary rounded-sm"
->
-<div>
-<div className="font-semibold">
-{notificationLabels[category]}
-</div>
-<div
-className="text-sm text-secondary"
->
-Receive {notificationLabels[category].toLowerCase()} by{" "}
-{type === "email" ? "email" : "push notification"}.
-</div>
-</div>
-<Toggle
-checked={value}
-label={`${title}: ${notificationLabels[category]}`}
-onChange={() => onToggle(type, category)}
-/>
-</div>
-);
-})}
-</div>
-</section>
-);
-}
-
-function Toggle({
-checked,
-label,
-onChange,
-}: Readonly<{
-checked: boolean;
-label: string;
-onChange: () => void;
-}>) {
-return (
-<label
-aria-label={label}
-className="switch flex-shrink-0"
->
-<input
-type="checkbox"
-checked={checked}
-onChange={onChange}
-/>
-<span className="slider round" />
-</label>
-);
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+        checked ? "bg-primary" : "bg-muted-foreground/30"
+      }`}
+    >
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+          checked ? "translate-x-4" : "translate-x-0"
+        }`}
+      />
+    </button>
+  );
 }

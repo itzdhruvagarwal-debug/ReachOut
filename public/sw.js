@@ -100,3 +100,79 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
+// ==================== WEB PUSH NOTIFICATIONS ====================
+
+self.addEventListener("push", (event) => {
+  let payload = {
+    title: "VyaparMedia Update",
+    message: "You have a new update.",
+    url: "/dashboard",
+    type: "system",
+  };
+
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch {
+      payload.message = event.data.text() || payload.message;
+    }
+  }
+
+  const type = payload.type || "system";
+  const isCritical =
+    payload.critical === true ||
+    [
+      "payment",
+      "payout",
+      "deal_accepted",
+      "dispute",
+      "dispute_raised",
+      "security_alert",
+    ].includes(type);
+
+  const title =
+    payload.title ||
+    (isCritical ? "VyaparMedia Critical Alert" : "VyaparMedia Notification");
+
+  const options = {
+    body: payload.message || payload.body || "Tap to view update.",
+    icon: payload.icon || "/icon-192.png",
+    badge: "/icon-192.png",
+    vibrate: isCritical ? [200, 100, 200, 100, 200] : [100, 50, 100],
+    requireInteraction: isCritical,
+    tag: payload.tag || `vyapar-${type}`,
+    renotify: true,
+    data: {
+      url: payload.url || (payload.dealId ? `/dashboard/deals/${payload.dealId}` : "/dashboard"),
+      dealId: payload.dealId,
+      type,
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || "/dashboard";
+
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if (client.url && client.url.includes(self.location.origin) && "focus" in client) {
+            if ("navigate" in client) {
+              client.navigate(targetUrl);
+            }
+            return client.focus();
+          }
+        }
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl);
+        }
+      }),
+  );
+});

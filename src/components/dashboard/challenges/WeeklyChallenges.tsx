@@ -1,25 +1,11 @@
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
+import {
+  type ChallengeItem as Challenge,
+  type ChallengesResponse,
+} from "@/lib/schemas";
 
-interface Challenge {
-challengeId: string;
-title: string;
-description: string;
-icon: string;
-type: string;
-goal: number;
-xpReward: number;
-bonusPerk: string | null;
-difficulty: string;
-progress: number;
-completed: boolean;
-completedAt: Date | null;
-}
-
-interface ChallengesResponse {
-data?: Challenge[];
-}
 
 const renderChallengeIcon = (icon: string) => {
   const commonProps = {
@@ -169,7 +155,7 @@ const renderChallengeIcon = (icon: string) => {
 };
 
 export default function WeeklyChallenges() {
-const { data, isLoading: loading } = useSWR<ChallengesResponse>("/api/challenges", fetcher);
+const { data, isLoading: loading } = useSWR<ChallengesResponse>("/api/gamification/challenges", fetcher);
 const challenges = data?.data || [];
 
 if (loading) {

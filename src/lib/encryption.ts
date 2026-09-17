@@ -210,7 +210,7 @@ export function hashForDuplicateDetection(value: string): string {
     throw AppError.badRequest("HMAC_KEY env var is required for duplicate detection hashing.");
   }
 
-  const normalized = String(value ?? "").trim().toLowerCase();
+  const normalized = String(value ?? "").replace(/[\s-]/g, "").trim().toLowerCase();
   const key = Buffer.from(hmacKey, "hex");
   const hmac = createHmac("sha256", key);
   hmac.update(normalized);

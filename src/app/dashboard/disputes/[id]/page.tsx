@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/fetcher";
 import { logger } from "@/lib/logger-client";
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 import { ToastContainer, type ToastItem, type ToastType } from "@/components/ui/toast";
 import { Button, Textarea } from "@/components/ui";
 import {
@@ -110,35 +112,32 @@ return;
 
 setIsSubmitting(true);
 try {
-const res = await fetch("/api/disputes", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
-action: "add_evidence",
-disputeId: dispute.id,
-type: evidenceType,
-url: evidenceUrl,
-description: evidenceDesc,
-}),
-});
+  const data = (await apiClient.settings.createDispute({
+    action: "add_evidence",
+    disputeId: dispute.id,
+    type: evidenceType,
+    url: evidenceUrl,
+    description: evidenceDesc,
+  })) as { success?: boolean; error?: string };
 
-const data = await res.json();
-if (data.success) {
-showToast("success", "Evidence added successfully");
-setShowEvidenceForm(false);
-setEvidenceUrl("");
-setEvidenceDesc("");
-fetchDispute();
-} else {
-showToast("error", data.error || "Failed to add evidence");
-}
+  if (data?.success) {
+    showToast("success", "Evidence added successfully");
+    setShowEvidenceForm(false);
+    setEvidenceUrl("");
+    setEvidenceDesc("");
+    fetchDispute();
+  } else {
+    showToast("error", data?.error || "Failed to add evidence");
+  }
 } catch (error) {
-logger.error("[dispute-detail] Failed to add evidence:", error);
-showToast("error", "Something went wrong");
+  logger.error("[dispute-detail] Failed to add evidence:", error);
+  const msg = error instanceof ApiClientError ? error.message : "Something went wrong";
+  showToast("error", msg);
 } finally {
-setIsSubmitting(false);
+  setIsSubmitting(false);
 }
 };
+
 
 const handleDisputeAction = async (action: string) => {
 if (!dispute) return;
@@ -151,29 +150,27 @@ return;
 }
 setActionLoading(action);
 try {
-const res = await fetch("/api/disputes", {
-method: "PATCH",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
-disputeId: dispute.id,
-action,
-reason: action === "escalate" ? escalateReason : undefined,
-}),
-});
-const data = await res.json();
-if (data.success) {
-showToast("success", data.message || "Action processed successfully.");
-setShowEscalateForm(false);
-fetchDispute();
-} else {
-showToast("error", data.error || "Action failed");
-}
+  const data = (await apiClient.settings.patchDispute({
+    disputeId: dispute.id,
+    action,
+    reason: action === "escalate" ? escalateReason : undefined,
+  })) as { success?: boolean; message?: string; error?: string };
+
+  if (data?.success) {
+    showToast("success", data?.message || "Action processed successfully.");
+    setShowEscalateForm(false);
+    fetchDispute();
+  } else {
+    showToast("error", data?.error || "Action failed");
+  }
 } catch (error) {
-logger.error("[dispute-detail] Failed to perform dispute action:", error);
-showToast("error", "Something went wrong");
+  logger.error("[dispute-detail] Failed to perform dispute action:", error);
+  const msg = error instanceof ApiClientError ? error.message : "Something went wrong";
+  showToast("error", msg);
 } finally {
-setActionLoading(null);
+  setActionLoading(null);
 }
+
 };
 
 if (isLoading) {

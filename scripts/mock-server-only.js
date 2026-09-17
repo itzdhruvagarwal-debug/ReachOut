@@ -1,3 +1,5 @@
+require('dotenv').config();
+process.env.SKIP_ENV_VALIDATION = "true";
 const Module = require('node:module');
 const originalRequire = Module.prototype.require;
 

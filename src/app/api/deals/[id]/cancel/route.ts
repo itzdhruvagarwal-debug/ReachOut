@@ -10,6 +10,7 @@ import { Prisma } from "@prisma/client";
 import { getDealTotalAmount } from "@/lib/utils";
 import { createActivityLog } from "@/lib/audit";
 import { AppError } from "@/lib/errors";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 interface CancellationSummary {
 refundAmount: number;
@@ -276,33 +277,33 @@ async function processBrandCancellationRefund(
 }
 
 async function executeCancellationTransaction(
-tx: Prisma.TransactionClient,
-deal: DealWithProfile,
-cancelSummary: CancellationSummary,
-_sessionUserId: string,
+  tx: Prisma.TransactionClient,
+  deal: DealWithProfile,
+  cancelSummary: CancellationSummary,
+  sessionUserId: string,
 ) {
-const cancelResult = await tx.deal.updateMany({
-where: {
-id: deal.id,
-status: { notIn: ["COMPLETED", "CANCELLED", "DISPUTED"] },
-},
-data: {
-status: "CANCELLED",
-},
-});
-if (cancelResult.count === 0) {
-throw AppError.conflict("Deal is no longer in a cancellable state (concurrent modification).");
-}
+  await transitionDealState({
+    dealId: deal.id,
+    fromState: deal.status,
+    toState: "CANCELLED",
+    actor: { userId: sessionUserId, role: "BRAND" },
+    reason: cancelSummary.reason || "Brand requested cancellation",
+    financialHandler: async (t) => {
+      // Decrement campaign reserved amount
+      await t.campaign.update({
+        where: { id: deal.campaignId },
+        data: {
+          reservedAmount: { decrement: deal.amount },
+          reservedTotalAmount: { decrement: getDealTotalAmount(deal) },
+        },
+      });
 
-// Decrement campaign reserved amount
-await tx.campaign.update({
-where: { id: deal.campaignId },
-data: {
-reservedAmount: { decrement: deal.amount },
-reservedTotalAmount: { decrement: getDealTotalAmount(deal) },
-},
-});
-
-await processPayoutAndPlatformFees(tx, deal, cancelSummary);
-await processBrandCancellationRefund(tx, deal, cancelSummary);
+      await processPayoutAndPlatformFees(t, deal, cancelSummary);
+      await processBrandCancellationRefund(t, deal, cancelSummary);
+    },
+    metadata: {
+      cancelSummary,
+    },
+    tx,
+  });
 }

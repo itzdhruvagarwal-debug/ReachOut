@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { apiWrapper } from "@/lib/api-wrapper";
 import { validateCronSecret } from "../guard";
 import prisma from "@/lib/db";
-import { DisputeType } from "@prisma/client";
+import { DisputeType, DealStatus } from "@prisma/client";
 import { NotificationService } from "@/services/notification.service";
 import { logger } from "@/lib/logger";
 import { acquireDistributedLock, releaseDistributedLock, extendDistributedLock } from "@/lib/lock";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 /**
 * Stale Product Fulfillment Scanner Daily Cron
@@ -32,6 +33,7 @@ const LOCK_TTL_SECS = 300;
 
 interface StaleDeal {
   id: string;
+  status: DealStatus;
   productFulfillmentStatus: string;
   updatedAt: Date;
   dispatchedAt: Date | null;
@@ -203,10 +205,14 @@ async function autoEscalateToDispute(
       });
       if (existingDispute) return;
 
-      // Flip the deal status to DISPUTED
-      await tx.deal.update({
-        where: { id: deal.id },
-        data: { status: "DISPUTED" },
+      // Flip the deal status to DISPUTED via central state machine
+      await transitionDealState({
+        dealId: deal.id,
+        fromState: deal.status,
+        toState: "DISPUTED",
+        actor: { userId: firstAdminId || "SYSTEM_STALE_FULFILLMENT", role: "ADMIN" },
+        reason: `Auto-escalated by system after ${staleDays} days with no fulfillment progress`,
+        tx,
       });
 
       // Create the dispute record
@@ -359,6 +365,7 @@ async function scanStaleFulfillmentDeals(lockKey: string, lockToken: string): Pr
       },
       select: {
         id: true,
+        status: true,
         productFulfillmentStatus: true,
         updatedAt: true,
         dispatchedAt: true,

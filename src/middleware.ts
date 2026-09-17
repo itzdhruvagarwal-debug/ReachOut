@@ -66,67 +66,186 @@ function generateCspWithNonce(nonce: string): string {
 
 /** Returns true if the request fingerprint matches any WAF-blocked pattern. */
 function checkWafPatterns(requestFingerprint: string): boolean {
-const suspiciousPatterns = [
-/\bsqlmap\b/,
-/\bnikto\b/,
-/\bnmap\b/,
-/\bmasscan\b/,
-/\bdirbuster\b/,
-/\bgobuster\b/,
-/\bwp-scan\b/,
-/\bwpscan\b/,
-/\/wp-admin\b/,
-/\/wp-login\.php\b/,
-/\/phpmyadmin\b/,
-/\.\.\/|\.\.\\/,
-/<script\b/,
-/union(?:\s|%20|\+)+select/,
-/sleep\s*\(/,
-/benchmark\s*\(/,
-/\/etc\/passwd/,
+  const suspiciousPatterns = [
+    // Scanners & vulnerability exploitation tools
+    /\b(?:sqlmap|nikto|nmap|masscan|dirbuster|gobuster|wpscan|wp-scan|acunetix|nessus|qualys|zgrab)\b/i,
+    /\/wp-(?:admin|login\.php)\b/i,
+    /\/phpmyadmin\b/i,
+    /\.env\b/i,
+    /\.git\b/i,
+    /\.aws\b/i,
+
+    // Path traversal / LFI
+    /\.\.[/\\]/,
+    /%2e%2e/i,
+    /%252e/i,
+    /\/etc\/(?:passwd|shadow)/i,
+    /\b(?:boot\.ini|win\.ini)\b/i,
+    /\/proc\/self\//i,
+
+    // SQL Injection
+    /\bunion(?:\s|%20|\+)+(?:all(?:\s|%20|\+)+)?select\b/i,
+    /\b(?:sleep|pg_sleep)\s*\(/i,
+    /\bbenchmark\s*\(/i,
+    /\bwaitfor\s+delay\b/i,
+    /\bxp_cmdshell\b/i,
+    /\binformation_schema\b/i,
+    /\bload_file\s*\(/i,
+    /\binto\s+outfile\b/i,
+    /\bor\s+1\s*=\s*1\b/i,
+    /'\s*or\s+'1'\s*=\s*'1/i,
+    /;\s*--/i,
+
+    // Remote Code Execution / XSS
+    /<script\b/i,
+    /\$\{jndi:/i,
+    /\b(?:eval|system|passthru|shell_exec|base64_decode)\s*\(/i,
+  ];
+  return suspiciousPatterns.some((pattern) => pattern.test(requestFingerprint));
+}
+
+const CSRF_EXEMPT_PREFIXES = [
+  "/api/payments/webhook",
+  "/api/webhooks/",
+  "/api/jobs/",
+  "/api/cron/",
+  "/api/auth/",
 ];
-return suspiciousPatterns.some((pattern) => pattern.test(requestFingerprint));
+
+function isCsrfExempt(pathname: string): boolean {
+  return CSRF_EXEMPT_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function handleCsrfCheck(
+  req: NextRequest,
+  pathname: string,
+  applyCSP: (response: NextResponse) => NextResponse,
+): NextResponse | null {
+  const method = req.method.toUpperCase();
+  const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+  if (!MUTATING_METHODS.has(method) || isCsrfExempt(pathname)) {
+    return null;
+  }
+
+  // 1. Sec-Fetch-Site check: Reject cross-site mutations outright
+  const secFetchSite = req.headers.get("sec-fetch-site");
+  if (secFetchSite === "cross-site") {
+    return applyCSP(
+      NextResponse.json(
+        { error: "Forbidden: Cross-site mutation rejected (CSRF)" },
+        { status: 403 },
+      ),
+    );
+  }
+
+  // Determine allowed hosts from request host and configured base URLs
+  const requestHost = req.headers.get("host") || "";
+  const forwardedHost = req.headers.get("x-forwarded-host") || "";
+  const allowedHosts = new Set<string>();
+
+  if (requestHost) allowedHosts.add(requestHost.toLowerCase());
+  if (forwardedHost) allowedHosts.add(forwardedHost.toLowerCase());
+
+  const configuredHosts = [
+    hostnameFromUrl(process.env.NEXTAUTH_URL),
+    hostnameFromUrl(process.env.NEXT_PUBLIC_APP_URL),
+    hostnameFromUrl(process.env.APP_BASE_URL),
+  ].filter((h): h is string => Boolean(h));
+
+  for (const h of configuredHosts) {
+    allowedHosts.add(h.toLowerCase());
+  }
+
+  // 2. Check Origin header if present
+  const origin = req.headers.get("origin");
+  if (origin) {
+    try {
+      const originHost = new URL(origin).host.toLowerCase();
+      if (!allowedHosts.has(originHost)) {
+        return applyCSP(
+          NextResponse.json(
+            { error: "Forbidden: Invalid origin (CSRF)" },
+            { status: 403 },
+          ),
+        );
+      }
+    } catch {
+      return applyCSP(
+        NextResponse.json(
+          { error: "Forbidden: Malformed origin header" },
+          { status: 403 },
+        ),
+      );
+    }
+    return null;
+  }
+
+  // 3. Fallback to Referer header if Origin is omitted
+  const referer = req.headers.get("referer");
+  if (referer) {
+    try {
+      const refererHost = new URL(referer).host.toLowerCase();
+      if (!allowedHosts.has(refererHost)) {
+        return applyCSP(
+          NextResponse.json(
+            { error: "Forbidden: Invalid referer (CSRF)" },
+            { status: 403 },
+          ),
+        );
+      }
+    } catch {
+      return applyCSP(
+        NextResponse.json(
+          { error: "Forbidden: Malformed referer header" },
+          { status: 403 },
+        ),
+      );
+    }
+  }
+
+  return null;
 }
 
 /** Returns true if the IP address is found in the Edge Redis blacklist. */
 async function checkEdgeIpBlacklist(ip: string): Promise<boolean> {
-try {
-const { isIpBannedEdge } = await import("./lib/blacklist-edge");
-return await isIpBannedEdge(ip);
-} catch (err) {
-logger.error("Middleware edge blacklist lookup failed:", err);
-return false;
-}
+  try {
+    const { isIpBannedEdge } = await import("./lib/blacklist-edge");
+    return await isIpBannedEdge(ip);
+  } catch (err) {
+    logger.error("Middleware edge blacklist lookup failed:", err);
+    return false;
+  }
 }
 
 /**
-* Returns true when an unauthenticated user is accessing a protected path,
-* meaning a login redirect (or 401) should be issued.
-*/
+ * Returns true when an unauthenticated user is accessing a protected path,
+ * meaning a login redirect (or 401) should be issued.
+ */
 function requiresLoginRedirect(
-isAuth: boolean,
-isStaticAsset: boolean,
-isDashboardPath: boolean,
-isAdminPath: boolean,
+  isAuth: boolean,
+  isStaticAsset: boolean,
+  isDashboardPath: boolean,
+  isAdminPath: boolean,
 ): boolean {
-return !isAuth && !isStaticAsset && (isDashboardPath || isAdminPath);
+  return !isAuth && !isStaticAsset && (isDashboardPath || isAdminPath);
 }
 
 /**
-* Returns true when the current path is an admin path but the user's
-* userType is not "ADMIN".
-*/
+ * Returns true when the current path is an admin path but the user's
+ * userType is not "ADMIN".
+ */
 function isAdminAccessDenied(
-userType: string | undefined,
-isAdminPath: boolean,
+  userType: string | undefined,
+  isAdminPath: boolean,
 ): boolean {
-return isAdminPath && userType !== "ADMIN";
+  return isAdminPath && userType !== "ADMIN";
 }
 
 /**
-* Timing-safe CRON secret verification using Web Crypto (Edge-safe).
-* Returns true if the provided secret matches the expected value.
-*/
+ * Timing-safe CRON secret verification using Web Crypto (Edge-safe).
+ * Returns true if the provided secret matches the expected value.
+ */
 async function verifyCronSecret(
   cronSecret: string | null,
   expectedSecret: string,
@@ -149,34 +268,44 @@ async function verifyCronSecret(
 // ---------------------------------------------------------------------------
 
 /**
-* Enterprise Middleware Logic
-*/
+ * Enterprise Middleware Logic
+ */
 async function handleWafAndIpCheck(
-req: NextRequest,
-pathname: string,
-applyCSP: (response: NextResponse) => NextResponse
+  req: NextRequest,
+  pathname: string,
+  applyCSP: (response: NextResponse) => NextResponse,
 ): Promise<NextResponse | null> {
   const ua = (req.headers.get("user-agent") || "").toLowerCase();
-  let decodedPath = pathname.toLowerCase();
-  let decodedSearch = req.nextUrl.search.toLowerCase();
+  const rawPath = pathname.toLowerCase();
+  const rawSearch = req.nextUrl.search.toLowerCase();
+  let decodedPath = rawPath;
+  let decodedSearch = rawSearch;
   try {
     decodedPath = decodeURIComponent(pathname).toLowerCase();
     decodedSearch = decodeURIComponent(req.nextUrl.search).toLowerCase();
   } catch {
     // Keep raw strings on malformed URI encoding
   }
-  const requestFingerprint = `${ua} ${decodedPath} ${decodedSearch}`;
+  const requestFingerprint = `${ua} ${rawPath} ${rawSearch} ${decodedPath} ${decodedSearch}`;
   if (checkWafPatterns(requestFingerprint)) {
-    return applyCSP(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
+    return applyCSP(
+      NextResponse.json(
+        { error: "Forbidden: Security violation detected" },
+        { status: 403 },
+      ),
+    );
   }
 
-const ip = getSecureClientIp(req);
-if (ip !== "unknown" && (await checkEdgeIpBlacklist(ip))) {
-return applyCSP(
-NextResponse.json({ error: "Access Denied: Your IP is banned." }, { status: 403 }),
-);
-}
-return null;
+  const ip = getSecureClientIp(req);
+  if (ip !== "unknown" && (await checkEdgeIpBlacklist(ip))) {
+    return applyCSP(
+      NextResponse.json(
+        { error: "Access Denied: Your IP is banned." },
+        { status: 403 },
+      ),
+    );
+  }
+  return null;
 }
 
 interface AuthRedirectConfig {
@@ -215,22 +344,66 @@ return null;
 }
 
 function handleAdminRedirect(
-pathname: string,
-session: { user?: { userType?: string } } | null,
-isAuth: boolean,
-isAdminPath: boolean,
-redirectTo: (targetPath: string) => URL,
-applyCSP: (response: NextResponse) => NextResponse
+  pathname: string,
+  session: { user?: { userType?: string } } | null,
+  isAuth: boolean,
+  isAdminPath: boolean,
+  redirectTo: (targetPath: string) => URL,
+  applyCSP: (response: NextResponse) => NextResponse
 ): NextResponse | null {
-if (isAdminPath && isAdminAccessDenied(session?.user?.userType, isAdminPath)) {
-if (pathname.startsWith("/api/")) {
-return applyCSP(
-NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 }),
-);
+  if (isAdminPath && isAdminAccessDenied(session?.user?.userType, isAdminPath)) {
+    if (pathname.startsWith("/api/")) {
+      return applyCSP(
+        NextResponse.json({ error: "Forbidden: Admin access required" }, { status: 403 }),
+      );
+    }
+    return applyCSP(NextResponse.redirect(redirectTo(isAuth ? "/dashboard" : "/login")));
+  }
+  return null;
 }
-return applyCSP(NextResponse.redirect(redirectTo(isAuth ? "/dashboard" : "/login")));
-}
-return null;
+
+function handleRoleRedirect(
+  pathname: string,
+  session: { user?: { userType?: string } } | null,
+  isAuth: boolean,
+  redirectTo: (targetPath: string) => URL,
+  applyCSP: (response: NextResponse) => NextResponse
+): NextResponse | null {
+  if (!isAuth) return null;
+  const userType = (session?.user?.userType || "INFLUENCER").toUpperCase();
+  if (userType === "ADMIN") return null;
+
+  // Brand-only routes
+  const isBrandOnly =
+    pathname === "/dashboard/campaigns/create" ||
+    pathname.startsWith("/dashboard/campaigns/create/") ||
+    pathname === "/dashboard/influencers" ||
+    pathname.startsWith("/dashboard/influencers/");
+
+  if (isBrandOnly && userType !== "BRAND" && userType !== "INDIVIDUAL") {
+    if (pathname.startsWith("/api/")) {
+      return applyCSP(
+        NextResponse.json({ error: "Forbidden: Brand access required" }, { status: 403 }),
+      );
+    }
+    return applyCSP(NextResponse.redirect(redirectTo("/dashboard")));
+  }
+
+  // Influencer-only routes
+  const isInfluencerOnly =
+    pathname === "/dashboard/applications" ||
+    pathname.startsWith("/dashboard/applications/");
+
+  if (isInfluencerOnly && userType !== "INFLUENCER") {
+    if (pathname.startsWith("/api/")) {
+      return applyCSP(
+        NextResponse.json({ error: "Forbidden: Influencer access required" }, { status: 403 }),
+      );
+    }
+    return applyCSP(NextResponse.redirect(redirectTo("/dashboard")));
+  }
+
+  return null;
 }
 
 async function handleCronProtection(
@@ -286,6 +459,9 @@ const applyCSP = (response: NextResponse) => {
 const wafResult = await handleWafAndIpCheck(req, pathname, applyCSP);
 if (wafResult) return wafResult;
 
+const csrfResult = handleCsrfCheck(req, pathname, applyCSP);
+if (csrfResult) return csrfResult;
+
 // 2. Auth Logic
 const isAuth = !!session && !session.error;
 const isApiRoute = pathname.startsWith("/api/");
@@ -326,6 +502,15 @@ applyCSP
 );
 if (adminRedirect) return adminRedirect;
 
+const roleRedirect = handleRoleRedirect(
+  pathname,
+  session,
+  isAuth,
+  redirectTo,
+  applyCSP
+);
+if (roleRedirect) return roleRedirect;
+
 // 4. Prevent logged-in users from seeing /login and /register
 const authPages = new Set(["/login", "/register", "/forgot-password", "/reset-password"]);
 if (isAuth && authPages.has(pathname)) {
@@ -350,5 +535,5 @@ return response;
 });
 
 export const config = {
-  matcher: ["/((?!api/payments/webhook|api/webhooks/razorpay|api/metrics|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api/payments/webhook|api/webhooks/razorpay/process|api/jobs|api/metrics|_next/static|_next/image|favicon.ico).*)"],
 };

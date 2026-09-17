@@ -6,65 +6,43 @@ import { DealDetail, getFlatDeliverablesList, ContentUrlEntry } from "./DealDeta
 import { ToastType } from "@/components/ui/toast";
 
 interface DealModalsProps {
-readonly showAddressModal: boolean;
-readonly setShowAddressModal: (open: boolean) => void;
-readonly showReviewModal: boolean;
-readonly setShowReviewModal: (open: boolean) => void;
-readonly showSubmitModal: boolean;
-readonly setShowSubmitModal: (open: boolean) => void;
-readonly showVerifyModal: boolean;
-readonly setShowVerifyModal: (open: boolean) => void;
-readonly deal: DealDetail | null;
-readonly shippingForm: { fullName: string; phone: string; line1: string; line2: string; city: string; state: string; pinCode: string; country: string };
-readonly setShippingForm: React.Dispatch<React.SetStateAction<{ fullName: string; phone: string; line1: string; line2: string; city: string; state: string; pinCode: string; country: string }>>;
-readonly itemizedUrls: Record<string, string>;
-readonly setItemizedUrls: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-readonly contentForm: { contentUrl: string; notes: string };
-readonly setContentForm: React.Dispatch<React.SetStateAction<{ contentUrl: string; notes: string }>>;
-readonly postUrl: string;
-readonly setPostUrl: (val: string) => void;
-readonly isSubmitting: boolean;
-readonly handleAction: (action: string, payload?: Record<string, unknown>) => Promise<boolean>;
-readonly showToast: (type: ToastType, message: string) => void;
-readonly handleReviewContent: () => Promise<void>;
-readonly itemizedReviews: Record<string, { status: "APPROVED" | "REVISION_REQUESTED"; feedback: string }>;
-readonly setItemizedReviews: React.Dispatch<React.SetStateAction<Record<string, { status: "APPROVED" | "REVISION_REQUESTED"; feedback: string }>>>;
-readonly isUploadingContent: boolean;
-readonly uploadingField: string | null;
-readonly setUploadingField: (field: string | null) => void;
-readonly fileInputRef: React.RefObject<HTMLInputElement | null>;
-readonly handleContentUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  readonly showAddressModal: boolean;
+  readonly setShowAddressModal: (open: boolean) => void;
+  readonly showReviewModal: boolean;
+  readonly setShowReviewModal: (open: boolean) => void;
+  readonly showVerifyModal: boolean;
+  readonly setShowVerifyModal: (open: boolean) => void;
+  readonly deal: DealDetail | null;
+  readonly shippingForm: { fullName: string; phone: string; line1: string; line2: string; city: string; state: string; pinCode: string; country: string };
+  readonly setShippingForm: React.Dispatch<React.SetStateAction<{ fullName: string; phone: string; line1: string; line2: string; city: string; state: string; pinCode: string; country: string }>>;
+  readonly postUrl: string;
+  readonly setPostUrl: (val: string) => void;
+  readonly isSubmitting: boolean;
+  readonly handleAction: (action: string, payload?: Record<string, unknown>) => Promise<boolean>;
+  readonly showToast: (type: ToastType, message: string) => void;
+  readonly handleReviewContent: () => Promise<void>;
+  readonly itemizedReviews: Record<string, { status: "APPROVED" | "REVISION_REQUESTED"; feedback: string }>;
+  readonly setItemizedReviews: React.Dispatch<React.SetStateAction<Record<string, { status: "APPROVED" | "REVISION_REQUESTED"; feedback: string }>>>;
 }
 
 export function DealModals({
-showAddressModal,
-setShowAddressModal,
-showReviewModal,
-setShowReviewModal,
-showSubmitModal,
-setShowSubmitModal,
-showVerifyModal,
-setShowVerifyModal,
-deal,
-shippingForm,
-setShippingForm,
-itemizedUrls,
-setItemizedUrls,
-contentForm,
-setContentForm,
-postUrl,
-setPostUrl,
-isSubmitting,
-handleAction,
-showToast,
-handleReviewContent,
-itemizedReviews,
-setItemizedReviews,
-isUploadingContent,
-uploadingField,
-setUploadingField,
-fileInputRef,
-handleContentUpload,
+  showAddressModal,
+  setShowAddressModal,
+  showReviewModal,
+  setShowReviewModal,
+  showVerifyModal,
+  setShowVerifyModal,
+  deal,
+  shippingForm,
+  setShippingForm,
+  postUrl,
+  setPostUrl,
+  isSubmitting,
+  handleAction,
+  showToast,
+  handleReviewContent,
+  itemizedReviews,
+  setItemizedReviews,
 }: DealModalsProps) {
 if (!deal) return null;
 
@@ -267,171 +245,6 @@ disabled={isSubmitting}
 className="flex-1"
 >
 {isSubmitting ? <span className="loading" /> : "Submit Review"}
-</Button>
-</div>
-</Modal>
-
-<Modal
-open={showSubmitModal}
-onClose={() => setShowSubmitModal(false)}
-title="Submit Content"
-maxWidth="550px"
->
-<div
-className="mb-5 flex flex-col gap-4 overflow-y-auto deal-modal-scroll-container"
->
-{getFlatDeliverablesList(deal).map((item) => {
-const latestSub = deal?.contentSubmissions?.[0];
-const existing = latestSub?.contentUrls && Array.isArray(latestSub.contentUrls)
-? latestSub.contentUrls.find((u: ContentUrlEntry) => u.type === item.type)
-: null;
-const isApproved = existing?.status === "APPROVED";
-const inputId = `input-${item.type}`;
-
-return (
-<div key={item.type} className="flex flex-col gap-2">
-<div className="flex justify-between items-center">
-<label className="label font-semibold mb-0" htmlFor={inputId}>
-{item.label} *
-</label>
-{isApproved && (
-<span className="text-xs font-semibold text-success">
-Approved (Locked)
-</span>
-)}
-</div>
-
-<div className="flex gap-2">
-<Input
-id={inputId}
-type="url"
-placeholder="https://drive.google.com/..."
-value={
-isApproved
-? existing?.url || ""
-: itemizedUrls[item.type] || ""
-}
-onChange={(e) =>
-setItemizedUrls({
-...itemizedUrls,
-[item.type]: e.target.value,
-})
-}
-disabled={isApproved}
-className="flex-1"
-/>
-{!isApproved && (
-<Button
-variant="secondary"
-aria-label={`Upload file for ${item.label}`}
-aria-busy={isUploadingContent && uploadingField === item.type}
-onClick={() => {
-setUploadingField(item.type);
-setTimeout(() => fileInputRef.current?.click(), 50);
-}}
-disabled={isUploadingContent}
-className="whitespace-nowrap"
->
-{isUploadingContent && uploadingField === item.type
-? "Uploading..."
-: "Upload"}
-</Button>
-)}
-</div>
-</div>
-);
-})}
-
-<input
-type="file"
-ref={fileInputRef}
-aria-label="Upload deliverable content file"
-aria-hidden="true"
-tabIndex={-1}
-className="hidden"
-onChange={handleContentUpload}
-accept="image/*,video/*,.pdf"
-/>
-</div>
-
-<div className="mb-5">
-<Textarea
-label="Notes (Optional)"
-id="submit-notes-textarea"
-rows={3}
-placeholder="Any message for the brand..."
-value={contentForm.notes}
-onChange={(e) =>
-setContentForm({ ...contentForm, notes: e.target.value })
-}
-fullWidth
-/>
-</div>
-
-<div className="flex gap-3">
-<Button
-variant="secondary"
-onClick={() => setShowSubmitModal(false)}
-className="flex-1"
->
-Cancel
-</Button>
-<Button
-variant="primary"
-onClick={async () => {
-const deliverablesList = getFlatDeliverablesList(deal);
-const submissionUrls = deliverablesList.map((item) => {
-const latestSub = deal?.contentSubmissions?.[0];
-const existing = latestSub?.contentUrls && Array.isArray(latestSub.contentUrls)
-? latestSub.contentUrls.find((u: ContentUrlEntry) => u.type === item.type)
-: null;
-
-if (existing?.status === "APPROVED") {
-return {
-type: item.type,
-url: existing.url,
-status: "APPROVED",
-};
-}
-
-return {
-type: item.type,
-url: itemizedUrls[item.type] || "",
-};
-});
-
-const missingUrls = submissionUrls.filter((item) => !item.url);
-if (missingUrls.length > 0) {
-showToast(
-"error",
-"Please provide submission links for all deliverables."
-);
-return;
-}
-
-// Validate URL format for non-approved items
-const invalidUrls = submissionUrls.filter(
-(item) =>
-item.status !== "APPROVED" &&
-item.url &&
-!item.url.startsWith("http://") &&
-!item.url.startsWith("https://")
-);
-if (invalidUrls.length > 0) {
-showToast("error", "Please enter valid URLs starting with http:// or https://");
-return;
-}
-
-await handleAction("submit_content", {
-contentUrls: submissionUrls,
-notes: contentForm.notes,
-contentUrl: submissionUrls[0]?.url || "",
-});
-}}
-disabled={isSubmitting}
-className="flex-1"
->
-{isSubmitting ? <span className="loading" /> : "Submit"}
 </Button>
 </div>
 </Modal>

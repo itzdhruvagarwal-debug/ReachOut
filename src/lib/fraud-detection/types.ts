@@ -28,10 +28,13 @@ proposedRate?: number;
 }
 
 export interface PaymentCheckParams {
-userId: string;
-amount: number;
-bankAccount?: string | undefined;
-upiId?: string | undefined;
+  userId: string;
+  amount: number;
+  bankAccount?: string | undefined;
+  bankAccountName?: string | undefined;
+  upiId?: string | undefined;
+  ipAddress?: string | undefined;
+  deviceFingerprint?: string | undefined;
 }
 
 export interface GrowthCheckParams {

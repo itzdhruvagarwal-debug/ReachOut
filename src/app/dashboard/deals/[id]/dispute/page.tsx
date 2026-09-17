@@ -2,6 +2,8 @@
 
 
 import { logger } from "@/lib/logger-client";
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 import { useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -48,31 +50,28 @@ return;
 
 setIsSubmitting(true);
 try {
-const res = await fetch("/api/disputes", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
-action: "create",
-dealId,
-type: issueType,
-description,
-}),
-});
+  const data = (await apiClient.settings.createDispute({
+    action: "create",
+    dealId,
+    type: issueType,
+    description,
+  })) as { success?: boolean; message?: string; error?: string };
 
-const data = await res.json();
-if (data.success) {
-showToast("success", data.message);
-router.push(`/dashboard/deals/${dealId}`);
-} else {
-showToast("error", data.error || "Failed to raise dispute");
-}
+  if (data?.success) {
+    showToast("success", data?.message || "Dispute submitted successfully");
+    router.push(`/dashboard/deals/${dealId}`);
+  } else {
+    showToast("error", data?.error || "Failed to raise dispute");
+  }
 } catch (error) {
-logger.error("[deal-dispute] Failed to raise dispute:", error);
-showToast("error", "Something went wrong");
+  logger.error("[deal-dispute] Failed to raise dispute:", error);
+  const msg = error instanceof ApiClientError ? error.message : "Something went wrong";
+  showToast("error", msg);
 } finally {
-setIsSubmitting(false);
+  setIsSubmitting(false);
 }
 };
+
 
 return (
 <>

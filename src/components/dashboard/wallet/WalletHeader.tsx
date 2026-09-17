@@ -3,15 +3,9 @@
 import { Button } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils-client";
 
-export interface WalletData {
-  balance: number;
-  pendingBalance: number;
-  totalEarned: number;
-  totalWithdrawn: number;
-  totalSpent?: number;
-  totalDeposited?: number;
-  totalHeld?: number;
-}
+import type { WalletSummary } from "@/lib/schemas";
+
+export type WalletData = WalletSummary;
 
 interface WalletHeaderProps {
   readonly userType: string | null | undefined;

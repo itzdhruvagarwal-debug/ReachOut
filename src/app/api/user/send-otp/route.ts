@@ -5,7 +5,8 @@ import { sendVerificationEmail } from "@/lib/email";
 import { generateOTP } from "@/lib/utils";
 import prisma from "@/lib/db";
 import { logger } from "@/lib/logger";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, rateLimit } from "@/lib/rate-limit";
+import { getSecureClientIp } from "@/lib/ip";
 import { z } from "zod";
 import { apiWrapper } from "@/lib/api-wrapper";
 import { redis } from "@/lib/redis";
@@ -31,6 +32,19 @@ return NextResponse.json(
 { error: "Invalid Indian phone number format" },
 { status: 400 },
 );
+}
+
+const phoneRateLimit = await rateLimit({
+  uniqueToken: `otp:send:phone:${normalizedPhone}`,
+  limit: 5,
+  window: 3600, // max 5 OTP requests per hour per phone
+  securityCritical: true,
+});
+if (!phoneRateLimit.success) {
+  return NextResponse.json(
+    { error: "Too many OTP requests for this phone number. Please try again later." },
+    { status: 429 },
+  );
 }
 
 const result = await sendOTP(normalizedPhone, {
@@ -74,6 +88,20 @@ fallbackUsed: result.fallbackUsed,
 }
 
 async function handleSendEmailOtp(userId: string, contact: string) {
+const normalizedEmail = contact.toLowerCase().trim();
+const emailRateLimit = await rateLimit({
+  uniqueToken: `otp:send:email:${normalizedEmail}`,
+  limit: 5,
+  window: 3600,
+  securityCritical: true,
+});
+if (!emailRateLimit.success) {
+  return NextResponse.json(
+    { error: "Too many OTP requests for this email. Please try again later." },
+    { status: 429 },
+  );
+}
+
 const otp = generateOTP();
 const { createHash } = await import("node:crypto");
 const otpHash = createHash("sha256").update(otp).digest("hex");
@@ -94,8 +122,13 @@ if (!session?.user?.id) {
 return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
-const otpRateLimit = await checkRateLimit(session.user.id, "AUTH");
-if (!otpRateLimit.success) {
+const ip = getSecureClientIp(req);
+const [userRateLimit, ipRateLimit] = await Promise.all([
+  checkRateLimit(session.user.id, "AUTH"),
+  checkRateLimit(ip, "AUTH"),
+]);
+
+if (!userRateLimit.success || !ipRateLimit.success) {
 return NextResponse.json(
 { error: "Too many OTP requests. Please wait before requesting again." },
 {

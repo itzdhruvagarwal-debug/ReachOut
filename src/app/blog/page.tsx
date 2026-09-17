@@ -5,6 +5,8 @@ import Footer from "@/components/Footer";
 import { useState } from "react";
 import { Button, Input } from "@/components/ui";
 import { z } from "zod";
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 
 interface BlogPost {
 id: string;
@@ -156,33 +158,27 @@ return;
 setLoading(true);
 
 try {
-const res = await fetch("/api/blog/subscribe", {
-method: "POST",
-headers: {
-"Content-Type": "application/json",
-},
-body: JSON.stringify({ email }),
-});
-
-const data = await res.json();
-if (!res.ok) {
-throw new Error(data.message || data.error || "Failed to subscribe.");
-}
-
-setStatus({
-type: "success",
-message: "Thank you! Please check your inbox to verify your subscription.",
-});
-setEmail("");
+  await apiClient.settings.blogSubscribe({ email });
+  setStatus({
+    type: "success",
+    message: "Thank you! Please check your inbox to verify your subscription.",
+  });
+  setEmail("");
 } catch (err: unknown) {
-setStatus({
-type: "error",
-message: (err instanceof Error ? err.message : String(err)) || "Failed to subscribe. Please try again.",
-});
+  const msg =
+    err instanceof ApiClientError
+      ? err.message
+      : (err instanceof Error ? err.message : String(err)) ||
+        "Failed to subscribe. Please try again.";
+  setStatus({
+    type: "error",
+    message: msg,
+  });
 } finally {
-setLoading(false);
+  setLoading(false);
 }
 };
+
 
 const selectedPost = BLOG_POSTS.find(p => p.id === selectedPostId);
 

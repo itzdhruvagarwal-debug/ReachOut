@@ -13,6 +13,7 @@ import { auth } from "@/lib/auth";
 import { createActivityLog } from "@/lib/audit";
 import { AdminService } from "@/services/admin.service";
 import { requireActiveAdmin } from "@/lib/admin-auth";
+import { invalidateUserKYCCache } from "@/lib/kyc";
 
 async function requireAdmin() {
 const session = await auth();
@@ -152,6 +153,7 @@ timeout: 15000,
 
 revalidatePath("/admin/verifications");
 revalidatePath(`/admin/verifications/${userId}`);
+await invalidateUserKYCCache(userId);
 
 await createActivityLog({
   userId: _session.user.id,
@@ -206,6 +208,7 @@ export async function rejectUser(userId: string, reason: string) {
 
 revalidatePath("/admin/verifications");
 revalidatePath(`/admin/verifications/${userId}`);
+await invalidateUserKYCCache(userId);
 
 await createActivityLog({
   userId: _session.user.id,
@@ -286,6 +289,7 @@ await promoteToFullyVerified(tx, userId, user.trustScore);
 
 revalidatePath("/admin/verifications");
 revalidatePath(`/admin/verifications/${userId}`);
+await invalidateUserKYCCache(userId);
 }
 
 export async function rejectDocument(
@@ -348,6 +352,7 @@ export async function rejectDocument(
 
   revalidatePath("/admin/verifications");
   revalidatePath(`/admin/verifications/${userId}`);
+  await invalidateUserKYCCache(userId);
 }
 
 export async function banUser(userId: string) {

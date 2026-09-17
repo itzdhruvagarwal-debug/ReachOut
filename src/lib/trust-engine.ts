@@ -16,6 +16,7 @@ BrandDRSFactors,
 DRSResult,
 getDRSTierAndLimit,
 } from "./drs-score";
+import { getTrustRuleWeights } from "./trust-rules";
 
 // ==================== TRUST GATE (Deal Limit Enforcement) ====================
 
@@ -418,7 +419,8 @@ avgReferralDRS: referralStats._avg.trustScore || 0,
 profileCompleteness: completeness,
 };
 
-return calculateInfluencerDRS(factors);
+  const weights = await getTrustRuleWeights();
+  return calculateInfluencerDRS(factors, weights);
 }
 
 // ==================== BRAND DATA FETCHER ====================

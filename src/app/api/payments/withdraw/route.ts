@@ -5,7 +5,8 @@ import prisma from "@/lib/db";
 import { decrypt } from "@/lib/encryption";
 import { PaymentService } from "@/services/payment.service";
 import { logger } from "@/lib/logger";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkTieredRateLimit } from "@/lib/rate-limit";
+import { getSecureClientIp } from "@/lib/ip";
 import { AppError } from "@/lib/errors";
 import { claimIdempotencyKey, releaseIdempotencyKey, saveIdempotencyResponse, type IdempotencyCheckResult } from "@/lib/idempotency";
 import { env } from "@/env";
@@ -139,9 +140,13 @@ return ApiResponse.forbidden("Withdrawal is currently blocked. Please contact su
     );
   }
 
-  if (errMsg.includes("Insufficient funds") || errMsg.includes("INSUFFICIENT_FUNDS_OR_FROZEN")) {
-return ApiResponse.error("Insufficient funds or frozen balance. Please check your wallet.", 400);
-}
+  if (errMsg.includes("WALLET_FROZEN") || errMsg.includes("frozen")) {
+    return ApiResponse.forbidden("Your wallet is currently frozen or locked. Please contact support.");
+  }
+
+  if (errMsg.includes("Insufficient funds") || errMsg.includes("INSUFFICIENT_FUNDS")) {
+    return ApiResponse.error("Insufficient funds in your wallet.", 400);
+  }
 
 if (errMsg.includes("Payout failed")) {
 return ApiResponse.error("Payout could not be processed. Please try again later.", 400);
@@ -190,22 +195,46 @@ throw AppError.badRequest("Invalid payload");
 
 await verifyTaxCompliance(session.user.id);
 
-const limit = await checkRateLimit(session.user.id, "WITHDRAWAL");
+const clientIp = getSecureClientIp(request);
+const userProfile = await prisma.user.findUnique({
+  where: { id: session.user.id },
+  select: { trustScore: true, verificationLevel: true },
+});
+
+const isKycVerified =
+  userProfile?.verificationLevel === "IDENTITY" ||
+  userProfile?.verificationLevel === "FULL";
+
+const limit = await checkTieredRateLimit({
+  userId: session.user.id,
+  ip: clientIp,
+  action: "WITHDRAWAL",
+  trustScore: userProfile?.trustScore,
+  isKycVerified,
+});
+
 if (!limit.success) {
-throw AppError.tooManyRequests(
-"Daily withdrawal limit reached. Please try again later.",
-);
+  const reason =
+    limit.blockedBy === "IP"
+      ? "Daily withdrawal limit reached for this IP/network. Please try again later."
+      : `Daily withdrawal limit reached (${limit.userLimit} per day for your tier). Please try again tomorrow.`;
+  throw AppError.tooManyRequests(reason);
 }
 
 const payoutDetails = await getPayoutDetailsFromDb(session.user.id, parsed.data.bankAccountId);
 
+const ipAddress = clientIp !== "unknown" ? clientIp : (request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || undefined);
+const deviceFingerprint = request.headers.get("x-device-fingerprint") || undefined;
+
 const withdrawal = await PaymentService.initiateWithdrawal(
-session.user.id,
-{
-amount: parsed.data.amount,
-...payoutDetails,
-},
-idempotencyKey,
+  session.user.id,
+  {
+    amount: parsed.data.amount,
+    ...payoutDetails,
+    ipAddress,
+    deviceFingerprint,
+  },
+  idempotencyKey,
 );
 
 if ("alreadyProcessed" in withdrawal) {

@@ -202,11 +202,83 @@ provider: STORAGE_PROVIDER,
 return null;
 }
 
-return createPresignedUrl(
-client,
-new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }),
-{ expiresIn: expiresInSeconds },
-);
+  return createPresignedUrl(
+    client,
+    new GetObjectCommand({ Bucket: S3_BUCKET, Key: key }),
+    { expiresIn: expiresInSeconds },
+  );
+}
+
+export interface PresignedUploadResult {
+  uploadUrl: string;
+  fileUrl: string;
+  key: string;
+  method: "PUT" | "POST";
+  headers?: Record<string, string>;
+  isDirect: boolean;
+}
+
+/**
+ * Generate a presigned upload URL for direct-to-storage client upload (S3 / Cloudflare R2).
+ * Falls back to local streaming endpoint if storage is in local mode.
+ */
+export async function createUploadPresignedUrl(
+  fileName: string,
+  folder: UploadFolder,
+  contentType: string = "application/octet-stream",
+  expiresInSeconds: number = 900,
+): Promise<PresignedUploadResult> {
+  validateStorageConfig();
+  const key = `${folder}/${Date.now()}-${randomUUID()}-${sanitizeFileName(fileName)}`;
+
+  if (STORAGE_PROVIDER === "local" || (!isProduction && (!S3_ACCESS_KEY || !S3_SECRET_KEY || !S3_BUCKET))) {
+    return {
+      uploadUrl: "/api/upload",
+      fileUrl: `/uploads/${key}`,
+      key,
+      method: "POST",
+      isDirect: false,
+    };
+  }
+
+  const client = getS3Client();
+  if (!client) {
+    if (isProduction) {
+      throw AppError.badRequest("Storage provider credentials are not configured");
+    }
+    return {
+      uploadUrl: "/api/upload",
+      fileUrl: `/uploads/${key}`,
+      key,
+      method: "POST",
+      isDirect: false,
+    };
+  }
+
+  const presignedUrl = await createPresignedUrl(
+    client,
+    new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      ContentType: contentType,
+      ContentDisposition: key.startsWith("verification/") ? "attachment" : "inline",
+      CacheControl: key.startsWith("verification/")
+        ? "private, no-cache, no-store"
+        : "public, max-age=31536000, immutable",
+    }),
+    { expiresIn: expiresInSeconds },
+  );
+
+  return {
+    uploadUrl: presignedUrl,
+    fileUrl: getObjectUrl(key),
+    key,
+    method: "PUT",
+    headers: {
+      "Content-Type": contentType,
+    },
+    isDirect: true,
+  };
 }
 
 // ==================== PROVIDER IMPLEMENTATIONS ====================

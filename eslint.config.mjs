@@ -12,6 +12,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "coverage/**",
   ]),
   {
     rules: {
@@ -21,6 +22,12 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-require-imports": "off",
       "@next/next/no-img-element": "off",
       "react-hooks/set-state-in-effect": "off"
+    }
+  },
+  {
+    files: ["scripts/**"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off"
     }
   }
 ]);

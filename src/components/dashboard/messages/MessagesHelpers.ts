@@ -16,16 +16,19 @@ export interface Message {
   senderId: string;
   content: string;
   createdAt: string;
-  rawCreatedAt?: string;
-  isMe?: boolean;
-  isBlocked?: boolean;
-  hasWarning?: boolean;
-  isRead?: boolean;
-  readAt?: string | null;
-  messageType?: "TEXT" | "FILE" | "OFFER" | "CONTRACT_ACCEPTANCE" | "SYSTEM";
-  fileUrl?: string | null;
-  metadata?: MessageMetadata | null;
+  rawCreatedAt?: string | undefined;
+  isMe?: boolean | undefined;
+  isBlocked?: boolean | undefined;
+  hasWarning?: boolean | undefined;
+  isRead?: boolean | undefined;
+  readAt?: string | null | undefined;
+  messageType?: "TEXT" | "FILE" | "OFFER" | "CONTRACT_ACCEPTANCE" | "SYSTEM" | undefined;
+  fileUrl?: string | null | undefined;
+  dealId?: string | null | undefined;
+  status?: "sending" | "sent" | "failed" | undefined;
+  metadata?: MessageMetadata | null | undefined;
 }
+
 
 export function formatMessageDateDivider(timestamp?: string): string {
   if (!timestamp) return "Today";

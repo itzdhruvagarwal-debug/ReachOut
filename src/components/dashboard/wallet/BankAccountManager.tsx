@@ -5,57 +5,14 @@ import EmptyState from "@/components/ui/EmptyState";
 import { logger } from "@/lib/logger-client";
 import { Button, Input } from "@/components/ui";
 import { z } from "zod";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 
-export const bankAccountSchema = z.object({
-payoutType: z.enum(["bank", "upi"]),
-accountName: z.string().min(2, "Beneficiary name must be at least 2 characters").max(100, "Beneficiary name cannot exceed 100 characters"),
-accountNumber: z.string().optional().or(z.literal("")),
-ifscCode: z.string().optional().or(z.literal("")),
-bankName: z.string().optional().or(z.literal("")),
-upiId: z.string().optional().or(z.literal("")),
-}).superRefine((data, ctx) => {
-if (data.payoutType === "bank") {
-if (!data.accountNumber || data.accountNumber.length < 9 || data.accountNumber.length > 18 || !/^\d+$/.test(data.accountNumber)) {
-ctx.addIssue({
-code: z.ZodIssueCode.custom,
-message: "Please enter a valid 9 to 18 digit account number",
-path: ["accountNumber"],
-});
-}
-if (!data.ifscCode || !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(data.ifscCode)) {
-ctx.addIssue({
-code: z.ZodIssueCode.custom,
-message: "Please enter a valid 11-digit IFSC code (e.g. SBIN0001234)",
-path: ["ifscCode"],
-});
-}
-if (!data.bankName || data.bankName.length < 2) {
-ctx.addIssue({
-code: z.ZodIssueCode.custom,
-message: "Please enter a valid bank name",
-path: ["bankName"],
-});
-}
-} else if (data.payoutType === "upi") {
-if (!data.upiId || !/^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/.test(data.upiId)) {
-ctx.addIssue({
-code: z.ZodIssueCode.custom,
-message: "Please enter a valid UPI ID (e.g. user@okaxis)",
-path: ["upiId"],
-});
-}
-}
-});
-
-interface BankAccount {
-id: string;
-accountName: string;
-accountNumber: string;
-ifscCode: string;
-bankName: string;
-isDefault: boolean;
-upiId?: string;
-}
+import {
+  bankAccountInputSchema as bankAccountSchema,
+  type BankAccountItem as BankAccount,
+  type BankAccountsResponse,
+} from "@/lib/schemas";
+export { bankAccountSchema };
 
 function getDisplayAccountNumber(isUpi: boolean, upiId?: string | null, accountNumber?: string | null): string {
   if (isUpi) {
@@ -69,9 +26,6 @@ function getDisplayAccountNumber(isUpi: boolean, upiId?: string | null, accountN
   return `••••  ••••  ${last4}`;
 }
 
-interface BankAccountsResponse {
-accounts?: BankAccount[];
-}
 
 export default function BankAccountManager({
 onSelectAccount,
@@ -124,28 +78,26 @@ return;
 }
 
 try {
-const payload = payoutType === "upi"
-? {
-accountName: newAccount.accountName.trim(),
-upiId: newAccount.upiId.trim(),
-isDefault: newAccount.isDefault,
-}
-: {
-accountName: newAccount.accountName.trim(),
-accountNumber: newAccount.accountNumber.trim(),
-ifscCode: newAccount.ifscCode.trim().toUpperCase(),
-bankName: newAccount.bankName.trim(),
-upiId: newAccount.upiId.trim() || undefined,
-isDefault: newAccount.isDefault,
-};
+    const payload = payoutType === "upi"
+      ? {
+          payoutType: "upi" as const,
+          accountName: newAccount.accountName.trim(),
+          upiId: newAccount.upiId.trim(),
+          isDefault: newAccount.isDefault,
+        }
+      : {
+          payoutType: "bank" as const,
+          accountName: newAccount.accountName.trim(),
+          accountNumber: newAccount.accountNumber.trim(),
+          ifscCode: newAccount.ifscCode.trim().toUpperCase(),
+          bankName: newAccount.bankName.trim(),
+          upiId: newAccount.upiId.trim() || undefined,
+          isDefault: newAccount.isDefault,
+        };
 
-const res = await fetch("/api/wallet/bank-accounts", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(payload),
-});
-const data = await res.json();
-if (res.ok) {
+
+  const data = await apiClient.wallet.addBankAccount(payload) as { success?: boolean; error?: string };
+      if (data && (data as { success?: boolean }).success !== false) {
 fetchAccounts();
 setShowForm(false);
 setPayoutType("bank");
@@ -158,56 +110,44 @@ upiId: "",
 isDefault: false,
 });
 showNotice("Bank account added successfully!");
-} else {
-showNotice(data.error || "Failed to add account", "error");
-}
-} catch (error) {
-logger.error("[bank-account] Failed to add account:", error);
-showNotice("An error occurred", "error");
-} finally {
+      } else {
+        showNotice((data as { error?: string }).error || "Failed to add account", "error");
+      }
+    } catch (error) {
+      logger.error("[bank-account] Failed to add account:", error);
+      showNotice(error instanceof ApiClientError ? error.message : "An error occurred", "error");
+    } finally {
 setIsSaving(false);
 }
 };
 
-const handleSetDefault = async (id: string) => {
-try {
-const res = await fetch(`/api/wallet/bank-accounts?id=${encodeURIComponent(id)}`, {
-method: "PUT",
-});
-if (res.ok) {
-fetchAccounts();
-showNotice("Default bank account updated.");
-} else {
-const data = await res.json();
-showNotice(data.error || "Failed to set default", "error");
-}
-} catch {
-showNotice("An error occurred", "error");
-}
-};
+  const handleSetDefault = async (id: string) => {
+    try {
+      await apiClient.wallet.setDefaultAccount(id);
+      fetchAccounts();
+      showNotice("Default bank account updated.");
+    } catch (err) {
+      showNotice(err instanceof ApiClientError ? err.message : "An error occurred", "error");
+    }
+  };
 
 const handleDeleteRequest = (id: string) => {
 setDeleteConfirmId(id);
 };
 
-const handleDeleteConfirm = async () => {
-if (!deleteConfirmId) return;
-const id = deleteConfirmId;
-setDeleteConfirmId(null);
-try {
-const res = await fetch(`/api/wallet/bank-accounts?id=${encodeURIComponent(id)}`, {
-method: "DELETE",
-});
-if (res.ok) {
-fetchAccounts();
-showNotice("Account removed.");
-} else {
-showNotice("Failed to delete account", "error");
-}
-} catch (error) {
-logger.error("[bank-account] Failed to delete account:", error);
-}
-};
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmId) return;
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
+    try {
+      await apiClient.wallet.deleteBankAccount(id);
+      fetchAccounts();
+      showNotice("Account removed.");
+    } catch (error) {
+      logger.error("[bank-account] Failed to delete account:", error);
+      showNotice(error instanceof ApiClientError ? error.message : "Failed to delete account", "error");
+    }
+  };
 
 if (loading) return <div className="loading"></div>;
 

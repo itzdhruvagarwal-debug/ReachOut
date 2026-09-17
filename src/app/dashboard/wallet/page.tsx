@@ -1,670 +1,534 @@
 "use client";
 
-
-import { logger } from "@/lib/logger-client";
-import { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import { apiClient, ApiClientError } from "@/lib/api-client";
+import {
+  walletResponseSchema,
+  walletTransactionsResponseSchema,
+  type WalletResponse,
+  type WalletTransactionsResponse,
+  type WalletSummary,
+} from "@/lib/schemas";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import BankAccountManager from "@/components/dashboard/wallet/BankAccountManager";
-import TransactionHistory from "@/components/dashboard/wallet/TransactionHistory";
+import { VirtualizedTransactionList, type TransactionItem } from "@/components/dashboard/wallet/VirtualizedTransactionList";
+import { FullScreenWithdrawFlow } from "@/components/dashboard/wallet/FullScreenWithdrawFlow";
+import { StatementExportModal } from "@/components/dashboard/wallet/StatementExportModal";
+import { subscribeToWalletUpdates } from "@/lib/supabase-realtime";
 import { useTokenRefreshGuard } from "@/hooks/useTokenRefreshGuard";
+import { useWallet } from "@/hooks/api/useWallet";
 import { formatCurrency } from "@/lib/utils-client";
-import PeriodPickerModal, { type PeriodValue } from "@/components/dashboard/wallet/PeriodPickerModal";
 import { ToastContainer, type ToastItem, type ToastType } from "@/components/ui/toast";
-import { Button, Input, Modal } from "@/components/ui";
-import { withdrawSchema } from "@/lib/validations/auth";
-import { WalletHeader, WalletSummaryCards, type WalletData } from "@/components/dashboard/wallet/WalletHeader";
+import { Button, Input, Modal, Card } from "@/components/ui";
+import {
+  ShieldCheck,
+  Lock,
+  Clock,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Download,
+  Building2,
+  RefreshCw,
+  Plus,
+  HelpCircle,
+  TrendingUp,
+} from "lucide-react";
 
-interface SelectedBankAccount {
-id: string;
-bankName: string;
-accountName: string;
-accountNumber: string;
-upiId?: string;
-}
+const walletTransactionsFetcher = createSchemaFetcher(walletTransactionsResponseSchema);
+
+export type WalletData = WalletSummary;
 
 const loadRazorpay = () => {
-return new Promise<boolean>((resolve) => {
-if (window.Razorpay) {
-resolve(true);
-return;
-}
-
-const existingScript = document.getElementById(
-"razorpay-checkout-sdk",
-) as HTMLScriptElement | null;
-
-if (existingScript) {
-existingScript.addEventListener("load", () => resolve(true), {
-once: true,
-});
-existingScript.addEventListener("error", () => resolve(false), {
-once: true,
-});
-return;
-}
-
-const script = document.createElement("script");
-script.id = "razorpay-checkout-sdk";
-script.src = "https://checkout.razorpay.com/v1/checkout.js";
-script.onload = () => resolve(true);
-script.onerror = () => resolve(false);
-document.body.appendChild(script);
-});
-};
-
-async function verifyRazorpayPayment(
-paymentResponse: { razorpay_payment_id?: string; razorpay_order_id?: string; razorpay_signature?: string },
-showToast: (type: ToastType, message: string) => void,
-onSuccess: () => void,
-) {
-try {
-const verifyRes = await fetch("/api/wallet/add-funds/verify", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({
-razorpay_payment_id: paymentResponse.razorpay_payment_id,
-razorpay_order_id: paymentResponse.razorpay_order_id,
-razorpay_signature: paymentResponse.razorpay_signature,
-}),
-});
-const verifyData = await verifyRes.json();
-if (verifyData.success) {
-showToast("success", "Funds added successfully.");
-onSuccess();
-} else {
-showToast("error", "Payment verification failed. Please contact support.");
-}
-} catch (verifyError: unknown) {
-showToast("error", (verifyError instanceof Error ? verifyError.message : String(verifyError)) || "Verification error");
-}
-}
-
-async function extractDownloadError(res: Response): Promise<string> {
-const errText = await res.text();
-try {
-const d = JSON.parse(errText);
-if (d?.message) return d.message;
-} catch {}
-return `Download failed (${res.status})`;
-}
-
-function useWallet(session: ReturnType<typeof useSession>["data"], requireFreshSession: () => Promise<boolean>) {
-const [activeTab, setActiveTab] = useState("overview");
-
-const [showWithdrawModal, setShowWithdrawModal] = useState(false);
-const [showAddFundsModal, setShowAddFundsModal] = useState(false);
-
-const { data, isLoading, mutate: fetchWalletData } = useSWR<{
-wallet?: WalletData;
-data?: WalletData;
-userType?: string;
-}>(
-session ? "/api/wallet" : null,
-fetcher
-);
-
-const walletData: WalletData | null = useMemo(() => {
-const wallet = data?.wallet || data?.data;
-if (!wallet) return null;
-return {
-balance: Number(wallet.balance || 0),
-pendingBalance: Number(wallet.pendingBalance || 0),
-totalEarned: Number(wallet.totalEarned || 0),
-totalWithdrawn: Number(wallet.totalWithdrawn || 0),
-totalHeld: Number(wallet.totalHeld || 0),
-totalSpent: Number(wallet.totalSpent || 0),
-totalDeposited: Number(wallet.totalDeposited || 0),
-};
-}, [data]);
-
-const userType = data?.userType || session?.user?.userType || null;
-
-const [withdrawAmount, setWithdrawAmount] = useState("");
-const [selectedAccount, setSelectedAccount] = useState<SelectedBankAccount | null>(null);
-const [isWithdrawing, setIsWithdrawing] = useState(false);
-const [isAddingFunds, setIsAddingFunds] = useState(false);
-
-const [toasts, setToasts] = useState<ToastItem[]>([]);
-const handleRemoveToast = useCallback((id: string) => {
-setToasts(prev => prev.filter(t => t.id !== id));
-}, []);
-const showToast = useCallback((type: ToastType, message: string) => {
-const id = String(Date.now());
-setToasts(prev => [...prev, { id, type, message }]);
-setTimeout(() => handleRemoveToast(id), 5000);
-}, [handleRemoveToast]);
-
-const handleWithdraw = async (e?: React.FormEvent) => {
-if (e) e.preventDefault();
-const fresh = await requireFreshSession();
-if (!fresh) return;
-
-if (!selectedAccount) {
-showToast("error", "Please select a bank account");
-return;
-}
-
-const withdrawRupees = Number(withdrawAmount);
-const validation = withdrawSchema.safeParse({ amount: withdrawRupees });
-if (!validation.success) {
-showToast("error", validation.error.issues[0]?.message || "Invalid withdrawal amount.");
-return;
-}
-
-const withdrawPaise = Math.round(withdrawRupees * 100);
-if (!walletData || withdrawPaise > walletData.balance) {
-showToast("error", "Withdrawal amount exceeds available balance.");
-return;
-}
-
-setIsWithdrawing(true);
-try {
-  const generateIdempotencyKey = (): string => {
-    if (typeof window !== "undefined" && window.crypto) {
-      if (typeof window.crypto.randomUUID === "function") {
-        return window.crypto.randomUUID();
-      }
-      if (typeof window.crypto.getRandomValues === "function") {
-        const array = new Uint32Array(2);
-        window.crypto.getRandomValues(array);
-        const r1 = array[0] ?? 0;
-        const r2 = array[1] ?? 0;
-        return `${Date.now()}-${r1.toString(36)}-${r2.toString(36)}`;
-      }
+  return new Promise<boolean>((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
     }
-    return `${Date.now()}-${Date.now() % 1000000}`;
-  };
 
-  const idempotencyKey = generateIdempotencyKey();
-
-    const res = await fetch("/api/payments/withdraw", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Idempotency-Key": idempotencyKey,
-      },
-body: JSON.stringify({
-amount: withdrawPaise,
-bankAccountId: selectedAccount.id,
-}),
-});
-const data = await res.json();
-
-if (!res.ok) {
-throw new Error(data?.message || data?.error || "Withdrawal failed");
-}
-
-showToast("success", data?.message || "Withdrawal initiated successfully.");
-setShowWithdrawModal(false);
-setWithdrawAmount("");
-setSelectedAccount(null);
-fetchWalletData();
-} catch (error: unknown) {
-showToast("error", (error instanceof Error ? error.message : String(error)) || "Withdrawal failed");
-} finally {
-setIsWithdrawing(false);
-}
-};
-
-const handleAddFunds = async (e: React.FormEvent) => {
-e.preventDefault();
-const form = e.target as HTMLFormElement;
-const amountInput = form.elements.namedItem("amount") as HTMLInputElement;
-const amount = amountInput.value;
-
-if (!amount) return;
-if (!Number.isFinite(Number(amount)) || Number(amount) < 100) {
-showToast("error", "Minimum add-funds amount is INR 100.");
-return;
-}
-
-setIsAddingFunds(true);
-try {
-const sdkLoaded = await loadRazorpay();
-if (!sdkLoaded) {
-showToast("error", "Razorpay SDK failed to load");
-return;
-}
-
-const response = await fetch("/api/wallet/add-funds", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ amount }),
-});
-const data = await response.json();
-
-if (!response.ok) {
-throw new Error(data?.message || data?.error || "Failed to create order");
-}
-
-    const options = {
-      key: data.key,
-      amount: data.amount,
-      currency: data.currency,
-      name: "VyaparMedia",
-      description: "Add funds to wallet",
-      order_id: data.orderId,
-      handler: async function (paymentResponse: { razorpay_payment_id?: string; razorpay_order_id?: string; razorpay_signature?: string }) {
-        await verifyRazorpayPayment(paymentResponse, showToast, () => {
-          setShowAddFundsModal(false);
-          fetchWalletData();
-        });
-      },
-      modal: {
-        ondismiss: function () {
-          setIsAddingFunds(false);
-        }
-      },
-      theme: { color: "#4f46e5" },
-    };
-
-const RazorpayConstructor = window.Razorpay;
-const paymentObject = new RazorpayConstructor(options);
-paymentObject.open();
-} catch (error: unknown) {
-showToast("error", (error instanceof Error ? error.message : String(error)) || "Payment failed");
-} finally {
-setIsAddingFunds(false);
-}
-};
-
-const [isDownloading, setIsDownloading] = useState<Record<string, boolean>>({});
-
-// Period picker modal state
-type ModalConfig = { key: string; title: string; icon: React.ReactNode; type: "transactions" | "report"; urlBase: string; fallback: string; };
-const [activePicker, setActivePicker] = useState<ModalConfig | null>(null);
-
-const openPicker = (cfg: ModalConfig) => setActivePicker(cfg);
-const closePicker = () => setActivePicker(null);
-
-const downloadCsv = async (url: string, key: string, fallbackFilename: string) => {
-  setIsDownloading(prev => ({ ...prev, [key]: true }));
-  try {
-    const res = await fetch(url);
-    if (!res.ok) {
-      const msg = await extractDownloadError(res);
-      throw new Error(msg);
+    const existingScript = document.getElementById("razorpay-checkout-sdk") as HTMLScriptElement | null;
+    if (existingScript) {
+      existingScript.addEventListener("load", () => resolve(true), { once: true });
+      existingScript.addEventListener("error", () => resolve(false), { once: true });
+      return;
     }
-    const blob = await res.blob();
-    const disposition = res.headers.get("content-disposition") || "";
-    const match = /filename="?([^";\n]+)"?/.exec(disposition);
-    const filename = match?.[1]?.trim() ?? fallbackFilename;
 
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = filename;
-    a.style.position = "fixed";
-    a.style.left = "-9999px";
-    a.style.top = "-9999px";
-    document.body.appendChild(a);
-    a.click();
-    // Delay revoke so browser has time to start the download
-    setTimeout(() => {
-      URL.revokeObjectURL(blobUrl);
-      a.remove();
-    }, 5000);
-
-    showToast("success", ` ${filename} downloaded`);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Download failed";
-    showToast("error", msg);
-    logger.error("[download]", err instanceof Error ? err : String(err));
-  } finally {
-    setIsDownloading(prev => ({ ...prev, [key]: false }));
-  }
+    const script = document.createElement("script");
+    script.id = "razorpay-checkout-sdk";
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
 };
-
-const handlePeriodConfirm = (period: PeriodValue) => {
-  if (!activePicker) return;
-  const { key, urlBase, fallback, type } = activePicker;
-  const params = new URLSearchParams({ format: "csv" });
-  if (type === "report" && period.fy) {
-    params.set("fy", period.fy);
-  } else {
-    if (period.startDate) params.set("startDate", period.startDate);
-    if (period.endDate) params.set("endDate", period.endDate);
-  }
-  closePicker();
-  downloadCsv(`${urlBase}?${params.toString()}`, key, fallback);
-};
-
-const handleDownloadCSV = () => openPicker({
-  key: "txn",
-  type: "transactions",
-  icon: (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  ),
-  title: "Download Transactions",
-  urlBase: "/api/wallet/transactions",
-  fallback: "transactions.csv",
-});
-
-const handleDownloadIncomeReport = () => openPicker({
-  key: "income",
-  type: "report",
-  icon: (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
-    </svg>
-  ),
-  title: "Income Report (ITR)",
-  urlBase: "/api/reports/influencer/income",
-  fallback: "income-report.csv",
-});
-
-const handleDownloadSpendReport = () => openPicker({
-  key: "spend",
-  type: "report",
-  icon: (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
-    </svg>
-  ),
-  title: "Spend Report (GST)",
-  urlBase: "/api/reports/brand/spend",
-  fallback: "spend-report.csv",
-});
-
-return {
-activeTab,
-setActiveTab,
-showWithdrawModal,
-setShowWithdrawModal,
-showAddFundsModal,
-setShowAddFundsModal,
-walletData,
-userType,
-isLoading,
-withdrawAmount,
-setWithdrawAmount,
-selectedAccount,
-setSelectedAccount,
-isWithdrawing,
-isAddingFunds,
-toasts,
-handleRemoveToast,
-showToast,
-fetchWalletData,
-handleWithdraw,
-handleAddFunds,
-isDownloading,
-activePicker,
-openPicker,
-closePicker,
-downloadCsv,
-handlePeriodConfirm,
-handleDownloadCSV,
-handleDownloadIncomeReport,
-handleDownloadSpendReport,
-};
-}
-
-
 
 export default function WalletPage() {
-const { data: session, status } = useSession();
-const { requireFreshSession } = useTokenRefreshGuard();
+  const { data: session } = useSession();
+  const { requireFreshSession } = useTokenRefreshGuard();
 
-const {
-activeTab,
-setActiveTab,
-showWithdrawModal,
-setShowWithdrawModal,
-showAddFundsModal,
-setShowAddFundsModal,
-walletData,
-userType,
-isLoading,
-withdrawAmount,
-setWithdrawAmount,
-selectedAccount,
-setSelectedAccount,
-isWithdrawing,
-isAddingFunds,
-toasts,
-handleRemoveToast,
-handleWithdraw,
-handleAddFunds,
-isDownloading,
-activePicker,
-closePicker,
-handlePeriodConfirm,
-handleDownloadCSV,
-handleDownloadIncomeReport,
-handleDownloadSpendReport,
-} = useWallet(session, requireFreshSession);
+  // Navigation tabs
+  const [activeTab, setActiveTab] = useState<"ledger" | "accounts">("ledger");
 
-if (status === "loading" || isLoading) {
-return (
-<DashboardShell user={session?.user || null}>
-<div className="flex items-center justify-center min-h-60vh">
-<span className="loading" />
-</div>
-</DashboardShell>
-);
-}
+  // Modals & Flows
+  const [showWithdrawFlow, setShowWithdrawFlow] = useState(false);
+  const [showAddFundsModal, setShowAddFundsModal] = useState(false);
+  const [showStatementModal, setShowStatementModal] = useState(false);
+  const [isAddingFunds, setIsAddingFunds] = useState(false);
+  const [isRealtimeActive, setIsRealtimeActive] = useState(false);
 
-if (!session) {
-return <div className="p-8 text-center">Unauthorized</div>;
-}
+  // Toasts
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const handleRemoveToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
-if (!walletData) {
-return <div className="p-8 text-center">Failed to load wallet data</div>;
-}
+  const showToast = useCallback(
+    (type: ToastType, message: string) => {
+      const id = String(Date.now());
+      setToasts((prev) => [...prev, { id, type, message }]);
+      setTimeout(() => handleRemoveToast(id), 5000);
+    },
+    [handleRemoveToast],
+  );
 
-return (
-<DashboardShell user={session.user}>
-{/* Period picker modal */}
-{activePicker && (
-<PeriodPickerModal
-type={activePicker.type}
-title={activePicker.title}
-icon={activePicker.icon}
-isLoading={!!isDownloading[activePicker.key]}
-onConfirm={handlePeriodConfirm}
-onClose={closePicker}
-/>
-)}
 
-<ToastContainer toasts={toasts} onClose={handleRemoveToast} />
-<div className="animate-fade-in">
-<WalletHeader
-userType={userType}
-balance={walletData.balance}
-isDownloading={isDownloading}
-setShowWithdrawModal={setShowWithdrawModal}
-setShowAddFundsModal={setShowAddFundsModal}
-handleDownloadCSV={handleDownloadCSV}
-handleDownloadIncomeReport={handleDownloadIncomeReport}
-handleDownloadSpendReport={handleDownloadSpendReport}
-/>
 
-<WalletSummaryCards userType={userType} walletData={walletData} />
+  // Centralized useWallet Hook (authoritative single source of truth)
+  const {
+    walletData,
+    userType: hookUserType,
+    isLoading: isWalletLoading,
+    refresh: fetchWalletData,
+  } = useWallet();
 
-<div
-  role="tablist"
-  aria-label="Wallet sections"
-  className="wallet-tabs-container"
->
-  {[
-    { id: "overview", label: "Overview", icon: "📊" },
-    { id: "transactions", label: "Transactions", icon: "📜" },
-    ...(userType === "INFLUENCER"
-      ? [{ id: "accounts", label: "Bank Accounts", icon: "🏦" }]
-      : [{ id: "payment-methods", label: "Payment Methods", icon: "💳" }]),
-  ].map((tab) => (
-    <button
-      key={tab.id}
-      type="button"
-      role="tab"
-      aria-selected={activeTab === tab.id}
-      onClick={() => setActiveTab(tab.id)}
-      className="wallet-tab-button"
-      data-active={activeTab === tab.id ? "true" : "false"}
-    >
-      <span>{tab.icon}</span>
-      <span>{tab.label}</span>
-    </button>
-  ))}
-</div>
+  // SWR: Single Source of Truth for Transactions
+  const {
+    data: txResponse,
+    isLoading: isTxLoading,
+    mutate: mutateTransactions,
+  } = useSWR<WalletTransactionsResponse>(
+    session?.user?.id ? "/api/wallet/transactions?limit=100" : null,
+    walletTransactionsFetcher,
+    {
+      revalidateOnFocus: true,
+    },
+  );
 
-{(activeTab === "overview" || activeTab === "transactions") && <TransactionHistory />}
+  const userType = hookUserType || session?.user?.userType || null;
+  const isBrand = userType === "BRAND";
+  const transactions = txResponse?.transactions || [];
 
-{activeTab === "accounts" && (
-<div className="max-w-800">
-<BankAccountManager />
-</div>
-)}
+  // ==================== SUPABASE REALTIME SUBSCRIPTION ====================
+  useEffect(() => {
+    if (!session?.user?.id) return;
 
-{activeTab === "payment-methods" && (
-<div className="max-w-800">
-<div className="card">
-<h3 className="text-lg font-bold mb-2">
-Payment Methods
-</h3>
-<p className="text-secondary text-sm">
-You can save methods through Razorpay checkout for faster top-ups.
-</p>
-</div>
-</div>
-)}
-</div>
+    const unsubscribe = subscribeToWalletUpdates(session.user.id, (_payload) => {
+      // Immediate dual invalidation: updates balance and transaction ledger simultaneously
+      fetchWalletData();
+      mutateTransactions();
+      setIsRealtimeActive(true);
+      showToast("info", "Wallet balance updated in real time");
+    });
 
-<Modal
-  open={showWithdrawModal}
-  onClose={() => setShowWithdrawModal(false)}
-  title="Request Withdrawal"
-  maxWidth="540px"
->
-  <div className="mb-6 p-4 bg-tertiary rounded-lg">
-    <span className="text-sm text-secondary">Available Balance</span>
-    <div className="text-2xl font-bold gradient-text">{formatCurrency(walletData?.balance || 0)}</div>
-  </div>
+    setIsRealtimeActive(true);
 
-  <div>
-    <div className="mb-4">
-      <Input
-        id="withdraw-amount-input"
-        type="number"
-        label="Amount (INR)"
-        min="500"
-        max={(walletData?.balance || 0) / 100}
-        value={withdrawAmount}
-        onChange={(e) => setWithdrawAmount(e.target.value)}
-        required
-        placeholder="Minimum 500"
-        fullWidth
-      />
-    </div>
+    return () => {
+      unsubscribe();
+    };
+  }, [session?.user?.id, fetchWalletData, mutateTransactions, showToast]);
 
-    <div className="mb-6">
-      <div className="label">Select Bank Account</div>
-      {selectedAccount ? (
-        <div className="p-3 border border-indigo-15 rounded-lg flex justify-between items-center bg-secondary">
+  // Combined refresh action
+  const handleRefreshAll = useCallback(async () => {
+    await Promise.all([fetchWalletData(), mutateTransactions()]);
+    showToast("success", "Wallet data refreshed.");
+  }, [fetchWalletData, mutateTransactions, showToast]);
+
+  // ==================== BRAND ADD FUNDS (RAZORPAY) ====================
+  const handleAddFunds = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fresh = await requireFreshSession();
+    if (!fresh) return;
+
+    const form = e.currentTarget;
+    const amountInput = form.elements.namedItem("amount") as HTMLInputElement;
+    const amountRupees = parseFloat(amountInput.value);
+
+    if (!amountRupees || amountRupees < 100) {
+      showToast("error", "Minimum top-up amount is ₹100");
+      return;
+    }
+
+    setIsAddingFunds(true);
+    try {
+      const isLoaded = await loadRazorpay();
+      if (!isLoaded) {
+        throw new Error("Unable to connect to payment gateway. Please check your connection.");
+      }
+
+      const orderData = (await apiClient.wallet.addFunds(Math.round(amountRupees * 100))) as {
+        data?: { amount: number; orderId: string };
+      };
+
+      if (!orderData?.data?.orderId) {
+        throw new Error("Failed to initialize payment order");
+      }
+
+      const rzp = new window.Razorpay({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
+        amount: orderData.data.amount,
+        currency: "INR",
+        name: "VyaparMedia Marketplace",
+        description: "Wallet Balance Top-Up",
+        order_id: orderData.data.orderId,
+
+        handler: async (paymentResponse: {
+          razorpay_payment_id?: string;
+          razorpay_order_id?: string;
+          razorpay_signature?: string;
+        }) => {
+          try {
+            const verifyData = await apiClient.wallet.verifyPayment({
+              razorpay_payment_id: paymentResponse.razorpay_payment_id,
+              razorpay_order_id: paymentResponse.razorpay_order_id,
+              razorpay_signature: paymentResponse.razorpay_signature,
+            }) as { success?: boolean };
+            if (verifyData.success) {
+              showToast("success", `Successfully added ${formatCurrency(Math.round(amountRupees * 100))} to wallet.`);
+              handleRefreshAll();
+              setShowAddFundsModal(false);
+            } else {
+              showToast("error", "Payment verification pending. Balance will update shortly.");
+            }
+          } catch (err) {
+            showToast("error", err instanceof ApiClientError ? err.message : "Error verifying payment signature");
+          }
+        },
+        prefill: {
+          name: session?.user?.name || "",
+          email: session?.user?.email || "",
+        },
+        theme: { color: "#2563eb" },
+      });
+
+      rzp.open();
+    } catch (err: unknown) {
+      showToast("error", err instanceof Error ? err.message : "Top-up failed");
+    } finally {
+      setIsAddingFunds(false);
+    }
+  };
+
+  return (
+    <DashboardShell>
+      <ToastContainer toasts={toasts} onClose={handleRemoveToast} />
+
+      <div className="max-w-6xl mx-auto space-y-6 pb-12">
+        {/* ==================== SCREEN HEADER & QUICK ACTIONS ==================== */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="font-bold">
-              {selectedAccount.bankName === "UPI" ? "UPI Account" : selectedAccount.bankName}
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+                Wallet &amp; Financial Ledger
+              </h1>
+              {isRealtimeActive && (
+                <span
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                  title="Live Supabase connection actively syncs balance changes"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Sync
+                </span>
+              )}
             </div>
-            <div className="text-xs text-secondary">
-              {selectedAccount.bankName === "UPI"
-                ? selectedAccount.upiId
-                : `**** ${(selectedAccount.accountNumber || "----").slice(-4)}`}
+            <p className="text-xs sm:text-sm text-secondary">
+              {isBrand
+                ? "Manage escrow funds, campaign deposits, and payout receipts."
+                : "Real-time earnings, escrow holdings, and bank withdrawal portal."}
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {isBrand ? (
+              <Button
+                variant="primary"
+                onClick={() => setShowAddFundsModal(true)}
+                className="font-bold text-xs sm:text-sm gap-1.5 shadow-sm"
+              >
+                <Plus className="w-4 h-4" /> Add Funds
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={() => setShowWithdrawFlow(true)}
+                disabled={isWalletLoading || (walletData?.balance || 0) < 50000}
+                className="font-bold text-xs sm:text-sm gap-1.5 shadow-sm"
+              >
+                <ArrowUpRight className="w-4 h-4" /> Withdraw Funds
+              </Button>
+            )}
+
+            <Button
+              variant="secondary"
+              onClick={() => setShowStatementModal(true)}
+              className="font-semibold text-xs sm:text-sm gap-1.5"
+            >
+              <Download className="w-4 h-4" /> Download Statement
+            </Button>
+          </div>
+        </div>
+
+        {/* ==================== FINANCIAL BALANCE OVERVIEW ==================== */}
+        {/* Requirement 1 & 4: Clarity first, tabular-nums, never flash ₹0.00 */}
+        {isWalletLoading ? (
+          /* Financial Shimmer Skeletons (Prevents ₹0 Flash) */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-pulse">
+            <div className="lg:col-span-2 h-44 rounded-2xl bg-secondary/40 border border-border p-6 space-y-4">
+              <div className="w-32 h-4 bg-secondary rounded" />
+              <div className="w-64 h-12 bg-secondary rounded" />
+              <div className="w-48 h-3 bg-secondary rounded" />
+            </div>
+            <div className="h-44 rounded-2xl bg-secondary/40 border border-border p-6 space-y-4">
+              <div className="w-28 h-4 bg-secondary rounded" />
+              <div className="w-40 h-8 bg-secondary rounded" />
+              <div className="w-32 h-3 bg-secondary rounded" />
             </div>
           </div>
-          <Button
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            
+            {/* HERO CARD: Available Balance (Sabse Bada & Sabse Prominent) */}
+            <div className="lg:col-span-2 relative rounded-2xl p-6 sm:p-8 bg-card border-2 border-primary/40 shadow-sm flex flex-col justify-between overflow-hidden">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4" />
+                    {isBrand ? "Available Balance (Top-Up Funds)" : "Available for Payout (Immediately Withdrawable)"}
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                    Escrow Ready
+                  </span>
+                </div>
+
+                {/* BIGGEST ELEMENT ON SCREEN: TABULAR-NUMS CURRENCY */}
+                <div className="text-4xl sm:text-5xl font-extrabold font-mono tabular-nums tracking-tight text-foreground">
+                  {formatCurrency(walletData?.balance || 0)}
+                </div>
+
+                <p className="text-xs text-secondary leading-relaxed max-w-lg">
+                  {isBrand
+                    ? "Available to instantly secure campaign milestone escrows for verified creators."
+                    : "Zero lock-in. Funds can be transferred to your verified bank account via IMPS at any time."}
+                </p>
+              </div>
+
+              {/* Bottom Quick-Action Bar inside Hero Card */}
+              <div className="pt-6 mt-4 border-t border-border flex items-center justify-between flex-wrap gap-3">
+                <div className="text-xs text-secondary">
+                  {isBrand ? (
+                    <span>Total Deposited: <strong className="text-foreground font-mono">{formatCurrency(walletData?.totalDeposited || 0)}</strong></span>
+                  ) : (
+                    <span>Lifetime Earned: <strong className="text-foreground font-mono text-emerald-600 dark:text-emerald-400">{formatCurrency(walletData?.totalEarned || 0)}</strong></span>
+                  )}
+                </div>
+
+                {isBrand ? (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setShowAddFundsModal(true)}
+                    className="font-bold text-xs"
+                  >
+                    + Add Funds
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setShowWithdrawFlow(true)}
+                    disabled={(walletData?.balance || 0) < 50000}
+                    className="font-bold text-xs"
+                  >
+                    Withdraw to Bank ↗
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* SIDE METRICS: Escrow-Locked & Pending Balances */}
+            <div className="flex flex-col gap-4">
+              {/* ESCROW-LOCKED CARD */}
+              <div className="rounded-2xl p-5 bg-card border border-blue-500/30 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs mb-2 text-blue-600 dark:text-blue-400 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-3.5 h-3.5" />
+                    Escrow-Locked Funds
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600">
+                    Safe Lock
+                  </span>
+                </div>
+
+                <div className="text-2xl sm:text-3xl font-extrabold font-mono tabular-nums text-foreground tracking-tight">
+                  {formatCurrency(isBrand ? (walletData?.totalHeld || 0) : (walletData?.pendingBalance || 0))}
+                </div>
+
+                <p className="text-[11px] text-secondary mt-1.5 leading-normal">
+                  {isBrand
+                    ? "Funds held in active campaign escrows, releasing automatically upon deliverable approval."
+                    : "Earnings currently held in client escrow milestones, auto-releasing upon brand approval."}
+                </p>
+              </div>
+
+              {/* PENDING CLEARANCE CARD */}
+              <div className="rounded-2xl p-5 bg-card border border-amber-500/30 shadow-sm flex flex-col justify-between">
+                <div className="flex items-center justify-between text-xs mb-2 text-amber-600 dark:text-amber-400 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    {isBrand ? "Total Campaign Spend" : "Total Withdrawn to Bank"}
+                  </span>
+                </div>
+
+                <div className="text-2xl sm:text-3xl font-extrabold font-mono tabular-nums text-foreground tracking-tight">
+                  {formatCurrency(isBrand ? (walletData?.totalSpent || 0) : (walletData?.totalWithdrawn || 0))}
+                </div>
+
+                <p className="text-[11px] text-secondary mt-1.5 leading-normal">
+                  {isBrand
+                    ? "Cumulative payouts completed to content creators across all verified campaigns."
+                    : "Total lifetime earnings safely deposited into your registered bank accounts."}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================== NAVIGATION TABS: LEDGER VS BANK ACCOUNTS ==================== */}
+        <div className="flex items-center gap-3 border-b border-border text-sm font-semibold">
+          <button
             type="button"
-            aria-label="Change selected bank account"
-            onClick={() => setSelectedAccount(null)}
-            variant="ghost"
-            className="text-xs text-rose"
+            onClick={() => setActiveTab("ledger")}
+            className={`pb-3 border-b-2 transition-colors ${
+              activeTab === "ledger"
+                ? "border-primary text-primary font-bold"
+                : "border-transparent text-secondary hover:text-foreground"
+            }`}
           >
-            Change
-          </Button>
+            Transaction Ledger ({transactions.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab("accounts")}
+            className={`pb-3 border-b-2 transition-colors flex items-center gap-1.5 ${
+              activeTab === "accounts"
+                ? "border-primary text-primary font-bold"
+                : "border-transparent text-secondary hover:text-foreground"
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Saved Bank Accounts &amp; KYC</span>
+          </button>
         </div>
-      ) : (
-        <div className="border border-border rounded-lg p-4 max-h-60 overflow-y-auto">
-          <div className="mb-4 text-sm text-secondary">
-            Select a saved account to receive funds:
-          </div>
-          <BankAccountManager
-            onSelectAccount={(acc) => setSelectedAccount(acc as SelectedBankAccount)}
+
+        {/* ==================== TAB 1: VIRTUALIZED TRANSACTION LEDGER ==================== */}
+        {activeTab === "ledger" && (
+          <VirtualizedTransactionList
+            transactions={transactions}
+            isLoading={isTxLoading}
+            onRefresh={handleRefreshAll}
           />
-        </div>
-      )}
-    </div>
+        )}
 
-    <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-4">
-      <Button
-        type="button"
-        variant="ghost"
-        onClick={() => setShowWithdrawModal(false)}
-      >
-        Cancel
-      </Button>
-      <Button
-        type="button"
-        variant="primary"
-        onClick={() => handleWithdraw()}
-        disabled={!selectedAccount || !withdrawAmount || isWithdrawing}
-      >
-        {isWithdrawing ? "Processing..." : "Withdraw Funds"}
-      </Button>
-    </div>
-  </div>
-</Modal>
+        {/* ==================== TAB 2: BANK ACCOUNTS MANAGER ==================== */}
+        {activeTab === "accounts" && (
+          <div className="max-w-2xl">
+            <BankAccountManager />
+          </div>
+        )}
+      </div>
 
-<Modal
-  open={showAddFundsModal}
-  onClose={() => setShowAddFundsModal(false)}
-  title="Add Funds"
-  maxWidth="480px"
->
-  <form onSubmit={handleAddFunds}>
-    <div className="mb-6">
-      <Input
-        id="add-funds-amount-input"
-        name="amount"
-        type="number"
-        label="Amount (INR)"
-        min="100"
-        required
-        placeholder="Enter amount"
-        fullWidth
+      {/* ==================== DEDICATED FULL-SCREEN WITHDRAW FLOW ==================== */}
+      <FullScreenWithdrawFlow
+        isOpen={showWithdrawFlow}
+        onClose={() => setShowWithdrawFlow(false)}
+        availableBalanceInPaise={walletData?.balance || 0}
+        onSuccess={handleRefreshAll}
+        userEmail={session?.user?.email}
+        userName={session?.user?.name}
       />
-    </div>
-    <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 mt-4">
-      <Button
-        type="button"
-        variant="ghost"
-        disabled={isAddingFunds}
-        onClick={() => setShowAddFundsModal(false)}
+
+      {/* ==================== STATEMENT EXPORT MODAL ==================== */}
+      <StatementExportModal
+        isOpen={showStatementModal}
+        onClose={() => setShowStatementModal(false)}
+        userType={userType}
+        userName={session?.user?.name}
+      />
+
+      {/* ==================== BRAND ADD FUNDS MODAL (RAZORPAY) ==================== */}
+      <Modal
+        open={showAddFundsModal}
+        onClose={() => setShowAddFundsModal(false)}
+        title="Add Funds to Escrow Wallet"
+        maxWidth="480px"
       >
-        Cancel
-      </Button>
-      <Button type="submit" variant="primary" disabled={isAddingFunds}>
-        {isAddingFunds ? "Processing..." : "Proceed to Pay"}
-      </Button>
-    </div>
-  </form>
-</Modal>
-</DashboardShell>
-);
+        <form onSubmit={handleAddFunds} className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-foreground mb-1 block" htmlFor="add-funds-amount-input">
+              Top-Up Amount (INR)
+            </label>
+            <Input
+              id="add-funds-amount-input"
+              name="amount"
+              type="number"
+              min="100"
+              required
+              placeholder="e.g. 25000"
+              fullWidth
+              autoFocus
+            />
+            <p className="text-[11px] text-secondary mt-1">
+              Minimum top-up is ₹100. Funds are instantly credited and available for escrow locking.
+            </p>
+          </div>
+
+          <div className="p-3 rounded-xl bg-secondary/30 border border-border text-xs text-secondary space-y-1">
+            <span className="font-semibold text-foreground">Supported Payment Methods:</span>
+            <p className="text-[11px]">UPI (GPay, PhonePe, Paytm), NetBanking (50+ banks), Corporate Cards, &amp; NEFT.</p>
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              disabled={isAddingFunds}
+              onClick={() => setShowAddFundsModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={isAddingFunds}
+              className="font-bold"
+            >
+              {isAddingFunds ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  <span>Connecting to Gateway...</span>
+                </>
+              ) : (
+                "Proceed to Pay"
+              )}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </DashboardShell>
+  );
 }
-
-

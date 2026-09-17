@@ -20,25 +20,44 @@ const verifyContactSchema = z.object({
 });
 
 async function verifyEmailCode(userId: string, code: string): Promise<boolean> {
-  const submittedHash = createHash("sha256").update(code).digest("hex");
   const key = `email-contact-otp:${userId}`;
   const storedHash = (await redis.get(key)) || "";
 
+  if (!storedHash) {
+    return false;
+  }
+
+  const attemptsKey = `${key}:attempts`;
+  const attempts = await redis.incr(attemptsKey);
+  if (attempts === 1) {
+    await redis.expire(attemptsKey, 600);
+  }
+
+  if (attempts > 5) {
+    await Promise.allSettled([
+      redis.del(key),
+      redis.del(attemptsKey),
+    ]);
+    return false;
+  }
+
+  const submittedHash = createHash("sha256").update(code).digest("hex");
   let isValidCode = false;
-  if (storedHash.length > 0) {
-    try {
-      const storedBuffer = Buffer.from(storedHash, "utf8");
-      const submittedBuffer = Buffer.from(submittedHash, "utf8");
-      if (storedBuffer.length === submittedBuffer.length) {
-        isValidCode = timingSafeEqual(storedBuffer, submittedBuffer);
-      }
-    } catch {
-      isValidCode = false;
+  try {
+    const storedBuffer = Buffer.from(storedHash, "utf8");
+    const submittedBuffer = Buffer.from(submittedHash, "utf8");
+    if (storedBuffer.length === submittedBuffer.length) {
+      isValidCode = timingSafeEqual(storedBuffer, submittedBuffer);
     }
+  } catch {
+    isValidCode = false;
   }
 
   if (isValidCode) {
-    await redis.del(key);
+    await Promise.allSettled([
+      redis.del(key),
+      redis.del(attemptsKey),
+    ]);
   }
   return isValidCode;
 }

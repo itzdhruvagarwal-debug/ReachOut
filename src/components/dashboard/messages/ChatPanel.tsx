@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Modal, Button, Input, Select, Textarea } from "@/components/ui";
 import { useMessages } from "./useMessages";
 import { Message, formatMessageDateDivider } from "./MessagesHelpers";
+import { DealContextMiniCard } from "./DealContextMiniCard";
+import { ContactLeakWarningBanner } from "./ContactLeakWarningBanner";
 
 interface ChatPanelProps {
   readonly state: ReturnType<typeof useMessages>;
@@ -329,6 +331,7 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
 
   return (
     <div
+      ref={state.scrollContainerRef}
       aria-label="Chat messages"
       aria-live="polite"
       aria-relevant="additions"
@@ -401,8 +404,11 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
                         : msg.createdAt
                     }
                   >
+                    {msg.status === "sending" && (
+                      <span className="text-[10px] text-white/60 italic mr-1">Sending...</span>
+                    )}
                     <span>{msg.createdAt}</span>
-                    {msg.isMe && (
+                    {msg.isMe && msg.status !== "failed" && (
                       <span
                         aria-hidden="true"
                         className={msg.isRead ? "text-cyan-300 font-bold" : "text-white/60"}
@@ -411,6 +417,15 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
                       </span>
                     )}
                   </div>
+                  {msg.status === "failed" && (
+                    <button
+                      type="button"
+                      onClick={() => state.handleRetryMessage(msg.id)}
+                      className="block w-full text-right text-[10px] text-rose-300 hover:text-white underline cursor-pointer mt-1 font-semibold"
+                    >
+                      ⚠️ Failed to send. Tap to retry
+                    </button>
+                  )}
                 </div>
               </div>
             </React.Fragment>
@@ -477,21 +492,8 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
 
     setIsUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("folder", "chat");
-
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || data.error || "Failed to upload file");
-      }
-
-      await handleSendFile?.(data.data.url, file.name, file.type);
+      const fileUrl = await state.uploadFileWithProgress(file);
+      await handleSendFile?.(fileUrl, file.name, file.type);
       showToast("success", "File shared successfully!");
     } catch (err) {
       showToast("error", err instanceof Error ? err.message : "File sharing failed");
@@ -552,28 +554,77 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
       );
     }
     return (
-      <div className="flex gap-2 items-center bg-secondary p-1.5 rounded-xl border border-card shadow-sm">
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          id="chat-file-upload-input"
-          aria-label="Attach image or document"
-        />
+      <div className="flex flex-col w-full">
+        {/* Contact Leak Warning Banner */}
+        <ContactLeakWarningBanner leakResult={state.contactLeakResult} />
 
-        {/* Attach File Button */}
-        <Button
-          variant="ghost"
-          title="Attach Image or Document"
-          aria-label="Share a file"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-          className="p-2 text-muted hover:text-primary hover:bg-tertiary rounded-lg cursor-pointer"
+        {/* Upload Progress Indicator */}
+        {state.uploadProgress !== null && (
+          <div className="mb-2 p-2.5 rounded-xl bg-card border border-border/80 shadow-sm animate-fade-in">
+            <div className="flex justify-between text-xs font-semibold mb-1 text-foreground">
+              <span>Uploading attachment...</span>
+              <span className="font-mono">{state.uploadProgress}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+              <div
+                className="h-full bg-primary transition-all duration-150 rounded-full"
+                style={{ width: `${state.uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div
+          className={`flex gap-2 items-center bg-secondary p-1.5 rounded-xl border shadow-sm transition-colors ${
+            state.contactLeakResult.hasLeak
+              ? "border-amber-500/50 ring-2 ring-amber-500/20"
+              : "border-card"
+          }`}
         >
-          {isUploading ? (
-            <span className="loading w-4 h-4" />
-          ) : (
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            id="chat-file-upload-input"
+            aria-label="Attach image or document"
+          />
+
+          {/* Attach File Button */}
+          <Button
+            variant="ghost"
+            title="Attach Image or Document"
+            aria-label="Share a file"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="p-2 text-muted hover:text-primary hover:bg-tertiary rounded-lg cursor-pointer"
+          >
+            {isUploading ? (
+              <span className="loading w-4 h-4" />
+            ) : (
+              <svg
+                width={18}
+                height={18}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+            )}
+          </Button>
+
+          {/* Create Proposal Button */}
+          <Button
+            variant="ghost"
+            title="Send Custom Deal Proposal"
+            aria-label="Create a proposal"
+            onClick={() => setIsOfferModalOpen(true)}
+            className="p-2 text-muted hover:text-blue-400 hover:bg-tertiary rounded-lg cursor-pointer"
+          >
             <svg
               width={18}
               height={18}
@@ -584,73 +635,51 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+              <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+              <path d="M10 9H8" />
+              <path d="M16 13H8" />
+              <path d="M16 17H8" />
             </svg>
-          )}
-        </Button>
+          </Button>
 
-        {/* Create Proposal Button */}
-        <Button
-          variant="ghost"
-          title="Send Custom Deal Proposal"
-          aria-label="Create a proposal"
-          onClick={() => setIsOfferModalOpen(true)}
-          className="p-2 text-muted hover:text-blue-400 hover:bg-tertiary rounded-lg cursor-pointer"
-        >
-          <svg
-            width={18}
-            height={18}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          {/* Main Message Input */}
+          <Input
+            type="text"
+            id="chat-message-input"
+            aria-label="Type your message"
+            placeholder="Type a message... (Press Enter to send)"
+            value={newMessage}
+            onChange={(e) => handleInputChange(e.target.value)}
+            onBlur={() => publishTyping(false)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            className="flex-1 bg-transparent border-0 focus:ring-0 text-sm placeholder:text-muted py-2 px-2"
+          />
+
+          {/* Send Button */}
+          <Button
+            variant="primary"
+            aria-label="Send message"
+            onClick={handleSend}
+            disabled={!newMessage.trim()}
+            className="px-4 py-2 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm"
           >
-            <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-            <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-            <path d="M10 9H8" />
-            <path d="M16 13H8" />
-            <path d="M16 17H8" />
-          </svg>
-        </Button>
-
-        {/* Main Message Input */}
-        <Input
-          type="text"
-          id="chat-message-input"
-          aria-label="Type your message"
-          placeholder="Type a message... (Press Enter to send)"
-          value={newMessage}
-          onChange={(e) => handleInputChange(e.target.value)}
-          onBlur={() => publishTyping(false)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          className="flex-1 bg-transparent border-0 focus:ring-0 text-sm placeholder:text-muted py-2 px-2"
-        />
-
-        {/* Send Button */}
-        <Button
-          variant="primary"
-          aria-label="Send message"
-          onClick={handleSend}
-          disabled={!newMessage.trim()}
-          className="px-4 py-2 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm"
-        >
-          <span>Send</span>
-          <svg
-            width={14}
-            height={14}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </Button>
+            <span>Send</span>
+            <svg
+              width={14}
+              height={14}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </Button>
+        </div>
       </div>
     );
   };
@@ -666,65 +695,70 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
       <Modal
         open={isOfferModalOpen}
         onClose={() => setIsOfferModalOpen(false)}
-        title="Send Custom Deal Proposal"
+        title="Propose Custom Deal Offer"
         maxWidth="500px"
       >
-        <form onSubmit={handleCreateOfferSubmit} className="flex flex-col gap-4">
+        <form onSubmit={handleCreateOfferSubmit} className="flex flex-col gap-3.5">
           <Input
-            label="Proposal Title"
+            label="Offer Title"
             id="offer-title-input"
+            placeholder="e.g. 1 Instagram Reel + 2 Stories"
             value={offerTitle}
             onChange={(e) => setOfferTitle(e.target.value)}
-            placeholder="e.g. 2 Dedicated YouTube Shorts + 1 Instagram Reel"
             fullWidth
             required
           />
+
           <Input
-            label="Proposed Rate (₹ in INR)"
-            type="number"
+            label="Proposed Rate (₹ INR)"
             id="offer-amount-input"
+            type="number"
+            placeholder="e.g. 15000"
             value={offerAmount}
             onChange={(e) => setOfferAmount(e.target.value)}
-            placeholder="e.g. 15000"
             fullWidth
             required
           />
+
           <Textarea
-            label="Description & Scope"
-            id="offer-description-textarea"
+            label="Description / Scope of Work"
+            id="offer-description-input"
+            placeholder="Detail expectations, product usage, tag requirements..."
             value={offerDescription}
             onChange={(e) => setOfferDescription(e.target.value)}
-            placeholder="Describe collaboration requirements, guidelines, deliverables..."
             rows={3}
             fullWidth
           />
+
           <Input
-            label="Deliverables Summary"
+            label="Deliverables Checklist"
             id="offer-deliverables-input"
+            placeholder="e.g. 1x 60s Reel, 2x Stories with swipe link"
             value={offerDeliverables}
             onChange={(e) => setOfferDeliverables(e.target.value)}
-            placeholder="e.g. 2 Shorts, 1 Reel"
             fullWidth
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Content Draft Deadline"
+              label="Draft Deadline"
+              id="offer-draft-deadline-input"
               type="date"
-              id="offer-content-deadline-input"
               value={offerContentDeadline}
               onChange={(e) => setOfferContentDeadline(e.target.value)}
               fullWidth
             />
             <Input
-              label="Live Posting Deadline"
-              type="date"
+              label="Posting Deadline"
               id="offer-posting-deadline-input"
+              type="date"
               value={offerPostingDeadline}
               onChange={(e) => setOfferPostingDeadline(e.target.value)}
               fullWidth
             />
           </div>
-          <div className="flex justify-end gap-3 mt-3 pt-3 border-t border-card">
+
+          <div className="flex justify-end gap-2.5 pt-2 border-t border-card">
             <Button
               type="button"
               variant="secondary"
@@ -743,7 +777,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
 }
 
 export function ChatPanel({ state }: Readonly<ChatPanelProps>) {
-  const { selectedConversation, selectedChat } = state;
+  const { selectedConversation, selectedChat, dealDetails } = state;
 
   return (
     <div
@@ -754,6 +788,7 @@ export function ChatPanel({ state }: Readonly<ChatPanelProps>) {
       {selectedChat ? (
         <>
           <ChatHeader state={state} />
+          <DealContextMiniCard deal={dealDetails} />
           <MessageList state={state} />
           <ChatInputArea state={state} />
         </>

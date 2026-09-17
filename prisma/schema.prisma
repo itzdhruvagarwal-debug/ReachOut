@@ -5,9 +5,31 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ==============================================================================
+// CONNECTION SETUP — READ CAREFULLY BEFORE CHANGING
+// ==============================================================================
+// At 10-lakh-user scale on serverless (Vercel), two separate URLs are required:
+//
+//   DATABASE_URL  → Supavisor pooler (transaction mode, port 6543)
+//     postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
+//     ?pgbouncer=true&connection_limit=1
+//     • Used by the Next.js app at runtime.
+//     • connection_limit=1 is CRITICAL for serverless — each lambda must not
+//       open more than 1 connection to the pooler.
+//     • pool_mode MUST be "transaction" (set on Supabase dashboard).
+//       Session mode does not work with Prisma on serverless.
+//
+//   DIRECT_URL    → Direct Postgres (port 5432, session mode)
+//     postgresql://postgres.[ref]:[password]@db.[ref].supabase.co:5432/postgres
+//     • Used only by `prisma migrate` and `prisma db push` (DDL operations).
+//     • Never used at runtime — session-mode DDL requires a direct connection.
+//
+// Wrong setup → serverless connection exhaustion crash ("too many connections")
+// ==============================================================================
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")  // Supavisor pooler — port 6543, pgbouncer=true
+  directUrl = env("DIRECT_URL")    // Direct connection — port 5432, migrations only
 }
 
 // ==================== USER MANAGEMENT ====================
@@ -246,8 +268,9 @@ model InfluencerProfile {
   totalEarnings  Int @default(0)
   totalReviews   Int @default(0)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   applications     Application[]
@@ -260,6 +283,12 @@ model InfluencerProfile {
   @@index([instagramHandle])
   @@index([youtubeHandle])
   @@index([isFeatured])
+  @@index([categories, instagramFollowers])
+  @@index([city, instagramFollowers])
+  @@index([minRate, maxRate])
+  @@index([isFeatured, instagramFollowers(sort: Desc), averageRating(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([deletedAt])
 }
 
 model BrandProfile {
@@ -293,13 +322,18 @@ model BrandProfile {
   averageRating   Int @default(0) // 0-500 (5.00)
   totalReviews    Int @default(0)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
 
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   campaigns Campaign[]
   deals     Deal[]     @relation("BrandDeals")
   reviews   Review[]   @relation("BrandReviews")
+
+  @@index([deletedAt])
+  @@index([industry])
+  @@index([city])
 }
 
 // ==================== VERIFICATION ====================
@@ -322,21 +356,26 @@ enum DocumentStatus {
 }
 
 model VerificationDocument {
-  id              String         @id @default(cuid())
-  userId          String
-  type            DocumentType
-  documentUrl     String
-  status          DocumentStatus @default(PENDING)
-  verifiedAt      DateTime?
-  rejectionReason String?
-  metadata        Json?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                 String         @id @default(cuid())
+  userId             String
+  type               DocumentType
+  documentUrl        String
+  /// @encrypted
+  documentNumber     String?
+  documentNumberHash String?
+  status             DocumentStatus @default(PENDING)
+  verifiedAt         DateTime?
+  rejectionReason    String?
+  metadata           Json?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([status])
+  @@index([documentNumberHash])
+  @@index([type, documentNumberHash])
 }
 
 model IndiaTaxCompliance {
@@ -345,6 +384,7 @@ model IndiaTaxCompliance {
   /// @encrypted
   panNumber                String?
   panLast4                 String?
+  panNumberHash            String?
   /// @encrypted
   gstin                    String?
   gstinLast4               String?
@@ -369,6 +409,21 @@ model IndiaTaxCompliance {
   @@index([status])
   @@index([gstRegistrationType])
   @@index([eInvoiceApplicable])
+  @@index([panNumberHash])
+}
+
+model TrustRuleConfig {
+  id          String   @id @default(cuid())
+  ruleKey     String   @unique
+  category    String   // INFLUENCER, BRAND, FRAUD, GENERAL
+  weight      Float
+  description String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
 }
 
 // ==================== CAMPAIGNS ====================
@@ -403,6 +458,7 @@ model Campaign {
   // Budget
   totalBudget         Int  @default(0)
   perInfluencerBudget Int?
+  /// @deprecated Replaced by reservedTotalAmount. Scheduled for migration removal in release v2.2.
   reservedAmount      Int  @default(0)
   fundedAmount        Int  @default(0)
   reservedTotalAmount Int  @default(0)
@@ -458,6 +514,12 @@ model Campaign {
   @@index([status, applicationDeadline, totalBudget]) // ADDED: Composite filtering
   @@index([brandId, status, deletedAt])
   @@index([status, deletedAt])
+  @@index([status, deletedAt, createdAt(sort: Desc)])
+  @@index([status, deletedAt, perInfluencerBudget, createdAt(sort: Desc)])
+  @@index([brandId, deletedAt, createdAt(sort: Desc)])
+  // Brand dashboard: WHERE brandId=X AND status=Y AND deletedAt IS NULL ORDER BY createdAt DESC
+  // Previously required Postgres to merge two separate indexes — now single index scan
+  @@index([brandId, status, deletedAt, createdAt(sort: Desc)])
 }
 
 // ==================== APPLICATIONS & DEALS ====================
@@ -496,6 +558,9 @@ model Application {
   @@index([influencerId])
   @@index([campaignId, status, deletedAt])
   @@index([influencerId, status, deletedAt])
+  @@index([campaignId, status, deletedAt, createdAt(sort: Desc)])
+  @@index([influencerId, status, deletedAt, createdAt(sort: Desc)])
+  @@index([campaignId, deletedAt, createdAt(sort: Desc)])
 }
 
 enum DealStatus {
@@ -532,6 +597,7 @@ model Deal {
   amount      Int @default(0)
   platformFee Int @default(0)
   gatewayFee  Int @default(0)
+  /// @deprecated Canonical financial field is amount (in paise). Scheduled for migration removal in release v2.2.
   totalAmount Int @default(0)
   influencerPayout Int?
   reservedFromWallet Boolean @default(false)
@@ -570,7 +636,9 @@ model Deal {
   influencerSignedAt DateTime?
 
   // Content
+  /// @deprecated Replaced by ContentSubmission model (supports multi-item deliverables). Scheduled for migration removal in release v2.2.
   submittedContentUrl String?
+  /// @deprecated Tracked via ContentSubmission.createdAt. Scheduled for migration removal in release v2.2.
   submittedAt         DateTime?
 
   // Revisions
@@ -634,9 +702,19 @@ model Deal {
   @@index([status, signDeadline, deletedAt])
   @@index([status, completedAt, deletedAt])
   @@index([status, isPostAlive])
-  @@index([completedAt])              // NEW: FY range queries
-  @@index([influencerId, completedAt]) // NEW: Influencer income summary
-  @@index([brandId, completedAt])     // NEW: Brand spend by FY
+  @@index([completedAt])              // FY range queries
+  @@index([influencerId, completedAt]) // Influencer income summary (all-time)
+  @@index([brandId, completedAt])     // Brand spend by FY (all-time)
+  // Composite FY range: WHERE influencerId=X AND status='COMPLETED' AND completedAt >= startOfFY
+  // Covers: monthly/quarterly earnings, analytics dashboard — avoids seq-scan on large tables
+  @@index([influencerId, status, completedAt])
+  // Composite FY range: WHERE brandId=X AND status='COMPLETED' AND completedAt >= startOfFY
+  @@index([brandId, status, completedAt])
+  @@index([brandId, status, deletedAt, createdAt(sort: Desc)])
+  @@index([influencerId, status, deletedAt, createdAt(sort: Desc)])
+  @@index([brandId, deletedAt, createdAt(sort: Desc)])
+  @@index([influencerId, deletedAt, createdAt(sort: Desc)])
+  @@index([campaignId, status, deletedAt, createdAt(sort: Desc)])
 }
 
 model ContentSubmission {
@@ -729,6 +807,9 @@ model Transaction {
   @@index([razorpayPaymentId])
   @@index([walletId, deletedAt, createdAt])
   @@index([walletId, status, deletedAt, createdAt])
+  @@index([walletId, createdAt(sort: Desc)], map: "Transaction_walletId_createdAt_desc_idx")
+  @@index([walletId, deletedAt, createdAt(sort: Desc)], map: "Transaction_walletId_deletedAt_createdAt_desc_idx")
+  @@index([walletId, status, deletedAt, createdAt(sort: Desc)], map: "Transaction_walletId_status_deletedAt_createdAt_desc_idx")
 }
 
 enum PaymentHoldStatus {
@@ -772,13 +853,19 @@ model Withdrawal {
   id                String           @id @default(cuid())
   walletId          String
   amount            Int              @default(0)
+  /// @deprecated Replaced by verified BankAccount relation (penny-drop validation). Kept for historical audit. Scheduled for migration removal in release v2.2.
   bankAccountName   String
   /// @encrypted
+  /// @deprecated Replaced by verified BankAccount relation (penny-drop validation). Kept for historical audit. Scheduled for migration removal in release v2.2.
   bankAccountNumber String
+  /// @deprecated Kept for historical duplicate detection. Scheduled for migration removal in release v2.2.
   bankAccountHash   String?          // Deterministic HMAC for efficient duplicate detection
+  /// @deprecated Replaced by verified BankAccount relation (penny-drop validation). Kept for historical audit. Scheduled for migration removal in release v2.2.
   ifscCode          String
   /// @encrypted
+  /// @deprecated Replaced by verified BankAccount relation (penny-drop validation). Kept for historical audit. Scheduled for migration removal in release v2.2.
   upiId             String?
+  /// @deprecated Kept for historical duplicate detection. Scheduled for migration removal in release v2.2.
   upiIdHash         String?          // Deterministic HMAC for efficient duplicate detection
   status            WithdrawalStatus @default(PENDING)
   razorpayPayoutId  String?
@@ -799,6 +886,9 @@ model Withdrawal {
   @@index([createdAt])
   @@index([bankAccountHash])
   @@index([upiIdHash])
+  @@index([walletId, createdAt(sort: Desc)], map: "Withdrawal_walletId_createdAt_desc_idx")
+  @@index([walletId, status, createdAt(sort: Desc)], map: "Withdrawal_walletId_status_createdAt_desc_idx")
+  @@index([status, createdAt(sort: Desc)], map: "Withdrawal_status_createdAt_desc_idx")
 }
 
 model BankAccount {
@@ -879,6 +969,7 @@ model Dispute {
   @@index([status])
   @@index([dealId])
   @@index([raisedByUserId])
+  @@index([resolvedByUserId])
 }
 
 model DisputeEvidence {
@@ -969,6 +1060,7 @@ model Message {
   @@index([receiverId, isRead, deletedAt])
   @@index([senderId, receiverId, createdAt])
   @@index([dealId, receiverId, isRead])
+  @@index([dealId, deletedAt, createdAt(sort: Asc)])
 }
 
 // ==================== GAMIFICATION ====================
@@ -1020,12 +1112,16 @@ model Notification {
   @@index([userId, isRead])
   @@index([createdAt])
   @@index([userId, createdAt])
+  @@index([userId, isRead, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)], map: "Notification_userId_createdAt_desc_idx")
 }
 
 // ==================== SECURITY & LOGGING ====================
 
+// AuditLog is APPEND-ONLY — protected by trg_immutable_audit_log DB trigger.
+// updatedAt is intentionally absent: Prisma's @updatedAt would auto-issue an UPDATE
+// on upsert, which the immutability trigger would block with an exception.
 model AuditLog {
-  updatedAt  DateTime @updatedAt
   id         String   @id @default(cuid())
   actorId    String
   actionType String // e.g. "ADMIN_OVERRIDE", "DISPUTE_RESOLUTION"
@@ -1036,8 +1132,10 @@ model AuditLog {
   ipAddress  String?
   timestamp  DateTime @default(now())
 
-  @@index([entityType, entityId])
-  @@index([actorId])
+  // Composite DESC index: admin audit trail pagination
+  // WHERE entityType='Deal' AND entityId=X ORDER BY timestamp DESC
+  @@index([entityType, entityId, timestamp(sort: Desc)])
+  @@index([actorId, timestamp(sort: Desc)])
   @@index([timestamp])
 }
 
@@ -1247,6 +1345,7 @@ model IdempotencyKey {
 
   @@index([key])
   @@index([expiresAt])
+  @@index([userId])
 }
 
 // ==================== DEBT CLAIMS ====================
@@ -1312,4 +1411,43 @@ model UserReport {
 
   @@index([reporterId])
   @@index([reportedId])
+}
+
+// ==================== BACKGROUND QUEUE & DEAD LETTER QUEUE (QSTASH) ====================
+
+enum JobCategory {
+  TIME_CRITICAL
+  SCHEDULED
+  BEST_EFFORT
+}
+
+enum JobStatus {
+  FAILED
+  RETRYING
+  RESOLVED
+  DISCARDED
+}
+
+model DeadLetterJob {
+  id              String      @id @default(cuid())
+  jobId           String?     // QStash Message ID
+  endpoint        String      // Consumer endpoint URL
+  category        JobCategory @default(BEST_EFFORT)
+  topic           String      // e.g. "payment.captured", "reconcile.ledger"
+  deduplicationId String?     // Deduplication ID used
+  payload         Json        // Lightweight payload references (IDs only)
+  errorMessage    String      @db.Text
+  errorStack      String?     @db.Text
+  attempts        Int         @default(1)
+  maxRetries      Int         @default(3)
+  status          JobStatus   @default(FAILED)
+  lastAttemptAt   DateTime    @default(now())
+  resolvedAt      DateTime?
+  resolvedBy      String?     // Admin user ID if manually resolved
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([status, category, createdAt])
+  @@index([topic, createdAt])
+  @@index([deduplicationId])
 }

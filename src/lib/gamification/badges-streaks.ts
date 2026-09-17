@@ -32,7 +32,8 @@ async function checkSpeedDemon(userId: string, db: DbClient): Promise<boolean> {
     select: { submittedAt: true, startedAt: true },
   });
   return speedDeals.some((d: { submittedAt: Date | null; startedAt: Date | null }) => {
-    const diff = new Date(d.submittedAt!).getTime() - new Date(d.startedAt!).getTime();
+    if (!d.submittedAt || !d.startedAt) return false;
+    const diff = new Date(d.submittedAt).getTime() - new Date(d.startedAt).getTime();
     return diff <= 24 * 60 * 60 * 1000;
   });
 }
@@ -42,7 +43,10 @@ async function checkEarlyBird(userId: string, db: DbClient): Promise<boolean> {
     where: { influencerId: userId, status: "COMPLETED", submittedAt: { not: null } },
     select: { submittedAt: true, submissionDeadline: true },
   });
-  const earlyCount = earlyDeals.filter((d: { submittedAt: Date | null; submissionDeadline: Date }) => new Date(d.submittedAt!).getTime() < new Date(d.submissionDeadline).getTime()).length;
+  const earlyCount = earlyDeals.filter((d: { submittedAt: Date | null; submissionDeadline: Date }) => {
+    if (!d.submittedAt || !d.submissionDeadline) return false;
+    return new Date(d.submittedAt).getTime() < new Date(d.submissionDeadline).getTime();
+  }).length;
   return earlyCount >= 5;
 }
 
@@ -52,8 +56,9 @@ async function checkNightOwl(userId: string, db: DbClient): Promise<boolean> {
     select: { submittedAt: true },
   });
   return nightDeals.some((d: { submittedAt: Date | null }) => {
+    if (!d.submittedAt) return false;
     // Convert UTC to IST (+5:30)
-    const istTime = new Date(new Date(d.submittedAt!).getTime() + (5.5 * 60 * 60 * 1000));
+    const istTime = new Date(new Date(d.submittedAt).getTime() + (5.5 * 60 * 60 * 1000));
     const hour = istTime.getUTCHours();
     return hour >= 2 && hour < 5;
   });
@@ -65,8 +70,9 @@ async function checkWeekendWarrior(userId: string, db: DbClient): Promise<boolea
     select: { completedAt: true },
   });
   return weekendDeals.some((d: { completedAt: Date | null }) => {
+    if (!d.completedAt) return false;
     // Convert UTC to IST (+5:30)
-    const istTime = new Date(new Date(d.completedAt!).getTime() + (5.5 * 60 * 60 * 1000));
+    const istTime = new Date(new Date(d.completedAt).getTime() + (5.5 * 60 * 60 * 1000));
     const day = istTime.getUTCDay();
     return day === 0 || day === 6; // Sunday (0) or Saturday (6)
   });

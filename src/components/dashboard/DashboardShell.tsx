@@ -7,14 +7,19 @@ import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
 import Logo from "../Logo";
 import PWAInstallButton from "@/components/pwa/PWAInstallButton";
-import React, { useState, useEffect, useRef, useCallback, memo, useMemo } from "react";
-import { createPortal } from "react-dom";
-
+import React, { useState, useEffect, useCallback, memo, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { isAdmin as rbacIsAdmin, isBrand, isInfluencer } from "@/lib/rbac";
 import { logger } from "@/lib/logger-client";
 import { Button } from "@/components/ui/Button";
+import DesktopSidebar from "@/components/navigation/DesktopSidebar";
+import MobileBottomBar from "@/components/navigation/MobileBottomBar";
+import EscrowStoriesBar from "@/components/navigation/EscrowStoriesBar";
+import RoleGuard from "@/components/navigation/RoleGuard";
+import { useNotificationCenter } from "@/hooks/useNotificationCenter";
+import ActivityFeedDrawer from "@/components/notifications/ActivityFeedDrawer";
+import NotificationToastBanner from "@/components/notifications/NotificationToastBanner";
 
 
 
@@ -263,69 +268,34 @@ const [sidebarOpen, setSidebarOpen] = useState(true);
 const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 const pathname = usePathname();
 
-const { data: notifData, mutate: refreshNotifications } = useSWR<{ notifications?: Notification[]; unreadCount?: number }>(
-user?.id ? "/api/notifications?limit=10" : null,
-fetcher,
-{ refreshInterval: 60000 }
-);
+  const {
+    notifications,
+    unreadCount,
+    activeToast,
+    dismissToast,
+    markAsRead,
+    markAllAsRead,
+  } = useNotificationCenter(user?.id);
 
-const notifications = notifData?.notifications || [];
-const unreadCount = notifData?.unreadCount || 0;
-const [showNotifications, setShowNotifications] = useState(false);
-const notificationRef = useRef<HTMLDivElement>(null);
-const notifPortalRef = useRef<HTMLDivElement | null>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
 
+  // Close mobile sidebar on route change without a visual flash.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMobileSidebarOpen(false));
+    return () => cancelAnimationFrame(id);
+  }, [pathname]);
 
-// Close mobile sidebar on route change without a visual flash.
-useEffect(() => {
-const id = requestAnimationFrame(() => setMobileSidebarOpen(false));
-return () => cancelAnimationFrame(id);
-}, [pathname]);
-
-// Lock body when mobile sidebar is open
-useEffect(() => {
-if (mobileSidebarOpen) {
-document.body.classList.add("overflow-hidden");
-} else {
-document.body.classList.remove("overflow-hidden");
-}
-return () => {
-document.body.classList.remove("overflow-hidden");
-};
-}, [mobileSidebarOpen]);
-
-// Close notifications when clicking outside
-useEffect(() => {
-function handleClickOutside(event: MouseEvent) {
-const target = event.target as Node;
-const insideBell = notificationRef.current?.contains(target);
-const insidePortal = notifPortalRef.current?.contains(target);
-if (!insideBell && !insidePortal) {
-setShowNotifications(false);
-}
-}
-document.addEventListener("mousedown", handleClickOutside);
-return () => {
-document.removeEventListener("mousedown", handleClickOutside);
-};
-}, []);
-
-const markAsRead = useCallback(async (notificationId?: string) => {
-try {
-const body = notificationId
-? { notificationIds: [notificationId] }
-: { markAll: true };
-await fetch("/api/notifications", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(body),
-});
-
-refreshNotifications();
-} catch (error) {
-logger.error("[dashboard-shell] Failed to mark notifications as read:", error);
-}
-}, [refreshNotifications]);
+  // Lock body when mobile sidebar is open
+  useEffect(() => {
+    if (mobileSidebarOpen) {
+      document.body.classList.add("overflow-hidden");
+    } else {
+      document.body.classList.remove("overflow-hidden");
+    }
+    return () => {
+      document.body.classList.remove("overflow-hidden");
+    };
+  }, [mobileSidebarOpen]);
 
 const userType = user?.userType;
 const isBrandOrIndividual = isBrand(userType);
@@ -432,46 +402,65 @@ return !hasMoreSpecificMatch;
 return false;
 }, [pathname, navItems]);
 
-return (
-<div className="dashboard-app-shell">
-<SidebarComponent
-sidebarOpen={sidebarOpen}
-setSidebarOpen={setSidebarOpen}
-mobileSidebarOpen={mobileSidebarOpen}
-setMobileSidebarOpen={setMobileSidebarOpen}
-user={user}
-navItems={navItems}
-isActivePath={isActivePath}
-isAdmin={isAdmin}
-/>
+  return (
+    <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
+      {/* Desktop Left Sidebar */}
+      <DesktopSidebar
+        userType={user?.userType}
+        user={user}
+        unreadCount={unreadCount}
+      />
 
-{/* Main Content */}
-<main className={`dashboard-main ${!sidebarOpen ? "collapsed" : ""}`}>
-<TopbarComponent
-user={user}
-isAdmin={isAdmin}
-pathname={pathname}
-subtitleText={subtitleText}
-showNotifications={showNotifications}
-setShowNotifications={setShowNotifications}
-unreadCount={unreadCount}
-notifications={notifications}
-notificationRef={notificationRef}
-notifPortalRef={notifPortalRef}
-markAsRead={markAsRead}
-setMobileSidebarOpen={setMobileSidebarOpen}
-/>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-24 md:pb-8">
+        <TopbarComponent
+          user={user}
+          isAdmin={isAdmin}
+          pathname={pathname}
+          subtitleText={subtitleText}
+          showNotifications={showNotifications}
+          setShowNotifications={setShowNotifications}
+          unreadCount={unreadCount}
+          setMobileSidebarOpen={setMobileSidebarOpen}
+        />
 
-{/* Dashboard Page Content */}
-<div className="dashboard-content animate-fade-in">{children}</div>
+        {/* Activity Feed Drawer */}
+        <ActivityFeedDrawer
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          notifications={notifications}
+          unreadCount={unreadCount}
+          onMarkAsRead={markAsRead}
+          onMarkAllAsRead={markAllAsRead}
+        />
 
-<MobileTabbarComponent
-mobileNavItems={mobileNavItems}
-isActivePath={isActivePath}
-/>
-</main>
-</div>
-);
+        {/* Non-intrusive Foreground In-App Toast */}
+        <NotificationToastBanner
+          toast={activeToast}
+          onDismiss={dismissToast}
+          onMarkAsRead={markAsRead}
+        />
+
+        {/* Escrow Status Stories Bar (Active on Home View) */}
+        {pathname === "/dashboard" && (
+          <EscrowStoriesBar userType={user?.userType} />
+        )}
+
+        {/* Dashboard Page Content with Client-side Role Guard */}
+        <main className="flex-1 p-4 md:p-6 max-w-7xl w-full mx-auto animate-fade-in">
+          <RoleGuard userType={user?.userType}>
+            {children}
+          </RoleGuard>
+        </main>
+      </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      <MobileBottomBar
+        userType={user?.userType}
+        unreadCount={unreadCount}
+      />
+    </div>
+  );
 }
 
 // ==================== SUBCOMPONENTS ====================
@@ -619,10 +608,6 @@ interface TopbarProps {
   readonly showNotifications: boolean;
   readonly setShowNotifications: (show: boolean) => void;
   readonly unreadCount: number;
-  readonly notifications: Notification[];
-  readonly notificationRef: React.RefObject<HTMLDivElement | null>;
-  readonly notifPortalRef: React.RefObject<HTMLDivElement | null>;
-  readonly markAsRead: (id?: string) => void;
   readonly setMobileSidebarOpen: (open: boolean) => void;
 }
 
@@ -634,10 +619,6 @@ const TopbarComponent = memo(function TopbarComponent({
   showNotifications,
   setShowNotifications,
   unreadCount,
-  notifications,
-  notificationRef,
-  notifPortalRef,
-  markAsRead,
   setMobileSidebarOpen,
 }: TopbarProps) {
 return (
@@ -674,14 +655,14 @@ aria-label="Open sidebar"
 <strong>{Number(user?.trustScore || 600)}</strong>
 </div>
 )}
-{/* Notifications */}
-<div className="position-relative" ref={notificationRef}>
+{/* Notifications Bell */}
+<div className="relative">
 <Button
 type="button"
 variant="ghost"
 onClick={() => setShowNotifications(!showNotifications)}
-className="dashboard-icon-button"
-aria-label="Notifications"
+className="dashboard-icon-button relative"
+aria-label={`Notifications ${unreadCount > 0 ? `(${unreadCount} unread)` : ""}`}
 >
 <AppIcon name="bell" size={19} />
 {unreadCount > 0 && (
@@ -689,54 +670,10 @@ aria-label="Notifications"
 className="notif-badge"
 aria-label={`${unreadCount} unread notifications`}
 >
-{unreadCount > 9 ? "9+" : unreadCount}
+{unreadCount > 99 ? "99+" : unreadCount}
 </span>
 )}
 </Button>
-
-{/* Notifications Dropdown rendered via portal to escape stacking context */}
-{showNotifications && typeof document !== "undefined" && createPortal(
-<div
-ref={notifPortalRef}
-className="notif-dropdown-portal animate-fade-in"
->
-<div className="notif-dropdown-header">
-<h3>Notifications</h3>
-{unreadCount > 0 && (
-<Button
-type="button"
-variant="ghost"
-className="notif-mark-read-btn"
-onClick={(e) => { e.stopPropagation(); markAsRead(); }}
->
-Mark all as read
-</Button>
-)}
-</div>
-<div className="flex flex-col">
-{notifications.length === 0 ? (
-<EmptyState emoji="" title="You're all caught up" description="No new notifications." compact />
-) : (
-(notifications ?? []).map((notif) => (
-<Button
-key={notif.id}
-onClick={() => !notif.isRead && markAsRead(notif.id)}
-type="button"
-variant="ghost"
-className={`notif-item ${notif.isRead ? "" : "unread"}`}
->
-<div className="notif-item-title">{notif.title}</div>
-<div className="notif-item-message">{notif.message}</div>
-<div className="notif-item-date">
-{new Date(notif.createdAt).toLocaleDateString()}
-</div>
-</Button>
-))
-)}
-</div>
-</div>,
-document.body
-)}
 </div>
 
 {/* Profile, desktop only */}

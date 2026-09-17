@@ -468,7 +468,7 @@ import { isWebhookProcessed } from "./idempotency";
 /**
 * Verify Razorpay webhook signature
 */
-function verifyWebhookSignature(
+export function verifyWebhookSignature(
 body: string,
 signature: string,
 secret: string = process.env.RAZORPAY_WEBHOOK_SECRET!,

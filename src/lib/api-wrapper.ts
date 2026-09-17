@@ -13,8 +13,9 @@ systemErrorsTotal,
 } from "./metrics";
 import { getSecureClientIp } from "./ip";
 import { AppError } from "./errors";
+import { validateCsrfProtection } from "./csrf";
 
-import type { RATE_LIMIT_CONFIGS } from "./rate-limit";
+import type { RATE_LIMIT_CONFIGS, TIERED_LIMIT_CONFIGS } from "./rate-limit";
 import { Permission } from "./rbac";
 import type { Session } from "next-auth";
 
@@ -59,6 +60,10 @@ influencerErrorMessage?: string; // Custom error message for influencer check fa
 requirePermission?: Permission;
 userRateLimit?: {
 bucket: keyof typeof RATE_LIMIT_CONFIGS;
+errorMessage?: string;
+};
+tieredRateLimit?: {
+action: keyof typeof TIERED_LIMIT_CONFIGS;
 errorMessage?: string;
 };
   maxBodySize?: number; // Maximum allowed body size in bytes (default: 2MB)
@@ -153,29 +158,15 @@ let rateLimitHeaders: Record<string, string> | undefined;
 
 try {
     // 2. CSRF & Cross-Site Mutation Defense
-    const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
-    if (!options?.skipCsrf && MUTATING_METHODS.has(method)) {
-      const secFetchSite = req.headers.get("sec-fetch-site");
-      if (secFetchSite === "cross-site") {
-        logger.warn(`[CSRF] Blocked cross-site mutation to ${url}`, { requestId, ip });
+    if (!options?.skipCsrf) {
+      const csrfCheck = validateCsrfProtection(req);
+      if (!csrfCheck.valid) {
+        logger.warn(`[CSRF] ${csrfCheck.reason} on ${url}`, { requestId, ip });
         endTimer({ status_code: "403" });
-        return NextResponse.json({ error: "Forbidden: Cross-site request rejected" }, { status: 403 });
-      }
-
-      const origin = req.headers.get("origin");
-      const host = req.headers.get("host");
-      if (origin && host) {
-        try {
-          const originHost = new URL(origin).host;
-          if (originHost !== host) {
-            logger.warn(`[CSRF] Origin mismatch: ${originHost} vs ${host}`, { requestId, url });
-            endTimer({ status_code: "403" });
-            return NextResponse.json({ error: "Forbidden: Invalid origin" }, { status: 403 });
-          }
-        } catch {
-          endTimer({ status_code: "403" });
-          return NextResponse.json({ error: "Forbidden: Malformed origin" }, { status: 403 });
-        }
+        return NextResponse.json(
+          { error: `Forbidden: ${csrfCheck.reason || "Cross-site request rejected"}` },
+          { status: 403 },
+        );
       }
     }
 
@@ -197,7 +188,7 @@ return rlResult.response;
 }
 
 // 4. Auth and Role Checks
-const authResponse = await performAuthAndRoleChecks(req, options);
+const authResponse = await performAuthAndRoleChecks(req, options, ip);
 if (authResponse) {
 endTimer({ status_code: authResponse.status.toString() });
 return authResponse;
@@ -355,7 +346,8 @@ return { response: null, headers: rateLimitHeaders };
 
 async function performAuthAndRoleChecks(
 req: NextRequest,
-options?: ApiWrapperOptions
+options?: ApiWrapperOptions,
+ip?: string,
 ): Promise<NextResponse | null> {
 const shouldRequireAuth =
 options?.requireAuth ||
@@ -363,7 +355,8 @@ options?.requireAdmin ||
 options?.requireBrand ||
 options?.requireInfluencer ||
 options?.requirePermission ||
-options?.userRateLimit;
+options?.userRateLimit ||
+options?.tieredRateLimit;
 
 if (!shouldRequireAuth) {
 return null;
@@ -451,6 +444,42 @@ options.userRateLimit.errorMessage ||
 { status: 429 },
 );
 }
+}
+
+// Tiered Rate Limit check (dual User + IP with Trust Score tiers)
+if (options?.tieredRateLimit) {
+  const { checkTieredRateLimit } = await import("./rate-limit");
+  const user = session.user as { id: string; trustScore?: number; kycVerified?: boolean };
+  const limit = await checkTieredRateLimit({
+    userId: user.id,
+    ip,
+    action: options.tieredRateLimit.action,
+    trustScore: user.trustScore,
+    isKycVerified: user.kycVerified,
+  });
+  if (!limit.success) {
+    const retryAfter = Math.max(0, Math.ceil(limit.reset - Date.now() / 1000));
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          options.tieredRateLimit.errorMessage ||
+          `Rate limit exceeded for ${options.tieredRateLimit.action.toLowerCase()}. Try again in ${retryAfter}s.`,
+        blockedBy: limit.blockedBy,
+      },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": retryAfter.toString(),
+          "X-RateLimit-User-Limit": limit.userLimit.toString(),
+          "X-RateLimit-User-Remaining": limit.userRemaining.toString(),
+          "X-RateLimit-IP-Limit": limit.ipLimit.toString(),
+          "X-RateLimit-IP-Remaining": limit.ipRemaining.toString(),
+          "X-RateLimit-Tier": limit.tier,
+        },
+      },
+    );
+  }
 }
 return null;
 }

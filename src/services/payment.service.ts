@@ -19,10 +19,16 @@ creditInfluencerPayoutWithTax,
 recordPlatformFeeRevenue,
 } from "@/lib/deal-settlement";
 import { releaseIdempotencyKey } from "@/lib/idempotency";
+import { transitionDealState } from "@/lib/deal-state-machine";
 import { randomUUID } from "node:crypto";
+import { recordPaymentFailure } from "@/lib/observability";
 
 export class PaymentService {
-  static async createWalletTopUpOrder(userId: string, amountInPaise: number) {
+  static async createWalletTopUpOrder(
+    userId: string,
+    amountInPaise: number,
+    idempotencyKey?: string,
+  ) {
     if (!Number.isInteger(amountInPaise) || amountInPaise < 100) {
       throw AppError.badRequest("Minimum top-up amount is ₹1 (100 paise)");
     }
@@ -49,35 +55,41 @@ export class PaymentService {
       update: {},
     });
 
-const receipt = `wallet_${userId}_${Date.now()}`;
-const order = await createOrder({
-amount: amountInPaise,
-currency: "INR",
-receipt,
-notes: {
-type: "wallet_topup",
-user_id: userId,
-},
-});
+    if (wallet.isFrozen) {
+      throw AppError.badRequest("WALLET_FROZEN: Your wallet is currently frozen or locked");
+    }
 
-await prisma.transaction.create({
-data: {
-walletId: wallet.id,
-type: "CREDIT",
-amount: amountInPaise,
-status: "PENDING",
-description: "Wallet top-up via Razorpay order",
-razorpayOrderId: order.orderId,
-},
-});
+    const receipt = `wallet_${userId}_${Date.now()}`;
+    const order = await createOrder({
+      amount: amountInPaise,
+      currency: "INR",
+      receipt,
+      notes: {
+        type: "wallet_topup",
+        user_id: userId,
+        ...(idempotencyKey ? { idempotency_key: idempotencyKey } : {}),
+      },
+    });
 
-return {
-orderId: order.orderId,
-amount: order.amount,
-currency: order.currency,
-key: process.env.RAZORPAY_KEY_ID,
-};
-}
+    await prisma.transaction.create({
+      data: {
+        walletId: wallet.id,
+        type: "CREDIT",
+        amount: amountInPaise,
+        status: "PENDING",
+        description: "Wallet top-up via Razorpay order",
+        razorpayOrderId: order.orderId,
+        ...(idempotencyKey ? { metadata: { idempotencyKey } } : {}),
+      },
+    });
+
+    return {
+      orderId: order.orderId,
+      amount: order.amount,
+      currency: order.currency,
+      key: process.env.RAZORPAY_KEY_ID,
+    };
+  }
 
   private static async checkAndBlockLatePost(
     deal: {
@@ -190,12 +202,22 @@ if (
 throw AppError.badRequest("NO_RESERVED_CAMPAIGN_FUNDS");
 }
 
-const dealUpdate = await tx.deal.updateMany({
-where: { id: deal.id, status: { in: ["VERIFIED", "CONTENT_APPROVED"] } },
-data: { status: "COMPLETED", completedAt: new Date() },
-});
+    if (!["VERIFIED", "CONTENT_APPROVED"].includes(deal.status)) {
+      return;
+    }
 
-if (dealUpdate.count === 0) return;
+    await transitionDealState({
+      dealId: deal.id,
+      fromState: deal.status,
+      toState: "COMPLETED",
+      actor: { userId: "SYSTEM_PAYMENT", role: "SYSTEM" },
+      reason: "Deal successfully verified and completed with escrow release",
+      metadata: {
+        amount: deal.amount,
+        influencerPayout: deal.influencerPayout ?? deal.amount,
+      },
+      tx,
+    });
 
 if (brandWallet && !deal.reservedFromWallet) {
 // Atomic conditional decrement: only succeeds if pendingBalance still covers the amount.
@@ -383,11 +405,23 @@ throw error;
       data: { balance: { decrement: data.amount } }
     });
 
-    if (updateResult.count === 0) throw AppError.badRequest("INSUFFICIENT_FUNDS_OR_FROZEN");
+    if (updateResult.count === 0) {
+      const wCheck = await tx.wallet.findUnique({
+        where: { userId },
+        select: { isFrozen: true, balance: true },
+      });
+      if (!wCheck) {
+        throw AppError.notFound("User wallet not found");
+      }
+      if (wCheck.isFrozen) {
+        throw AppError.badRequest("WALLET_FROZEN: Your wallet is currently frozen or locked");
+      }
+      throw AppError.badRequest("INSUFFICIENT_FUNDS: Insufficient wallet balance for withdrawal");
+    }
 
     const wallet = await tx.wallet.findUnique({ where: { userId } });
     if (!wallet) {
-      throw AppError.badRequest("User wallet not found");
+      throw AppError.notFound("User wallet not found");
     }
     const encryptedAcc = encrypt(data.bankAccountNumber);
     const bankAccountHash = hashForDuplicateDetection(data.bankAccountNumber);
@@ -506,6 +540,12 @@ throw error;
         withdrawalId,
         error: errorMsg,
       });
+      recordPaymentFailure("PAYOUT_REJECTED_4XX", new Error(errorMsg), {
+        userId,
+        withdrawalId,
+        statusCode,
+        error: errorMsg,
+      });
       await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         await PaymentService.refundFailedWithdrawal(
           withdrawalId,
@@ -534,10 +574,27 @@ throw error;
       withdrawalId,
       error: errorMsg,
     });
+    recordPaymentFailure("PAYOUT_AMBIGUOUS_GATEWAY", new Error(errorMsg), {
+      userId,
+      withdrawalId,
+      error: errorMsg,
+    });
     throw AppError.badRequest(`GATEWAY_AMBIGUOUS`);
   }
 
-  static async initiateWithdrawal(userId: string, data: { amount: number; bankAccountName: string; bankAccountNumber: string; ifscCode: string; upiId?: string }, idempotencyKey: string) {
+  static async initiateWithdrawal(
+    userId: string,
+    data: {
+      amount: number;
+      bankAccountName: string;
+      bankAccountNumber: string;
+      ifscCode: string;
+      upiId?: string;
+      ipAddress?: string | undefined;
+      deviceFingerprint?: string | undefined;
+    },
+    idempotencyKey: string,
+  ) {
     // Guard: amount must be a positive integer (in paise). Negative or float values
     // would bypass the balance >= check and execute decrement(negative) = balance inflation.
     if (!Number.isInteger(data.amount) || data.amount <= 0) {
@@ -576,6 +633,9 @@ throw error;
       amount: data.amount,
       bankAccount: data.bankAccountNumber,
       upiId: data.upiId,
+      bankAccountName: data.bankAccountName,
+      ipAddress: data.ipAddress,
+      deviceFingerprint: data.deviceFingerprint,
     });
 
     if (fraudCheck.action === "BLOCK") {
@@ -740,7 +800,10 @@ data: { status },
     },
   ): Promise<boolean> {
     const updated = await tx.transaction.updateMany({
-      where: { id: params.transactionId, status: "PENDING" },
+      where: {
+        id: params.transactionId,
+        status: { notIn: ["COMPLETED", "FAILED", "REVERSED"] },
+      },
       data: {
         status: "COMPLETED",
         razorpayPaymentId: params.razorpayPaymentId,

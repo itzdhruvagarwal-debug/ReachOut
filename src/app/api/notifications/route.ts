@@ -40,23 +40,39 @@ return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
 const body = await req.json();
 const schema = z.object({
-notificationIds: z.array(z.string()).max(100).optional(),
-markAll: z.boolean().optional(),
+  notificationIds: z.array(z.string()).max(100).optional(),
+  markAll: z.boolean().optional(),
+  action: z.enum(["test"]).optional(),
 });
 
 const parsed = schema.parse(body);
 
+if (parsed.action === "test") {
+  const created = await NotificationService.createNotification({
+    userId: session.user.id,
+    type: "payment",
+    title: "₹25,000 Escrow Deposited",
+    message: "Brand has deposited ₹25,000 in escrow for 'Festive Summer Campaign'. Your funds are 100% secured.",
+    data: { url: "/dashboard/wallet", amount: 25000 },
+  });
+  return NextResponse.json({
+    success: true,
+    notification: created,
+    message: "Test notification created",
+  });
+}
+
 if (parsed.markAll) {
-await NotificationService.markAsRead(session.user.id);
+  await NotificationService.markAsRead(session.user.id);
 } else {
-await NotificationService.markAsRead(
-session.user.id,
-parsed.notificationIds,
-);
+  await NotificationService.markAsRead(
+    session.user.id,
+    parsed.notificationIds,
+  );
 }
 
 return NextResponse.json({
-success: true,
-message: "Notifications marked as read",
+  success: true,
+  message: "Notifications marked as read",
 });
 });

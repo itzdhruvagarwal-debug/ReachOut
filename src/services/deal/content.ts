@@ -10,6 +10,7 @@ import { AppError } from "@/lib/errors";
 import { NotificationService } from "@/services/notification.service";
 import { logger } from "@/lib/logger";
 import { DealWithRelations, invalidateDealCache, lockAndFetchDealForAction } from "./helpers";
+import { transitionDealState } from "@/lib/deal-state-machine";
 
 function validateSubmissionEligibility(
   deal: Awaited<ReturnType<typeof lockAndFetchDealForAction>>,
@@ -115,10 +116,22 @@ export async function submitContent(
         },
       });
 
+      await transitionDealState({
+        dealId,
+        fromState: deal.status,
+        toState: "CONTENT_SUBMITTED",
+        actor: { userId, role: "INFLUENCER" },
+        reason: notes ?? undefined,
+        metadata: {
+          submittedContentUrl: finalContentUrl,
+          version: nextVersion,
+        },
+        tx,
+      });
+
       const updatedDeal = await tx.deal.update({
         where: { id: dealId },
         data: {
-          status: "CONTENT_SUBMITTED",
           submittedContentUrl: finalContentUrl,
           submittedAt: new Date(),
         },
@@ -264,11 +277,11 @@ throw AppError.badRequest(limitCheck.message || "Maximum revisions reached");
     }
     assertSufficientBalance(brandWallet, limitCheck.cost);
     const debitResult = await tx.wallet.updateMany({
-      where: { id: brandWallet.id, balance: { gte: limitCheck.cost } },
+      where: { id: brandWallet.id, balance: { gte: limitCheck.cost }, isFrozen: false },
       data: { balance: { decrement: limitCheck.cost } },
     });
     if (debitResult.count === 0) {
-      throw AppError.badRequest("Insufficient wallet balance for revision charge.");
+      throw AppError.badRequest("Insufficient wallet balance or wallet is frozen for revision charge.");
     }
 await tx.transaction.create({
 data: {
@@ -397,10 +410,24 @@ export async function reviewContent(
       },
     });
 
+    await transitionDealState({
+      dealId,
+      fromState: "CONTENT_SUBMITTED",
+      toState: updatedStatus,
+      actor: { userId, role: "BRAND" },
+      reason:
+        updatedStatus === "REVISION_REQUESTED"
+          ? (reviews.find((r) => r.status === "REVISION_REQUESTED")?.feedback || "Brand requested revision")
+          : "Brand approved submitted content",
+      metadata: {
+        reviews,
+      },
+      tx,
+    });
+
     const updatedDeal = await tx.deal.update({
       where: { id: dealId },
       data: {
-        status: updatedStatus,
         ...(updatedStatus === "REVISION_REQUESTED"
           ? { revisionsUsed: { increment: 1 } }
           : {}),

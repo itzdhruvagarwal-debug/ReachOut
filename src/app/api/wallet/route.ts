@@ -30,9 +30,8 @@ balance: w.balance,
 pendingBalance: w.pendingBalance,
 totalEarned: w.totalEarned,
 totalWithdrawn: w.totalWithdrawn,
-    // M3 FIX: totalHeld was hardcoded to 0, discarding WalletService's escrow calculation.
-    // Use the value from the wallet object if present (set by getBrandEscrowHeld for brands).
-    totalHeld: (w as unknown as Record<string, number>).totalHeld ?? 0,
+    // Use the value from the wallet object (computed by WalletService escrow calculation).
+    totalHeld: w.totalHeld ?? 0,
 totalSpent: w.totalSpent,
 totalDeposited: w.totalDeposited,
 isFrozen: w.isFrozen,

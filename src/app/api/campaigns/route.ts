@@ -48,9 +48,12 @@ if (isAdmin(userType)) {
 await requireActiveAdmin(session.user);
 }
 
+const cursor = searchParams.get("cursor")?.trim() || undefined;
+
 const listParams: ListCampaignsParams = {
 page,
 limit,
+cursor,
 sortOrder,
 ownerOnly,
 };
@@ -71,6 +74,8 @@ total: list.total,
 totalPages: list.totalPages,
 page,
 limit,
+nextCursor: "nextCursor" in list ? (list as { nextCursor?: string | null }).nextCursor : null,
+hasMore: "hasMore" in list ? (list as { hasMore?: boolean }).hasMore : false,
 },
 "Campaigns retrieved",
 );

@@ -75,9 +75,11 @@ return { tier: "ELITE", maxDealAmount: -1 }; // Unlimited
 function applyInfluencerBonuses(
   factors: InfluencerDRSFactors,
   state: { score: number; breakdown: DRSResult["breakdown"] },
+  weights?: Record<string, number>,
 ) {
+  const dealWeight = weights?.DEAL_EXPERIENCE_WEIGHT ?? 15;
   const qualifiedDeals = Math.min(factors.completedDeals, Math.floor(factors.totalEarningsPaise / 500000));
-  const dealBonus = qualifiedDeals * 15;
+  const dealBonus = qualifiedDeals * dealWeight;
   if (dealBonus > 0) {
     state.score += dealBonus;
     state.breakdown.push({
@@ -87,7 +89,8 @@ function applyInfluencerBonuses(
     });
   }
 
-  const reviewBonus = factors.fiveStarReviews * 30;
+  const reviewWeight = weights?.FIVE_STAR_REVIEW_WEIGHT ?? 30;
+  const reviewBonus = factors.fiveStarReviews * reviewWeight;
   if (reviewBonus > 0) {
     state.score += reviewBonus;
     state.breakdown.push({
@@ -97,7 +100,8 @@ function applyInfluencerBonuses(
     });
   }
 
-  const onTimeBonus = factors.onTimeDeliveries * 18;
+  const onTimeWeight = weights?.ON_TIME_DELIVERY_WEIGHT ?? 18;
+  const onTimeBonus = factors.onTimeDeliveries * onTimeWeight;
   if (onTimeBonus > 0) {
     state.score += onTimeBonus;
     state.breakdown.push({
@@ -108,19 +112,21 @@ function applyInfluencerBonuses(
   }
 
   if (factors.identityVerified) {
-    state.score += 60;
+    const idBonus = weights?.IDENTITY_VERIFIED_WEIGHT ?? 60;
+    state.score += idBonus;
     state.breakdown.push({
       factor: "Identity Verified",
-      impact: 60,
+      impact: idBonus,
       reason: "Identity verification complete",
     });
   }
 
   if (factors.accountAgeDays >= 365) {
-    state.score += 30;
+    const ageBonus = weights?.ACCOUNT_AGE_BONUS ?? 30;
+    state.score += ageBonus;
     state.breakdown.push({
       factor: "Account Age",
-      impact: 30,
+      impact: ageBonus,
       reason: "Account > 1 year old",
     });
   }
@@ -143,7 +149,8 @@ function applyInfluencerBonuses(
     });
   }
 
-  const disputeWonBonus = factors.disputesWon * 15;
+  const disputeWonWeight = weights?.DISPUTE_WON_BONUS ?? 15;
+  const disputeWonBonus = factors.disputesWon * disputeWonWeight;
   if (disputeWonBonus > 0) {
     state.score += disputeWonBonus;
     state.breakdown.push({
@@ -157,9 +164,11 @@ function applyInfluencerBonuses(
 function applyInfluencerPenalties(
   factors: InfluencerDRSFactors,
   state: { score: number; breakdown: DRSResult["breakdown"] },
+  weights?: Record<string, number>,
 ) {
   if (factors.lateDeliveries > 0) {
-    const penalty = factors.lateDeliveries * 50;
+    const penaltyWeight = Math.abs(weights?.LATE_DELIVERY_PENALTY ?? 50);
+    const penalty = factors.lateDeliveries * penaltyWeight;
     state.score -= penalty;
     state.breakdown.push({
       factor: "Late Deliveries",
@@ -169,7 +178,8 @@ function applyInfluencerPenalties(
   }
 
   if (factors.poorReviews > 0) {
-    const penalty = factors.poorReviews * 90;
+    const penaltyWeight = Math.abs(weights?.POOR_REVIEW_PENALTY ?? 90);
+    const penalty = factors.poorReviews * penaltyWeight;
     state.score -= penalty;
     state.breakdown.push({
       factor: "Negative Reviews",
@@ -179,7 +189,8 @@ function applyInfluencerPenalties(
   }
 
   if (factors.contentRejections > 0) {
-    const penalty = factors.contentRejections * 30;
+    const penaltyWeight = Math.abs(weights?.CONTENT_REJECTION_PENALTY ?? 30);
+    const penalty = factors.contentRejections * penaltyWeight;
     state.score -= penalty;
     state.breakdown.push({
       factor: "Content Rejections",
@@ -189,26 +200,29 @@ function applyInfluencerPenalties(
   }
 
   if (factors.disputesLost > 0) {
-    const penalty = factors.disputesLost * 180;
+    const penaltyWeight = Math.abs(weights?.DISPUTE_LOST_PENALTY ?? 180);
+    const penalty = factors.disputesLost * penaltyWeight;
     state.score -= penalty;
     state.breakdown.push({
       factor: "Disputes Raised/Lost",
       impact: -penalty,
-      reason: `${factors.disputesLost} disputes recorded`,
+      reason: `${factors.disputesLost} lost disputes`,
     });
   }
 
   if (factors.fakeFollowersDetected) {
-    state.score -= 250;
+    const penalty = Math.abs(weights?.FAKE_FOLLOWERS_PENALTY ?? 250);
+    state.score -= penalty;
     state.breakdown.push({
       factor: "AI Fraud Detection",
-      impact: -250,
+      impact: -penalty,
       reason: "Fake followers anomaly detected",
     });
   }
 
   if (factors.termsViolations > 0) {
-    const penalty = factors.termsViolations * 450;
+    const penaltyWeight = Math.abs(weights?.TERMS_VIOLATION_PENALTY ?? 450);
+    const penalty = factors.termsViolations * penaltyWeight;
     state.score -= penalty;
     state.breakdown.push({
       factor: "Terms Violation",
@@ -218,10 +232,11 @@ function applyInfluencerPenalties(
   }
 
   if (factors.paymentFraudAttempts > 0) {
-    state.score -= 600;
+    const penalty = Math.abs(weights?.PAYMENT_FRAUD_PENALTY ?? 600);
+    state.score -= penalty;
     state.breakdown.push({
       factor: "Fraud Attempt",
-      impact: -600,
+      impact: -penalty,
       reason: "Payment fraud triggers permanent ban logic",
     });
   }
@@ -229,14 +244,15 @@ function applyInfluencerPenalties(
 
 export function calculateInfluencerDRS(
   factors: InfluencerDRSFactors,
+  weights?: Record<string, number>,
 ): DRSResult {
   const state = {
     score: 600, // Starting score (CIBIL neutral)
     breakdown: [] as DRSResult["breakdown"],
   };
 
-  applyInfluencerBonuses(factors, state);
-  applyInfluencerPenalties(factors, state);
+  applyInfluencerBonuses(factors, state, weights);
+  applyInfluencerPenalties(factors, state, weights);
 
   // Cap score 300-900 (CIBIL range)
   const score = Math.max(300, Math.min(900, state.score));
@@ -264,130 +280,144 @@ unfairRejections: number; // Spec: Unfair rejections -10
 influencerComplaints: number; // Spec: Influencer complaints -15
 }
 
-export function calculateBrandDRS(factors: BrandDRSFactors): DRSResult {
-const breakdown: DRSResult["breakdown"] = [];
-let score = 550; // Brands start at 550 (CIBIL neutral)
+export function calculateBrandDRS(
+  factors: BrandDRSFactors,
+  weights?: Record<string, number>,
+): DRSResult {
+  const breakdown: DRSResult["breakdown"] = [];
+  let score = 550; // Brands start at 550 (CIBIL neutral)
 
-// === ACTIVITY ===
-const campaignBonus = factors.completedCampaigns * 18;
-if (campaignBonus > 0) {
-score += campaignBonus;
-breakdown.push({
-factor: "Campaign History",
-impact: campaignBonus,
-reason: `${factors.completedCampaigns} campaigns completed`,
-});
-}
+  // === ACTIVITY ===
+  const campaignWeight = weights?.BRAND_CAMPAIGN_WEIGHT ?? 18;
+  const campaignBonus = factors.completedCampaigns * campaignWeight;
+  if (campaignBonus > 0) {
+    score += campaignBonus;
+    breakdown.push({
+      factor: "Campaign History",
+      impact: campaignBonus,
+      reason: `${factors.completedCampaigns} campaigns completed`,
+    });
+  }
 
-// === AGILITY ===
-const approvalBonus = factors.fastApprovals * 12;
-if (approvalBonus > 0) {
-score += approvalBonus;
-breakdown.push({
-factor: "Fast Approvals",
-impact: approvalBonus,
-reason: `${factors.fastApprovals} quick approvals`,
-});
-}
+  // === AGILITY ===
+  const approvalWeight = weights?.BRAND_FAST_APPROVAL_WEIGHT ?? 12;
+  const approvalBonus = factors.fastApprovals * approvalWeight;
+  if (approvalBonus > 0) {
+    score += approvalBonus;
+    breakdown.push({
+      factor: "Fast Approvals",
+      impact: approvalBonus,
+      reason: `${factors.fastApprovals} quick approvals`,
+    });
+  }
 
-// === RELIABILITY ===
-if (factors.paymentReliability >= 0.98 && factors.completedCampaigns > 0) {
-score += 60;
-breakdown.push({
-factor: "Payment Reliability",
-impact: 60,
-reason: "High payment success rate",
-});
-}
+  // === RELIABILITY ===
+  if (factors.paymentReliability >= 0.98 && factors.completedCampaigns > 0) {
+    const paymentReliabilityBonus = weights?.BRAND_PAYMENT_RELIABILITY_WEIGHT ?? 60;
+    score += paymentReliabilityBonus;
+    breakdown.push({
+      factor: "Payment Reliability",
+      impact: paymentReliabilityBonus,
+      reason: "High payment success rate",
+    });
+  }
 
-if (factors.companyVerified) {
-score += 90;
-breakdown.push({
-factor: "Business Verified",
-impact: 90,
-reason: "Company registration verified",
-});
-}
+  if (factors.companyVerified) {
+    const verifiedBonus = weights?.BRAND_VERIFIED_WEIGHT ?? 90;
+    score += verifiedBonus;
+    breakdown.push({
+      factor: "Business Verified",
+      impact: verifiedBonus,
+      reason: "Company registration verified",
+    });
+  }
 
-// === LONG TERM PARTNERSHIPS ===
-if (factors.longTermPartnerships > 0) {
-const partnerBonus = factors.longTermPartnerships * 30;
-score += partnerBonus;
-breakdown.push({
-factor: "Long-term Partnerships",
-impact: partnerBonus,
-reason: `${factors.longTermPartnerships} repeat influencer relationships`,
-});
-}
+  // === LONG TERM PARTNERSHIPS ===
+  if (factors.longTermPartnerships > 0) {
+    const partnershipWeight = weights?.BRAND_PARTNERSHIP_WEIGHT ?? 30;
+    const partnerBonus = factors.longTermPartnerships * partnershipWeight;
+    score += partnerBonus;
+    breakdown.push({
+      factor: "Long-term Partnerships",
+      impact: partnerBonus,
+      reason: `${factors.longTermPartnerships} repeat influencer relationships`,
+    });
+  }
 
-// === FAIR REVIEWS ===
-if (factors.fairReviews > 0) {
-const fairBonus = factors.fairReviews * 30;
-score += fairBonus;
-breakdown.push({
-factor: "Fair Reviews",
-impact: fairBonus,
-reason: `${factors.fairReviews} fair reviews given to influencers`,
-});
-}
+  // === FAIR REVIEWS ===
+  if (factors.fairReviews > 0) {
+    const reviewWeight = weights?.BRAND_FAIR_REVIEW_WEIGHT ?? 30;
+    const fairBonus = factors.fairReviews * reviewWeight;
+    score += fairBonus;
+    breakdown.push({
+      factor: "Fair Reviews",
+      impact: fairBonus,
+      reason: `${factors.fairReviews} fair reviews given to influencers`,
+    });
+  }
 
-// === PENALTIES (STRICT) ===
-if (factors.lateApprovals > 0) {
-const penalty = factors.lateApprovals * 30;
-score -= penalty;
-breakdown.push({
-factor: "Slow Responses",
-impact: -penalty,
-reason: `${factors.lateApprovals} delays in approval`,
-});
-}
+  // === PENALTIES (STRICT) ===
+  if (factors.lateApprovals > 0) {
+    const latePenaltyWeight = Math.abs(weights?.BRAND_LATE_APPROVAL_PENALTY ?? -30);
+    const penalty = factors.lateApprovals * latePenaltyWeight;
+    score -= penalty;
+    breakdown.push({
+      factor: "Slow Responses",
+      impact: -penalty,
+      reason: `${factors.lateApprovals} delays in approval`,
+    });
+  }
 
-if (factors.unfairRejections > 0) {
-const penalty = factors.unfairRejections * 120;
-score -= penalty;
-breakdown.push({
-factor: "Unfair Rejections",
-impact: -penalty,
-reason: `${factors.unfairRejections} unfair content rejections`,
-});
-}
+  if (factors.unfairRejections > 0) {
+    const unfairPenaltyWeight = Math.abs(weights?.BRAND_UNFAIR_REJECTION_PENALTY ?? -120);
+    const penalty = factors.unfairRejections * unfairPenaltyWeight;
+    score -= penalty;
+    breakdown.push({
+      factor: "Unfair Rejections",
+      impact: -penalty,
+      reason: `${factors.unfairRejections} unfair content rejections`,
+    });
+  }
 
-if (factors.disputesLost > 0) {
-const penalty = factors.disputesLost * 240;
-score -= penalty;
-breakdown.push({
-factor: "Payment Disputes",
-impact: -penalty,
-reason: `${factors.disputesLost} payment disputes`,
-});
-}
+  if (factors.disputesLost > 0) {
+    const disputeLostPenaltyWeight = Math.abs(weights?.BRAND_DISPUTE_LOST_PENALTY ?? -240);
+    const penalty = factors.disputesLost * disputeLostPenaltyWeight;
+    score -= penalty;
+    breakdown.push({
+      factor: "Payment Disputes",
+      impact: -penalty,
+      reason: `${factors.disputesLost} payment disputes`,
+    });
+  }
 
-if (factors.influencerComplaints > 0) {
-const penalty = factors.influencerComplaints * 150;
-score -= penalty;
-breakdown.push({
-factor: "Influencer Complaints",
-impact: -penalty,
-reason: `${factors.influencerComplaints} complaints received`,
-});
-}
+  if (factors.influencerComplaints > 0) {
+    const complaintPenaltyWeight = Math.abs(weights?.BRAND_COMPLAINT_PENALTY ?? -150);
+    const penalty = factors.influencerComplaints * complaintPenaltyWeight;
+    score -= penalty;
+    breakdown.push({
+      factor: "Influencer Complaints",
+      impact: -penalty,
+      reason: `${factors.influencerComplaints} complaints received`,
+    });
+  }
 
-if (factors.termsViolations > 0) {
-const penalty = factors.termsViolations * 600;
-score -= penalty;
-breakdown.push({
-factor: "Terms Violation",
-impact: -penalty,
-reason: `${factors.termsViolations} TOS violations`,
-});
-}
+  if (factors.termsViolations > 0) {
+    const termsPenaltyWeight = Math.abs(weights?.BRAND_TERMS_VIOLATION_PENALTY ?? -600);
+    const penalty = factors.termsViolations * termsPenaltyWeight;
+    score -= penalty;
+    breakdown.push({
+      factor: "Terms Violation",
+      impact: -penalty,
+      reason: `${factors.termsViolations} TOS violations`,
+    });
+  }
 
-score = Math.max(300, Math.min(900, score));
+  score = Math.max(300, Math.min(900, score));
 
-// Determine Tier
-const { tier, maxDealAmount } = getDRSTierAndLimit(score);
+  // Determine Tier
+  const { tier, maxDealAmount } = getDRSTierAndLimit(score);
 
-return { score, tier, maxDealAmount, breakdown };
+  return { score, tier, maxDealAmount, breakdown };
 }
 
 // ==================== LEVELS ====================

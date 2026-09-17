@@ -4,6 +4,8 @@ import { FormEvent, useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { formatCurrency } from "@/lib/utils-client";
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Textarea } from "@/components/ui";
 import { z } from "zod";
@@ -16,32 +18,11 @@ message: "Rejection reason must be at least 5 characters.",
 path: ["note"]
 });
 
-interface Withdrawal {
-id: string;
-amount: number;
-bankAccountName: string;
-bankAccountNumber: string;
-ifscCode: string;
-upiId: string | null;
-status: string;
-riskScore: number;
-isManualReview: boolean;
-createdAt: string;
-wallet: {
-user: {
-id: string;
-email: string;
-userType: string;
-influencerProfile: { displayName: string } | null;
-brandProfile: { companyName: string } | null;
-taxCompliance: {
-panLast4: string | null;
-status: string | null;
-itrAcknowledgementLast4: string | null;
-} | null;
-};
-};
-}
+import {
+  type AdminWithdrawalItem as Withdrawal,
+  type AdminPayoutsResponse as PayoutResponse,
+} from "@/lib/schemas";
+
 
 type PayoutAction = "APPROVE" | "REJECT";
 
@@ -53,11 +34,13 @@ note: string;
 
 const filters = ["PENDING", "PROCESSING", "COMPLETED", "FAILED", "ALL"];
 
-function maskAccount(value: string) {
-const clean = value.replace(/\s+/g, "");
-if (clean.length <= 4) return "****";
-return `****${clean.slice(-4)}`;
+function maskAccount(value?: string | null) {
+  if (!value) return "****";
+  const clean = value.replace(/\s+/g, "");
+  if (clean.length <= 4) return "****";
+  return `****${clean.slice(-4)}`;
 }
+
 
 function getUserName(user: Withdrawal["wallet"]["user"]) {
 if (user.influencerProfile) return user.influencerProfile.displayName;
@@ -71,11 +54,7 @@ if (status === "FAILED") return "danger";
 return "warning";
 }
 
-interface PayoutResponse {
-withdrawals?: Withdrawal[];
-data?: { withdrawals?: Withdrawal[]; total?: number };
-total?: number;
-}
+
 
 export default function PayoutsAdminPage() {
 const [filter, setFilter] = useState("PENDING");
@@ -128,30 +107,25 @@ setProcessing(draft.withdrawal.id);
 setActionError("");
 
 try {
-const body =
-draft.action === "APPROVE"
-? { action: draft.action }
-: { action: draft.action, failureReason: note };
+  const body =
+    draft.action === "APPROVE"
+      ? { action: draft.action }
+      : { action: draft.action, failureReason: note };
 
-const res = await fetch(`/api/admin/payouts/${encodeURIComponent(draft.withdrawal.id)}`, {
-method: "PUT",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify(body),
-});
-const data = await res.json();
-
-if (!res.ok) {
-throw new Error(data.error || "Failed to process payout");
-}
-
-setDraft(null);
-await fetchWithdrawals();
+  await apiClient.users.adminPayoutAction(draft.withdrawal.id, body);
+  setDraft(null);
+  await fetchWithdrawals();
 } catch (err) {
-setActionError(err instanceof Error ? err.message : "Failed to process payout");
+  setActionError(
+    err instanceof ApiClientError
+      ? err.message
+      : (err instanceof Error ? err.message : "Failed to process payout")
+  );
 } finally {
-setProcessing(null);
+  setProcessing(null);
 }
 };
+
 
 const renderContent = () => {
 if (loading) {

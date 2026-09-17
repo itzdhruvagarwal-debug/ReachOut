@@ -82,7 +82,7 @@ throw AppError.badRequest("Influencer wallet missing during clawback");
 
   // Debit Influencer (Enforce Debt) up to actualDeduct, increment debt by debtPending
   const debitResult = await tx.wallet.updateMany({
-    where: { userId: influencerUserId, balance: { gte: actualDeduct } },
+    where: { userId: influencerUserId, balance: { gte: actualDeduct }, isFrozen: false },
     data: {
       balance: { decrement: actualDeduct },
       totalEarned: { decrement: Math.min(actualDeduct, influencerWallet.totalEarned ?? 0) },
@@ -91,7 +91,7 @@ throw AppError.badRequest("Influencer wallet missing during clawback");
   });
 
   if (debitResult.count === 0) {
-    throw AppError.badRequest("Insufficient wallet balance for clawback deduction.");
+    throw AppError.badRequest("Insufficient wallet balance or wallet is frozen for clawback deduction.");
   }
 
 // Debit Platform Treasury for platform's portion of the refund
@@ -104,7 +104,7 @@ if (treasuryClawback > 0) {
   const deductAmount = Math.min(treasuryWallet?.balance ?? 0, treasuryClawback);
   if (deductAmount > 0) {
     await tx.wallet.updateMany({
-      where: { userId: "PLATFORM_TREASURY", balance: { gte: deductAmount } },
+      where: { userId: "PLATFORM_TREASURY", balance: { gte: deductAmount }, isFrozen: false },
       data: {
         balance: { decrement: deductAmount },
       },

@@ -405,7 +405,7 @@ await prisma.user.update({
 where: { id: user.id },
 data: {
 resetToken,
-resetTokenExpiry: new Date(Date.now() + 60 * 60 * 1000),
+resetTokenExpiry: new Date(Date.now() + 15 * 60 * 1000), // Short 15-minute expiry for fintech security
 },
 });
 

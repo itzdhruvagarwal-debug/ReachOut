@@ -7,6 +7,7 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { apiClient, ApiClientError } from "@/lib/api-client";
 
 import { z } from "zod";
 
@@ -55,26 +56,18 @@ setStatus("loading");
 setMessage("");
 
 try {
-const res = await fetch("/api/auth/reset-password", {
-method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ action: "reset", token, newPassword: password }),
-});
-
-const data = await res.json();
-
-if (!res.ok) {
-setStatus("error");
-setMessage(data.error || "Failed to reset password");
-} else {
+await apiClient.auth.resetPassword({ token: token || "", newPassword: password });
 setStatus("success");
 setMessage("Password reset successful! Redirecting to login...");
 setTimeout(() => router.push("/login"), 2000);
-}
 } catch (err: unknown) {
 logger.error("[reset-password] submission error:", err);
 setStatus("error");
+if (err instanceof ApiClientError) {
+setMessage(err.message || "Failed to reset password");
+} else {
 setMessage("Network error. Please try again.");
+}
 }
 };
 

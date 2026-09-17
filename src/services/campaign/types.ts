@@ -66,17 +66,18 @@ productHandlingFee: number;
 }
 
 export interface ListCampaignsParams {
-page: number;
-limit: number;
-status?: string;
-category?: string;
-city?: string;
-minBudget?: number;
-maxBudget?: number;
-sortBy?: string;
-sortOrder?: "asc" | "desc";
-ownerOnly?: boolean;
-search?: string;
+  page: number;
+  limit: number;
+  cursor?: string | undefined;
+  status?: string | undefined;
+  category?: string | undefined;
+  city?: string | undefined;
+  minBudget?: number | undefined;
+  maxBudget?: number | undefined;
+  sortBy?: string | undefined;
+  sortOrder?: ("asc" | "desc") | undefined;
+  ownerOnly?: boolean | undefined;
+  search?: string | undefined;
 }
 
 export const CAMPAIGN_INCLUDE = {

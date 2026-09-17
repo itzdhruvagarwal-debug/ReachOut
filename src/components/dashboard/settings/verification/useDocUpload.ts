@@ -1,43 +1,51 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { apiClient } from "@/lib/api-client";
+import { ApiClientError } from "@/lib/api-client/errors";
 import { logger } from "@/lib/logger-client";
 import { VerificationData } from "../VerificationTab";
 
 export function useDocUpload(
-showToast: (msg: string, type: "success" | "error" | "info") => void,
-setVerificationData: (data: VerificationData | null) => void
+  showToast: (msg: string, type: "success" | "error" | "info") => void,
+  setVerificationData: (data: VerificationData | null) => void
 ) {
-const [isUploading, setIsUploading] = useState(false);
-const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
-const [isConnectingDigiLocker, setIsConnectingDigiLocker] = useState(false);
-const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
+  const [isConnectingDigiLocker, setIsConnectingDigiLocker] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-const handleUpload = (type: string) => {
-setUploadingDocType(type);
-if (fileInputRef.current) {
-fileInputRef.current.click();
-}
-};
+  const handleUpload = (type: string) => {
+    setUploadingDocType(type);
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
 
-const handleDigiLockerConnect = async () => {
-setIsConnectingDigiLocker(true);
-try {
-const res = await fetch("/api/auth/digilocker/authorize");
-const data = await res.json();
-if (!res.ok || !data.url) {
-showToast(data.error || "Failed to initiate DigiLocker connection", "error");
-return;
-}
-window.location.href = data.url;
-} catch {
-showToast("An error occurred while connecting to DigiLocker", "error");
-} finally {
-setIsConnectingDigiLocker(false);
-}
-};
+  const handleDigiLockerConnect = async () => {
+    setIsConnectingDigiLocker(true);
+    try {
+      const data = (await apiClient.users.authorizeDigilocker()) as {
+        url?: string;
+        error?: string;
+      };
+      if (!data?.url) {
+        showToast(data?.error || "Failed to initiate DigiLocker connection", "error");
+        return;
+      }
+      window.location.href = data.url;
+    } catch (err) {
+      const msg =
+        err instanceof ApiClientError
+          ? err.message
+          : "An error occurred while connecting to DigiLocker";
+      showToast(msg, "error");
+    } finally {
+      setIsConnectingDigiLocker(false);
+    }
+  };
 
-const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !uploadingDocType) return;
 
@@ -56,23 +64,25 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     formData.append("type", uploadingDocType);
 
     try {
-      const res = await fetch("/api/verification", {
-        method: "POST",
-        body: formData,
-      });
-      const data = await res.json();
-      if (data.success) {
+      const data = (await apiClient.users.submitVerification(formData)) as {
+        success?: boolean;
+        error?: string;
+      };
+      if (data?.success) {
         showToast("Document uploaded! Verification pending.", "success");
         // Refresh data
-        const refresh = await fetch("/api/verification");
-        const newData = await refresh.json();
+        const newData = (await apiClient.users.getVerification()) as VerificationData;
         setVerificationData(newData);
       } else {
-        showToast(data.error || "Upload failed", "error");
+        showToast(data?.error || "Upload failed", "error");
       }
     } catch (error) {
       logger.error("[verification-tab] Failed to upload document:", error);
-      showToast("An error occurred", "error");
+      const msg =
+        error instanceof ApiClientError
+          ? error.message
+          : "An error occurred during upload";
+      showToast(msg, "error");
     } finally {
       setIsUploading(false);
       setUploadingDocType(null);
@@ -80,13 +90,13 @@ const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   };
 
-return {
-isUploading,
-uploadingDocType,
-isConnectingDigiLocker,
-fileInputRef,
-handleUpload,
-handleDigiLockerConnect,
-handleFileChange,
-};
+  return {
+    isUploading,
+    uploadingDocType,
+    isConnectingDigiLocker,
+    fileInputRef,
+    handleUpload,
+    handleDigiLockerConnect,
+    handleFileChange,
+  };
 }

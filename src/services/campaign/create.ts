@@ -18,6 +18,7 @@ import { TierError, DirectInviteParams, estimateCampaignDealSlots, safeStringCas
 import { createDealAndReserveFunds } from "@/services/deal/helpers";
 import { checkMessageForContacts } from "@/lib/contact-filter";
 import { BlockService } from "@/services/block.service";
+import { invalidateCampaignSearchCache } from "@/lib/search";
 
 export function assertNoContactDetails(text: string | null | undefined, fieldName: string) {
 if (!text) return;
@@ -393,7 +394,7 @@ async function lockAndDeductWalletForCampaign(
   assertSufficientBalance(wallet, totalAmount);
 
   const updateResult = await tx.wallet.updateMany({
-    where: { id: wallet.id, balance: { gte: totalAmount } },
+    where: { id: wallet.id, balance: { gte: totalAmount }, isFrozen: false },
     data: {
       balance: { decrement: totalAmount },
       pendingBalance: { increment: totalAmount },
@@ -401,7 +402,7 @@ async function lockAndDeductWalletForCampaign(
   });
 
   if (updateResult.count === 0) {
-    throw AppError.badRequest("Insufficient wallet balance or concurrent transaction detected");
+    throw AppError.badRequest("Insufficient wallet balance, frozen wallet, or concurrent transaction detected");
   }
   return wallet;
 }
@@ -616,6 +617,14 @@ export async function createCampaign(userId: string, userType: UserType, data: R
       userId,
       campaignId: result.id,
     });
+
+    // Invalidate discovery cache so newly created active campaign appears in searches
+    if (!isDraft) {
+      invalidateCampaignSearchCache().catch((err) => {
+        logger.warn("Failed to invalidate campaign search cache", { err });
+      });
+    }
+
     return result;
   } catch (error) {
     logger.error("Error creating campaign", error, { userId });

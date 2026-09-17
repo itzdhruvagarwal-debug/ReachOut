@@ -3,19 +3,11 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Badge, Button } from "@/components/ui";
 
-interface Referral {
-id: string;
-name: string;
-email: string;
-joinedAt: string;
-status: string;
-type: string;
-earnings: number;
-}
+import {
+  type ReferralItem as Referral,
+  type ReferralsResponse,
+} from "@/lib/schemas";
 
-interface ReferralsResponse {
-referrals?: Referral[];
-}
 
 interface ReferralListProps {
   readonly onShareClick?: () => void;

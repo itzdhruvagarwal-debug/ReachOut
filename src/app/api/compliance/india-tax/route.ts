@@ -6,7 +6,8 @@ import { DocumentType, Prisma } from "@prisma/client";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { createActivityLog } from "@/lib/audit";
-import { encrypt, tryDecrypt } from "@/lib/encryption";
+import { encrypt, tryDecrypt, hashForDuplicateDetection } from "@/lib/encryption";
+import { assertNoDuplicateDocument, invalidateUserKYCCache } from "@/lib/kyc";
 import {
 type GstRegistrationType,
 type GstTurnoverSlab,
@@ -264,23 +265,25 @@ if (nextPanNumber && nextGstin && !gstinBelongsToPan(nextGstin, nextPanNumber)) 
 throw AppError.badRequest("GSTIN embedded PAN does not match the PAN number");
 }
 
-if (data.panNumber) {
-const registeredName = isInfluencer(user.userType)
-? user.influencerProfile?.displayName
-: user.brandProfile?.companyName;
-await verifyPanDetails(data.panNumber, registeredName);
-}
+  if (data.panNumber) {
+    await assertNoDuplicateDocument(data.panNumber, "PAN_CARD", user.id);
+    const registeredName = isInfluencer(user.userType)
+      ? user.influencerProfile?.displayName
+      : user.brandProfile?.companyName;
+    await verifyPanDetails(data.panNumber, registeredName);
+  }
 
-if (registeredForGst && data.gstin) {
-const registeredName = user.brandProfile?.companyName;
-await verifyGstDetails(data.gstin, registeredName);
-}
+  if (registeredForGst && data.gstin) {
+    const registeredName = user.brandProfile?.companyName;
+    await verifyGstDetails(data.gstin, registeredName);
+  }
 }
 
 function populatePanDetails(updateData: Record<string, unknown>, panNumber?: string | null) {
   if (panNumber) {
     updateData.panNumber = encrypt(panNumber);
     updateData.panLast4 = panNumber.slice(-4);
+    updateData.panNumberHash = hashForDuplicateDetection(panNumber);
   }
 }
 
@@ -463,6 +466,8 @@ gstRegistrationType: nextRegistrationType,
 gstTurnoverSlab: nextSlab,
 },
 });
+
+await invalidateUserKYCCache(user.id);
 
 return NextResponse.json({
 success: true,
