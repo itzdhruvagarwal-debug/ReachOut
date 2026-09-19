@@ -37,3 +37,5 @@ export { Pagination } from "./pagination";
 // toast.tsx exports useToasts hook + components
 export { useToasts, ToastContainer, Toast } from "./toast";
 export type { ToastItem, ToastType, ToastProps } from "./toast";
+
+export { default as ConfirmationBadge } from "./ConfirmationBadge";

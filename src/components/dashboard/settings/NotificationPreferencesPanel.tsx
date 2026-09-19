@@ -25,7 +25,7 @@ import {
   Send,
 } from "lucide-react";
 
-import { Button } from "@/components/ui";
+import { Button, ConfirmationBadge } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import {
   GranularNotificationPreferences,
@@ -374,13 +374,13 @@ export default function NotificationPreferencesPanel({
 
       {/* Save Action Footer */}
       <div className="flex items-center justify-between p-4 rounded-2xl bg-card border border-border/80 shadow-sm">
-        <div>
-          {saveStatus && (
-            <span
-              className={`text-xs font-semibold ${
-                saveStatus.includes("success") ? "text-emerald-500" : "text-destructive"
-              }`}
-            >
+        <div className="flex items-center gap-3">
+          <ConfirmationBadge
+            show={Boolean(saveStatus && (saveStatus.includes("success") || saveStatus.toLowerCase().includes("saved")))}
+            message="Preferences saved"
+          />
+          {saveStatus && !saveStatus.includes("success") && !saveStatus.toLowerCase().includes("saved") && (
+            <span className="text-xs font-semibold text-destructive">
               {saveStatus}
             </span>
           )}
