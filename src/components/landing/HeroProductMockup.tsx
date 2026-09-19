@@ -84,7 +84,7 @@ Live Escrow Protection Active
 <div className="mockup-section p-4 bg-glass rounded-lg">
 <div className="flex justify-between mb-3">
 <div>
-<h4 className="text-sm font-bold mb-1 text-white">Nike India: Air Max Launch</h4>
+<p className="text-sm font-bold mb-1 text-white">Nike India: Air Max Launch</p>
 <span className="text-xs text-secondary">Deliverable: 1 Instagram Reel + 1 Story</span>
 </div>
 <div className="fit-content inline-flex text-xs font-semibold bg-emerald-subtle text-emerald rounded-sm px-2 py-1">
@@ -153,7 +153,7 @@ Live Escrow Protection Active
 {/* Campaign Submissions */}
 <div className="mockup-section p-4 bg-glass rounded-lg">
 <div className="flex justify-between items-center mb-3">
-<h4 className="text-sm font-bold text-white">Submissions Awaiting Approval (1)</h4>
+<p className="text-sm font-bold text-white">Submissions Awaiting Approval (1)</p>
 <span className="flex items-center gap-1 text-xs text-amber">
 <span className="mockup-timer-dot rounded-full h-6" />{" "}
 48h Review Timer Running

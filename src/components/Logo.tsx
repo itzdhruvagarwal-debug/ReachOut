@@ -27,7 +27,7 @@ export default function Logo({ tabIndex }: Readonly<{ tabIndex?: number }> = {})
           VyaparMedia
         </span>
         <span
-          className="text-secondary font-semibold uppercase text-3xs tracking-wider truncate"
+          className="text-secondary font-medium text-xs truncate"
         >
           Trusted Creator Commerce
         </span>

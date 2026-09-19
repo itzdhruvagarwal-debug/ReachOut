@@ -578,14 +578,14 @@ iframe.skiptranslate,
 }
 
 .landing-hero-tagline {
-  font-size: 0.48em;
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem);
   color: rgba(240, 240, 245, 0.9);
 }
 
 .landing-hero-copy {
-  font-size: clamp(15px, 2vw, 19px);
+  font-size: clamp(0.9375rem, 1.5vw, 1.125rem);
   color: rgba(161, 161, 181, 0.9);
-  margin: 0 auto 40px;
+  margin: 0 auto 36px;
 }
 
 .landing-cta {
@@ -595,9 +595,9 @@ iframe.skiptranslate,
 }
 
 .landing-cta-primary {
-  background: linear-gradient(135deg, #6366f1, #1d4ed8);
+  background: var(--gradient-primary);
   border: 1px solid rgba(129, 140, 248, 0.3);
-  box-shadow: 0 4px 20px rgba(37, 99, 235, 0.4);
+  box-shadow: var(--shadow-glow-primary);
 }
 
 .landing-cta-secondary {
@@ -705,17 +705,45 @@ iframe.skiptranslate,
 
 .reveal-on-scroll {
   opacity: 0;
-  transform: translateY(32px);
-  transition: opacity 0.6s ease, transform 0.6s ease;
+  transform: translateY(20px);
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
 }
 
 .reveal-on-scroll-delayed {
-  transition-delay: 0.1s;
+  transition-delay: 0.08s;
 }
 
 .reveal-on-scroll.is-in-view {
   opacity: 1;
   transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-on-scroll {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+.pwa-install-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.pwa-install-mini-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--color-primary-light);
+  transform: translateY(-1px);
 }
 
 .hero-product-mockup {

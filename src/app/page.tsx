@@ -67,11 +67,11 @@ className="text-center max-w-900 mx-auto"
         </p>
 
         <div
-          className="hero-cta-group flex gap-4 justify-center flex-wrap mb-5"
+          className="hero-cta-group flex gap-4 justify-center flex-wrap mb-4"
         >
           <Link
             href="/register?type=influencer"
-            className="landing-cta landing-cta-primary inline-flex items-center justify-center gap-2 font-bold rounded-lg text-sm no-underline text-white"
+            className="landing-cta landing-cta-primary inline-flex items-center justify-center gap-2 font-bold rounded-lg text-sm no-underline text-white shadow-lg"
           >
             Join as Creator
           </Link>
@@ -83,59 +83,55 @@ className="text-center max-w-900 mx-auto"
           </Link>
         </div>
 
-<div
-className="flex gap-3 justify-center flex-wrap mb-5"
->
-<PWAInstallButton
-platform="ios"
-variant="store"
-label="Download for iOS"
-/>
-<PWAInstallButton
-platform="android"
-variant="store"
-label="Download for Android"
-/>
-</div>
+        <div className="flex items-center justify-center gap-3 text-xs text-secondary mb-5 flex-wrap">
+          <span className="flex items-center gap-1.5 text-muted">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block" aria-hidden="true" />
+            Installable App for iOS & Android
+          </span>
+          <div className="inline-flex items-center gap-2">
+            <PWAInstallButton platform="ios" variant="icon" className="pwa-install-mini-btn text-secondary hover:text-white transition-colors" label="Install on iOS" />
+            <PWAInstallButton platform="android" variant="icon" className="pwa-install-mini-btn text-secondary hover:text-white transition-colors" label="Install on Android" />
+          </div>
+        </div>
 
-<div
-className="flex gap-6 justify-center flex-wrap mb-2"
->
-{[" Secure sessions", " Protected payments", " Installable PWA"].map((item) => (
-<span
-key={item}
-className="landing-proof-item text-sm flex items-center gap-1.5"
->
-{item}
-</span>
-))}
-</div>
+        <div
+          className="flex gap-6 justify-center flex-wrap mb-2"
+        >
+          {["🛡️ Secure sessions", "💳 Protected payments", "📱 Installable PWA"].map((item) => (
+            <span
+              key={item}
+              className="landing-proof-item text-sm flex items-center gap-1.5"
+            >
+              {item}
+            </span>
+          ))}
+        </div>
 
-<HeroProductMockup />
+        <HeroProductMockup />
 
-<div
-className="landing-trust-strip animate-fade-in w-full text-center"
->
-<p
-className="text-xs text-muted mb-4 font-semibold uppercase tracking-wider"
->
-Trusted by India&apos;s fastest growing brands
-</p>
-<div
-className="landing-brand-row flex justify-center items-center gap-6 flex-wrap"
->
-{["FitForma", "Myntra", "Mamaearth", "Nykaa", "Boat", "Lenskart"].map((brand) => (
-<div
-key={brand}
-className="landing-brand-chip text-sm font-bold bg-glass rounded-sm text-primary"
->
-{brand}
-</div>
-))}
-</div>
-</div>
-</div>
-</div>
+        <div
+          className="landing-trust-strip animate-fade-in w-full text-center"
+        >
+          <p
+            className="text-sm text-muted-foreground mb-4 font-medium"
+          >
+            Trusted by India&apos;s fastest growing brands
+          </p>
+          <div
+            className="landing-brand-row flex justify-center items-center gap-8 flex-wrap"
+          >
+            {["FitForma", "Myntra", "Mamaearth", "Nykaa", "Boat", "Lenskart"].map((brand) => (
+              <span
+                key={brand}
+                className="text-sm font-semibold tracking-wider text-slate-400 select-none grayscale opacity-75 hover:opacity-100 transition-opacity"
+              >
+                {brand}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
 
 <Button
 type="button"
@@ -315,9 +311,9 @@ height={80}
 className="object-cover w-full h-full rounded-full"
 />
 </div>
-<h4 className="text-base font-bold">
+<h3 className="text-base font-bold text-foreground">
 {testimonial.name}
-</h4>
+</h3>
 <p
 className="text-xs text-muted mb-1"
 >

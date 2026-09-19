@@ -3,24 +3,38 @@
 import { useEffect, useRef, useState, ReactNode } from "react";
 
 /* ============ Scroll-triggered animation hook ============ */
-function useInView(threshold = 0.15) {
-const ref = useRef<HTMLDivElement>(null);
-const [isInView, setIsInView] = useState(false);
+function useInView(threshold = 0.05) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(false);
 
-useEffect(() => {
-const el = ref.current;
-if (!el) return;
-const observer = new IntersectionObserver(
-([entry]) => {
-if (entry?.isIntersecting) setIsInView(true);
-},
-{ threshold },
-);
-observer.observe(el);
-return () => observer.disconnect();
-}, [threshold]);
+  useEffect(() => {
+    // If reduced motion preferred or IntersectionObserver unavailable, reveal immediately
+    if (
+      typeof window !== "undefined" &&
+      (window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+        !("IntersectionObserver" in window))
+    ) {
+      setIsInView(true);
+      return;
+    }
 
-return { ref, isInView };
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect(); // Once visible, maintain visible state
+        }
+      },
+      { threshold, rootMargin: "50px 0px -30px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return { ref, isInView };
 }
 
 export function RevealOnScroll({
