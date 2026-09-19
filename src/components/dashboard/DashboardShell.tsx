@@ -463,8 +463,6 @@ return false;
   );
 }
 
-// ==================== SUBCOMPONENTS ====================
-
 interface SidebarProps {
 readonly sidebarOpen: boolean;
 readonly setSidebarOpen: (open: boolean) => void;

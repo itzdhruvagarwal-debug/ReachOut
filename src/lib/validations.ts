@@ -65,7 +65,6 @@ export const passwordSchema = z
 .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character");
 
 
-// ==================== AUTH SCHEMAS ====================
 
 export const registerSchema = z.object({
 name: z
@@ -97,7 +96,6 @@ message: "2FA Code must be exactly 6 digits",
 })
 .optional(),
 });
-// ==================== CAMPAIGN SCHEMAS ====================
 
 export const createCampaignSchema = z
 .object({
@@ -224,10 +222,6 @@ function validateBudgetLimitsAndAges(value: CampaignValidationValue, ctx: z.Refi
   }
 }
 
-
-
-// ==================== APPLICATION SCHEMAS ====================
-
 export const createApplicationSchema = z.object({
   campaignId: dbIdSchema,
   proposal: z.string().min(10, "Proposal must be at least 10 characters"),
@@ -349,7 +343,6 @@ action: z.literal("confirm_received"),
 ]);
 
 
-// ==================== DISPUTE SCHEMAS ====================
 
 export const disputeSchema = z.object({
 dealId: dbIdSchema,
@@ -386,8 +379,6 @@ export const disputeEvidenceSchema = z.object({
     }, "Evidence link must be a valid URL or local path"),
   description: z.string().trim().min(5, "Description must be at least 5 characters").max(500),
 });
-
-// ==================== REVIEW SCHEMAS ====================
 
 export const reviewSchema = z.object({
 dealId: dbIdSchema,
@@ -466,8 +457,6 @@ export const messageSchema = z
       }
     }
   });
-
-// ==================== TYPE EXPORTS ====================
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export interface ApplicationInput {

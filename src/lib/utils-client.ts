@@ -1,38 +1,97 @@
 import { AppError } from "@/lib/errors";
+import { formatUserError } from "./user-messages";
 
-export function formatCurrency(amountInPaise: number): string {
+export function formatCurrency(amountInPaise: number | null | undefined): string {
+  if (amountInPaise === null || amountInPaise === undefined || Number.isNaN(Number(amountInPaise))) {
+    return "₹0";
+  }
   return new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
     maximumFractionDigits: 0,
-  }).format(amountInPaise / 100);
+  }).format(Number(amountInPaise) / 100);
 }
 
-export function formatNumber(num: number): string {
-  if (num >= 10000000) return (num / 10000000).toFixed(1) + "Cr";
-  if (num >= 100000) return (num / 100000).toFixed(1) + "L";
-  if (num >= 1000) return (num / 1000).toFixed(1) + "K";
-  return num.toString();
+export function formatNumber(num: number | null | undefined): string {
+  if (num === null || num === undefined || Number.isNaN(Number(num))) return "0";
+  const n = Number(num);
+  if (n >= 10000000) return (n / 10000000).toFixed(1) + "Cr";
+  if (n >= 100000) return (n / 100000).toFixed(1) + "L";
+  if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+  return n.toLocaleString("en-IN");
 }
 
-export function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return "Not specified";
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "Not specified";
-  return new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(parsed);
+export function formatDate(
+  date: string | Date | number | null | undefined,
+  fallback = "Not specified",
+  options?: Intl.DateTimeFormatOptions
+): string {
+  if (!date) return fallback;
+  const parsed = typeof date === "number" || typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return new Intl.DateTimeFormat("en-IN", options ?? { day: "2-digit", month: "short", year: "numeric" }).format(parsed);
 }
 
-export function formatDateTime(date: string | Date | null | undefined): string {
-  if (!date) return "-";
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return "-";
-  return new Intl.DateTimeFormat("en-IN", {
+export function formatDateTime(
+  date: string | Date | number | null | undefined,
+  fallback = "-",
+  options?: Intl.DateTimeFormatOptions
+): string {
+  if (!date) return fallback;
+  const parsed = typeof date === "number" || typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return new Intl.DateTimeFormat("en-IN", options ?? {
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
   }).format(parsed);
+}
+
+export function formatTime(
+  date: string | Date | number | null | undefined,
+  fallback = ""
+): string {
+  if (!date) return fallback;
+  const parsed = typeof date === "number" || typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(parsed.getTime())) return fallback;
+  return new Intl.DateTimeFormat("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
+export function formatRelativeTime(
+  date: string | Date | number | null | undefined,
+  fallback = ""
+): string {
+  if (!date) return fallback;
+  const parsed = typeof date === "number" || typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(parsed.getTime())) return fallback;
+
+  const now = Date.now();
+  const diffMs = now - parsed.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMs < -1000) {
+    const absDiffSec = Math.abs(diffSec);
+    const absDiffDays = Math.floor(absDiffSec / 86400);
+    if (absDiffDays === 0) return "Today";
+    if (absDiffDays === 1) return "Tomorrow";
+    return `In ${absDiffDays}d`;
+  }
+
+  if (diffSec < 60) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+  return formatDate(parsed);
 }
 
 export function addDays(date: Date, days: number): Date {
@@ -180,7 +239,7 @@ export function safeString(value: unknown): string {
     return String(value as StringablePrimitive);
   }
   if (value instanceof Error) {
-    return value.message;
+    return formatUserError(value);
   }
   try {
     const json = JSON.stringify(value);
@@ -197,3 +256,11 @@ export function getTrustTierLabel(score: number): string {
   if (score <= 850) return "Trusted";
   return "Elite";
 }
+
+export {
+  formatUserError,
+  getUserFriendlyErrorMessage,
+  USER_SUCCESS_MESSAGES,
+  type UserActionType,
+  type UserMessageResult,
+} from "./user-messages";

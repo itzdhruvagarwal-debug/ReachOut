@@ -4,6 +4,7 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import useSWR from "swr";
 import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 import {
   walletResponseSchema,
   walletTransactionsResponseSchema,
@@ -21,8 +22,7 @@ import { subscribeToWalletUpdates } from "@/lib/supabase-realtime";
 import { useTokenRefreshGuard } from "@/hooks/useTokenRefreshGuard";
 import { useWallet } from "@/hooks/api/useWallet";
 import { formatCurrency } from "@/lib/utils-client";
-import { ToastContainer, type ToastItem, type ToastType } from "@/components/ui/toast";
-import { Button, Input, Modal, Card } from "@/components/ui";
+import { Button, Input, Modal, Card, ToastContainer, type ToastItem, type ToastType } from "@/components/ui";
 import {
   ShieldCheck,
   Lock,
@@ -120,7 +120,6 @@ export default function WalletPage() {
   const isBrand = userType === "BRAND";
   const transactions = txResponse?.transactions || [];
 
-  // ==================== SUPABASE REALTIME SUBSCRIPTION ====================
   useEffect(() => {
     if (!session?.user?.id) return;
 
@@ -145,7 +144,6 @@ export default function WalletPage() {
     showToast("success", "Wallet data refreshed.");
   }, [fetchWalletData, mutateTransactions, showToast]);
 
-  // ==================== BRAND ADD FUNDS (RAZORPAY) ====================
   const handleAddFunds = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fresh = await requireFreshSession();
@@ -202,7 +200,7 @@ export default function WalletPage() {
               showToast("error", "Payment verification pending. Balance will update shortly.");
             }
           } catch (err) {
-            showToast("error", err instanceof ApiClientError ? err.message : "Error verifying payment signature");
+            showToast("error", formatUserError(err, "Payment confirmation pending. Balance will update shortly."));
           }
         },
         prefill: {
@@ -214,7 +212,7 @@ export default function WalletPage() {
 
       rzp.open();
     } catch (err: unknown) {
-      showToast("error", err instanceof Error ? err.message : "Top-up failed");
+      showToast("error", formatUserError(err, "Unable to initiate top-up. Please try again."));
     } finally {
       setIsAddingFunds(false);
     }

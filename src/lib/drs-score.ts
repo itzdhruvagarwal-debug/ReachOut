@@ -1,10 +1,8 @@
 /**
 * Digital Reputation Score (DRS) Calculator
 * Advanced rule-based system for calculating user reputation.
-* Replaces the legacy Trust Score system.
-*/
-
-// ==================== INFLUENCER DRS ====================
+ * Replaces the legacy Trust Score system.
+ */
 
 export interface InfluencerDRSFactors {
 completedDeals: number;
@@ -263,8 +261,6 @@ export function calculateInfluencerDRS(
   return { score, tier, maxDealAmount, breakdown: state.breakdown };
 }
 
-// ==================== BRAND DRS ====================
-
 export interface BrandDRSFactors {
 completedCampaigns: number;
 fastApprovals: number;
@@ -287,7 +283,7 @@ export function calculateBrandDRS(
   const breakdown: DRSResult["breakdown"] = [];
   let score = 550; // Brands start at 550 (CIBIL neutral)
 
-  // === ACTIVITY ===
+  // Activity factor
   const campaignWeight = weights?.BRAND_CAMPAIGN_WEIGHT ?? 18;
   const campaignBonus = factors.completedCampaigns * campaignWeight;
   if (campaignBonus > 0) {
@@ -299,7 +295,7 @@ export function calculateBrandDRS(
     });
   }
 
-  // === AGILITY ===
+  // Agility factor
   const approvalWeight = weights?.BRAND_FAST_APPROVAL_WEIGHT ?? 12;
   const approvalBonus = factors.fastApprovals * approvalWeight;
   if (approvalBonus > 0) {
@@ -311,7 +307,7 @@ export function calculateBrandDRS(
     });
   }
 
-  // === RELIABILITY ===
+  // Reliability factor
   if (factors.paymentReliability >= 0.98 && factors.completedCampaigns > 0) {
     const paymentReliabilityBonus = weights?.BRAND_PAYMENT_RELIABILITY_WEIGHT ?? 60;
     score += paymentReliabilityBonus;
@@ -332,7 +328,7 @@ export function calculateBrandDRS(
     });
   }
 
-  // === LONG TERM PARTNERSHIPS ===
+  // Long-term partnerships factor
   if (factors.longTermPartnerships > 0) {
     const partnershipWeight = weights?.BRAND_PARTNERSHIP_WEIGHT ?? 30;
     const partnerBonus = factors.longTermPartnerships * partnershipWeight;
@@ -344,7 +340,7 @@ export function calculateBrandDRS(
     });
   }
 
-  // === FAIR REVIEWS ===
+  // Fair reviews factor
   if (factors.fairReviews > 0) {
     const reviewWeight = weights?.BRAND_FAIR_REVIEW_WEIGHT ?? 30;
     const fairBonus = factors.fairReviews * reviewWeight;
@@ -356,7 +352,7 @@ export function calculateBrandDRS(
     });
   }
 
-  // === PENALTIES (STRICT) ===
+  // Penalties factor
   if (factors.lateApprovals > 0) {
     const latePenaltyWeight = Math.abs(weights?.BRAND_LATE_APPROVAL_PENALTY ?? -30);
     const penalty = factors.lateApprovals * latePenaltyWeight;
@@ -419,8 +415,6 @@ export function calculateBrandDRS(
 
   return { score, tier, maxDealAmount, breakdown };
 }
-
-// ==================== LEVELS ====================
 
 const LEVELS = [
 { level: 1, name: "Rookie", minXP: 0 },

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 import {
   X,
   Building2,
@@ -44,6 +45,40 @@ type WithdrawStep = "amount" | "destination" | "confirm" | "success";
 
 const MIN_WITHDRAWAL_PAISE = 50000; // ₹500 minimum
 const MAX_WITHDRAWAL_PAISE = 50000000; // ₹5,00,000 maximum
+
+export function validateWithdrawalAmount(
+  amountRupees: string,
+  availableBalanceInPaise: number,
+): { valid: boolean; error: string | null } {
+  const parsedAmountRupees = parseFloat(amountRupees) || 0;
+  const parsedAmountPaise = Math.round(parsedAmountRupees * 100);
+
+  if (!amountRupees) {
+    return { valid: false, error: null };
+  }
+  if (Number.isNaN(parsedAmountRupees) || parsedAmountRupees <= 0) {
+    return { valid: false, error: "Please enter a valid positive amount." };
+  }
+  if (parsedAmountPaise < MIN_WITHDRAWAL_PAISE) {
+    return {
+      valid: false,
+      error: `Minimum withdrawal amount is ${formatCurrency(MIN_WITHDRAWAL_PAISE)}.`,
+    };
+  }
+  if (parsedAmountPaise > MAX_WITHDRAWAL_PAISE) {
+    return {
+      valid: false,
+      error: `Maximum single withdrawal is ${formatCurrency(MAX_WITHDRAWAL_PAISE)}.`,
+    };
+  }
+  if (parsedAmountPaise > availableBalanceInPaise) {
+    return {
+      valid: false,
+      error: `Amount exceeds your available balance (${formatCurrency(availableBalanceInPaise)}).`,
+    };
+  }
+  return { valid: true, error: null };
+}
 
 export function FullScreenWithdrawFlow({
   isOpen,
@@ -92,7 +127,7 @@ export function FullScreenWithdrawFlow({
           }
         }
       } catch (err: unknown) {
-        setAccountsError(err instanceof ApiClientError ? err.message : "Failed to load saved bank accounts");
+        setAccountsError(formatUserError(err, "Failed to load saved bank accounts. Please try again."));
       } finally {
         setIsLoadingAccounts(false);
       }
@@ -105,33 +140,10 @@ export function FullScreenWithdrawFlow({
   const parsedAmountRupees = parseFloat(amountRupees) || 0;
   const parsedAmountPaise = Math.round(parsedAmountRupees * 100);
 
-  const amountValidation = useMemo(() => {
-    if (!amountRupees) {
-      return { valid: false, error: null };
-    }
-    if (Number.isNaN(parsedAmountRupees) || parsedAmountRupees <= 0) {
-      return { valid: false, error: "Please enter a valid positive amount." };
-    }
-    if (parsedAmountPaise < MIN_WITHDRAWAL_PAISE) {
-      return {
-        valid: false,
-        error: `Minimum withdrawal amount is ${formatCurrency(MIN_WITHDRAWAL_PAISE)}.`,
-      };
-    }
-    if (parsedAmountPaise > MAX_WITHDRAWAL_PAISE) {
-      return {
-        valid: false,
-        error: `Maximum single withdrawal is ${formatCurrency(MAX_WITHDRAWAL_PAISE)}.`,
-      };
-    }
-    if (parsedAmountPaise > availableBalanceInPaise) {
-      return {
-        valid: false,
-        error: `Amount exceeds your available balance (${formatCurrency(availableBalanceInPaise)}).`,
-      };
-    }
-    return { valid: true, error: null };
-  }, [amountRupees, parsedAmountRupees, parsedAmountPaise, availableBalanceInPaise]);
+  const amountValidation = useMemo(
+    () => validateWithdrawalAmount(amountRupees, availableBalanceInPaise),
+    [amountRupees, availableBalanceInPaise],
+  );
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
 
@@ -163,7 +175,7 @@ export function FullScreenWithdrawFlow({
       setStep("success");
       if (onSuccess) onSuccess();
     } catch (err: unknown) {
-      setSubmitError(err instanceof ApiClientError ? err.message : "An unexpected error occurred");
+      setSubmitError(formatUserError(err, "Unable to complete withdrawal. Please review your balance and details, then try again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -317,7 +329,7 @@ export function FullScreenWithdrawFlow({
                             : "border-border/40 opacity-40 cursor-not-allowed text-secondary"
                         }`}
                       >
-                        ₹{amt.toLocaleString("en-IN")}
+                        {formatCurrency(amtPaise)}
                       </button>
                     );
                   })}

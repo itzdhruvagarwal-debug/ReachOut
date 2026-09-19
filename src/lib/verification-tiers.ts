@@ -1,4 +1,5 @@
 import { AppError } from "@/lib/errors";
+import { formatCurrency } from "@/lib/utils-client";
 /**
 * Tiered Verification System Role-Aware
 *
@@ -181,7 +182,7 @@ return {
 allowed: false,
 tier,
 monthlyLimit: TIER_LIMITS.TIER_1_MAX_MONTHLY,
-reason: `You have reached your 50,000/month limit. Remaining: ${(remaining / 100).toLocaleString("en-IN")}. Upload your PAN Card and Bank Statement to unlock unlimited campaigns.`,
+reason: `You have reached your ₹50,000/month limit. Remaining: ${formatCurrency(remaining)}. Upload your PAN Card and Bank Statement to unlock unlimited campaigns.`,
 requiredDocs: [
 ...(!docs.has("PAN_CARD") ? ["PAN_CARD"] : []),
 ...(!docs.has("BANK_STATEMENT") ? ["BANK_STATEMENT"] : []),
@@ -223,7 +224,7 @@ return {
 allowed: false,
 tier,
 monthlyLimit: TIER_LIMITS.TIER_1_MAX_MONTHLY,
-reason: `You have reached your 50,000/month limit. Remaining: ${(remaining / 100).toLocaleString("en-IN")}. Upload your PAN Card and Bank Statement to unlock up to 1,00,000/month.`,
+reason: `You have reached your ₹50,000/month limit. Remaining: ${formatCurrency(remaining)}. Upload your PAN Card and Bank Statement to unlock up to ₹1,00,000/month.`,
 requiredDocs: [
 ...(!docs.has("PAN_CARD") ? ["PAN_CARD"] : []),
 ...(!docs.has("BANK_STATEMENT") ? ["BANK_STATEMENT"] : []),
@@ -237,7 +238,7 @@ return {
 allowed: false,
 tier,
 monthlyLimit: TIER_LIMITS.TIER_2_MAX_MONTHLY,
-reason: `You have reached your 1,00,000/month limit. Remaining: ${(remaining / 100).toLocaleString("en-IN")}. Upload a GST Certificate, MSME Certificate, or Startup Certificate to unlock unlimited campaigns.`,
+reason: `You have reached your ₹1,00,000/month limit. Remaining: ${formatCurrency(remaining)}. Upload a GST Certificate, MSME Certificate, or Startup Certificate to unlock unlimited campaigns.`,
 requiredDocs: [
 "GST_CERTIFICATE",
 "MSME_CERTIFICATE",

@@ -2,6 +2,7 @@
 
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
 import { logger } from "@/lib/logger-client";
 import { useState } from "react";
 import type { User } from "./ProfileTab";
@@ -60,7 +61,7 @@ await apiClient.users.changeContact({ action: "init" });
 setChangeContactState(prev => ({ ...prev, active: true, type, step: 'verify-current' }));
 } catch (err: unknown) {
 logger.error("[change-contact] start contact change error:", err);
-showToast(err instanceof ApiClientError ? err.message : "Network error.", "error");
+showToast(formatUserError(err, "Unable to initiate contact change. Please try again."), "error");
 } finally {
 setIsSaving(false);
 }
@@ -83,7 +84,7 @@ currentPhoneOtp: changeContactState.currentPhoneOtp || undefined
 setChangeContactState(prev => ({ ...prev, step: 'enter-new' }));
 } catch (err: unknown) {
 logger.error("[change-contact] verify current error:", err);
-showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
+showToast(formatUserError(err, "Verification failed. Please check the code and try again."), "error");
 } finally {
 setIsSaving(false);
 }
@@ -98,7 +99,7 @@ setChangeContactState(prev => ({ ...prev, step: 'verify-new' }));
 showToast(`OTP sent to new ${changeContactState.type}`, "success");
 } catch (err: unknown) {
 logger.error("[change-contact] send new OTP error:", err);
-showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
+showToast(formatUserError(err, "Failed to send OTP. Please try again."), "error");
 } finally {
 setIsSaving(false);
 }
@@ -114,7 +115,7 @@ setChangeContactState({ active: false, type: null, step: 'idle', currentEmailOtp
 window.location.reload(); // Refresh to reflect new session data
 } catch (err: unknown) {
 logger.error("[change-contact] confirm new contact error:", err);
-showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
+showToast(formatUserError(err, "Failed to confirm contact change. Please check the code and try again."), "error");
 } finally {
 setIsSaving(false);
 }
@@ -144,8 +145,7 @@ return (
     setContactVerifyCode('');
     setUser(prev => prev ? { ...prev, emailVerified: true } : null);
   } catch (err: unknown) {
-    const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : 'Error occurred');
-    showToast(msg, 'error');
+    showToast(formatUserError(err, "Email verification failed. Please check the code and try again."), "error");
   } finally {
     setIsSaving(false);
   }
@@ -162,8 +162,7 @@ await apiClient.users.sendOtp({ type: 'email', contact: user.email });
 showToast(`Verification code sent to ${user.email}`, 'success');
 setVerifyContactState({ type: 'email', step: 'code' });
 } catch (err: unknown) {
-const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : 'Error occurred');
-showToast(msg, 'error');
+  showToast(formatUserError(err, "Failed to send verification code. Please try again."), "error");
 } finally {
 setIsSaving(false);
 }
@@ -203,8 +202,7 @@ return (
       return nextUser;
     });
   } catch (err: unknown) {
-    const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : 'Error occurred');
-    showToast(msg, 'error');
+    showToast(formatUserError(err, "Phone verification failed. Please check the code and try again."), "error");
   } finally {
     setIsSaving(false);
   }
@@ -224,8 +222,7 @@ await apiClient.users.sendOtp({ type: 'phone', contact: pendingContact });
 showToast(`OTP sent to ${pendingContact}`, 'success');
 setVerifyContactState({ type: 'phone', step: 'code' });
 } catch (err: unknown) {
-const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : 'Error occurred');
-showToast(msg, 'error');
+  showToast(formatUserError(err, "Failed to send OTP. Please try again."), "error");
 } finally {
 setIsSaving(false);
 }

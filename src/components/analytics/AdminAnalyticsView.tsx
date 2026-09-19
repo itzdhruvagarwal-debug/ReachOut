@@ -14,6 +14,7 @@ Tooltip,
 Legend,
 ResponsiveContainer,
 } from "recharts";
+import { formatCurrency, formatNumber } from "@/lib/utils-client";
 
 interface AdminData {
 realTime: {
@@ -83,7 +84,7 @@ show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping:
 
 export default function AdminAnalyticsView({ data }: AdminAnalyticsProps) {
 const [chartsReady, setChartsReady] = useState(false);
-const fmt = (v: number) => `Rs ${(v / 100).toLocaleString("en-IN")}`;
+const fmt = (v: number) => formatCurrency(v);
 
 useEffect(() => {
 const id = window.setTimeout(() => setChartsReady(true), 50);
@@ -128,21 +129,21 @@ System Status: {data.systemHealth.status}
 <MetricCard
 icon="US"
 label="Total Users"
-value={data.realTime.totalUsers.toLocaleString()}
+value={formatNumber(data.realTime.totalUsers)}
 gradient="from-blue-500/20 to-cyan-500/20"
 textColor="text-blue-400"
 />
 <MetricCard
 icon="AU"
 label="Active (7d)"
-value={data.realTime.activeUsers7d.toLocaleString()}
+value={formatNumber(data.realTime.activeUsers7d)}
 gradient="from-amber-500/20 to-orange-500/20"
 textColor="text-amber-400"
 />
 <MetricCard
 icon="DL"
 label="Active Deals"
-value={data.realTime.activeDeals.toLocaleString()}
+value={formatNumber(data.realTime.activeDeals)}
 gradient="from-blue-500/20 to-emerald-500/20"
 textColor="text-blue-400"
 />

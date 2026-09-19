@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError } from "@/lib/user-messages";
 import { logger } from "@/lib/logger-client";
 import { VerificationData } from "../VerificationTab";
 
@@ -35,11 +36,10 @@ export function useDocUpload(
       }
       window.location.href = data.url;
     } catch (err) {
-      const msg =
-        err instanceof ApiClientError
-          ? err.message
-          : "An error occurred while connecting to DigiLocker";
-      showToast(msg, "error");
+      showToast(
+        formatUserError(err, "An error occurred while connecting to DigiLocker. Please try again."),
+        "error",
+      );
     } finally {
       setIsConnectingDigiLocker(false);
     }
@@ -78,11 +78,10 @@ export function useDocUpload(
       }
     } catch (error) {
       logger.error("[verification-tab] Failed to upload document:", error);
-      const msg =
-        error instanceof ApiClientError
-          ? error.message
-          : "An error occurred during upload";
-      showToast(msg, "error");
+      showToast(
+        formatUserError(error, "Failed to upload document. Please ensure it is a PDF or image under 10MB."),
+        "error",
+      );
     } finally {
       setIsUploading(false);
       setUploadingDocType(null);

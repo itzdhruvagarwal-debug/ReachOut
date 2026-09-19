@@ -9,6 +9,7 @@ rejectDocument,
 import { getSignedUrl } from "@/lib/storage";
 import EmptyState from "@/components/ui/EmptyState";
 import { Button, Input } from "@/components/ui";
+import { formatDate } from "@/lib/utils-client";
 import { z } from "zod";
 
 const verificationRejectSchema = z.object({
@@ -68,7 +69,7 @@ const name =
 user.influencerProfile?.displayName ||
 user.brandProfile?.companyName ||
 "Unknown";
-const activeSince = new Date(user.createdAt).toLocaleDateString();
+const activeSince = formatDate(user.createdAt);
 
 return (
 <div className="admin-page admin-page-narrow">
@@ -185,7 +186,7 @@ className="p-4 bg-tertiary rounded-lg border-card"
 </span>
 </div>
 <div className="text-muted mt-1 text-xs">
-ID: {doc.id.slice(0, 8)}... {new Date(doc.createdAt).toLocaleDateString()}
+ID: {doc.id.slice(0, 8)}... {formatDate(doc.createdAt)}
 </div>
 </div>
 {doc.documentUrl && (

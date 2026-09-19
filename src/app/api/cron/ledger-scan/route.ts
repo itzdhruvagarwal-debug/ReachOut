@@ -5,6 +5,7 @@ import { scanAllWalletsForDrift, VerificationAnomaly } from "@/lib/ledger-guard"
 import prisma from "@/lib/db";
 import { NotificationService } from "@/services/notification.service";
 import { logger } from "@/lib/logger";
+import { acquireDistributedLock, releaseDistributedLock } from "@/lib/lock";
 
 /**
 * Ledger Drift Scan Daily Cron
@@ -69,28 +70,39 @@ adminCount: adminUsers.length,
 async function _handler_POST(_req: NextRequest) {
   await validateCronSecret(_req);
 
-  const anomalies = await scanAllWalletsForDrift(500);
-
-  if (anomalies.length > 0) {
-    await notifyAdminsOfAnomalies(anomalies);
+  const lockKey = "cron:ledger-scan:lock";
+  const lock = await acquireDistributedLock(lockKey, 180);
+  if (!lock) {
+    return NextResponse.json({ success: true, skipped: true, message: "Ledger scan already running." });
   }
 
-  logger.info("Ledger scan complete", {
-    totalAnomalies: anomalies.length,
-    clean: anomalies.length === 0,
-  });
+  try {
+    const anomalies = await scanAllWalletsForDrift(500);
 
-  return NextResponse.json({
-    success: true,
-    message: anomalies.length === 0
-      ? "All wallets balanced no drift detected"
-      : `${anomalies.length} wallet(s) with drift admin alerted`,
-    data: {
-      anomalyCount: anomalies.length,
-      scannedAt: new Date().toISOString(),
-    },
-  });
+    if (anomalies.length > 0) {
+      await notifyAdminsOfAnomalies(anomalies);
+    }
+
+    logger.info("Ledger scan complete", {
+      totalAnomalies: anomalies.length,
+      clean: anomalies.length === 0,
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: anomalies.length === 0
+        ? "All wallets balanced no drift detected"
+        : `${anomalies.length} wallet(s) with drift admin alerted`,
+      data: {
+        anomalyCount: anomalies.length,
+        scannedAt: new Date().toISOString(),
+      },
+    });
+  } finally {
+    await releaseDistributedLock(lockKey, lock);
+  }
 }
 
 export const GET = apiWrapper(_handler_POST);
 export const POST = apiWrapper(_handler_POST);
+

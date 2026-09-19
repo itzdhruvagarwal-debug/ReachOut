@@ -26,16 +26,16 @@ export type { SelectProps } from "./Select";
 export { Spinner } from "./Spinner";
 export type { SpinnerProps, SpinnerSize } from "./Spinner";
 
-export { default as EmptyState } from "./EmptyState";
+export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 
-export { default as Modal } from "./Modal";
+export { Modal } from "./Modal";
 
-// pagination.tsx uses named export, not default
-export { Pagination } from "./pagination";
+// Pagination component
+export { Pagination } from "./Pagination";
 
-// toast.tsx exports useToasts hook + components
-export { useToasts, ToastContainer, Toast } from "./toast";
-export type { ToastItem, ToastType, ToastProps } from "./toast";
+// Toast component + useToasts hook
+export { useToasts, ToastContainer, Toast } from "./Toast";
+export type { ToastItem, ToastType, ToastProps } from "./Toast";
 
-export { default as ConfirmationBadge } from "./ConfirmationBadge";
+export { ConfirmationBadge } from "./ConfirmationBadge";

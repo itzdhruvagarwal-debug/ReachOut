@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { formatDate } from "@/lib/utils-client";
 
 export const reportUserSchema = z.object({
   reason: z.string().min(5, "Please select a valid report reason"),
@@ -45,7 +46,7 @@ export function formatMessageDateDivider(timestamp?: string): string {
     if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
 
     const isSameYear = date.getFullYear() === now.getFullYear();
-    return date.toLocaleDateString("en-IN", {
+    return formatDate(date, "", {
       day: "numeric",
       month: "short",
       ...(isSameYear ? {} : { year: "numeric" }),

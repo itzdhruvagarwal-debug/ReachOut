@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Modal, Button, Input, Select, Textarea } from "@/components/ui";
 import { useMessages } from "./useMessages";
 import { Message, formatMessageDateDivider } from "./MessagesHelpers";
+import { formatCurrency, formatDateTime } from "@/lib/utils-client";
+import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
 import { DealContextMiniCard } from "./DealContextMiniCard";
 import { ContactLeakWarningBanner } from "./ContactLeakWarningBanner";
 
@@ -255,7 +257,7 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
         <div className="flex justify-between items-center bg-secondary p-3 rounded-lg border border-white/5">
           <span className="text-xs text-secondary">Proposed Rate:</span>
           <strong className="text-base font-extrabold text-emerald">
-            ₹{(amount / 100).toLocaleString("en-IN")}
+            {formatCurrency(amount)}
           </strong>
         </div>
 
@@ -397,10 +399,7 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
                     }`}
                     title={
                       msg.rawCreatedAt
-                        ? new Date(msg.rawCreatedAt).toLocaleString("en-IN", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          })
+                        ? formatDateTime(msg.rawCreatedAt)
                         : msg.createdAt
                     }
                   >
@@ -496,7 +495,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
       await handleSendFile?.(fileUrl, file.name, file.type);
       showToast("success", "File shared successfully!");
     } catch (err) {
-      showToast("error", err instanceof Error ? err.message : "File sharing failed");
+      showToast("error", formatUserError(err, "File sharing failed. Please try again."));
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -524,7 +523,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
         contentDeadline: offerContentDeadline,
         postingDeadline: offerPostingDeadline,
       });
-      showToast("success", "Offer sent successfully!");
+      showToast("success", USER_SUCCESS_MESSAGES.OFFER_SENT);
       setIsOfferModalOpen(false);
       setOfferTitle("");
       setOfferAmount("");
@@ -533,8 +532,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
       setOfferContentDeadline("");
       setOfferPostingDeadline("");
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to send offer";
-      showToast("error", message);
+      showToast("error", formatUserError(err, "Failed to send offer. Please try again."));
     }
   };
 

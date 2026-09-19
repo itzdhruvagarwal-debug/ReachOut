@@ -7,6 +7,7 @@ import { fetcher } from "@/lib/fetcher";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, Select, Textarea, Card } from "@/components/ui";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 import {
   CampaignFormData,
   validateCampaignForm,
@@ -233,7 +234,7 @@ export default function CreateCampaignClient() {
       router.push("/dashboard/campaigns");
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof ApiClientError ? err.message : err instanceof Error ? err.message : String(err));
+      setError(formatUserError(err, "Failed to save campaign. Please check the details and try again."));
     } finally {
       setIsLoading(false);
     }

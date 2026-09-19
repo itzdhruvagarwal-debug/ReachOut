@@ -14,8 +14,6 @@ import { awardBadgeIfNotExists } from "./gamification-engine";
 import { NotificationService } from "@/services/notification.service";
 import { createActivityLog } from "./audit";
 
-// ==================== TYPES ====================
-
 type ChallengeType =
 | "DEALS"
 | "EARNINGS"
@@ -40,10 +38,7 @@ badgeId?: string; // Badge awarded on completion
 difficulty: "EASY" | "MEDIUM" | "HARD";
 }
 
-// ==================== CHALLENGE POOL ====================
-
 const CHALLENGE_POOL: ChallengeTemplate[] = [
-// --- INFLUENCER DEAL CHALLENGES ---
 {
 id: "complete_3_deals",
 title: "Deal Machine",
@@ -91,7 +86,6 @@ xpReward: 200,
 difficulty: "MEDIUM",
 },
 
-// --- QUALITY CHALLENGES ---
 {
 id: "get_2_five_star",
 title: "Star Collector",
@@ -137,7 +131,6 @@ xpReward: 150,
 difficulty: "MEDIUM",
 },
 
-// --- EARNINGS CHALLENGES ---
 {
 id: "earn_5k_week",
 title: "Pay Day",
@@ -161,7 +154,6 @@ xpReward: 500,
 difficulty: "HARD",
 },
 
-// --- REFERRAL CHALLENGES ---
 {
 id: "refer_1_user",
 title: "Spread the Word",
@@ -185,7 +177,6 @@ xpReward: 500,
 difficulty: "HARD",
 },
 
-// --- COMMUNITY CHALLENGES ---
 {
 id: "leave_3_reviews",
 title: "Review Guru",
@@ -209,7 +200,6 @@ xpReward: 200,
 difficulty: "MEDIUM",
 },
 
-// --- BRAND CHALLENGES ---
 {
 id: "launch_campaign",
 title: "Campaign Creator",
@@ -255,8 +245,6 @@ xpReward: 200,
 difficulty: "MEDIUM",
 },
 ];
-
-// ==================== CHALLENGE GENERATION ====================
 
 /**
 * Generate weekly challenges.
@@ -360,8 +348,6 @@ selected.push(remaining.splice(idx, 1)[0]!);
 return selected.slice(0, count);
 }
 
-// ==================== PROGRESS TRACKING ====================
-
 /**
 * Check and update challenge progress for a user.
 * Call this after relevant actions (deal completion, review, referral, etc.)
@@ -454,8 +440,6 @@ updated.push(challenge.challengeId);
 
 return { completed, updated };
 }
-
-// ==================== REWARD DISTRIBUTION ====================
 
 /**
 * Award XP, badges, and perks for completing a challenge.
@@ -598,8 +582,6 @@ challengeId: challenge.challengeId,
 }
 }
 
-// ==================== QUERY HELPERS ====================
-
 /**
 * Get current week's challenges with user progress.
 */
@@ -634,8 +616,6 @@ completed: progressMap.get(c.challengeId)?.completed || false,
 completedAt: progressMap.get(c.challengeId)?.completedAt || null,
 }));
 }
-
-// ==================== UTILITY FUNCTIONS ====================
 
 function getIsoWeekInfo(date: Date): { year: number; weekNumber: number; weekId: string } {
   const d = new Date(

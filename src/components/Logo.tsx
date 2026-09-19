@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import Image from "next/image";
 
-export default function Logo({ tabIndex }: Readonly<{ tabIndex?: number }> = {}) {
+export function Logo({ tabIndex }: Readonly<{ tabIndex?: number }> = {}) {
   return (
     <Link
       href="/"
@@ -35,3 +35,5 @@ export default function Logo({ tabIndex }: Readonly<{ tabIndex?: number }> = {})
     </Link>
   );
 }
+
+export default Logo;

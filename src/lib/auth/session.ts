@@ -136,7 +136,7 @@ return await isTokenRevoked(jti);
 return false;
 }
 
-async function verifyActiveSessionToken(userId: string, currentRefreshToken: unknown): Promise<boolean> {
+export async function verifyActiveSessionToken(userId: string, currentRefreshToken: unknown): Promise<boolean> {
   try {
     const activeToken = await redis.get(`active_session:${userId}`);
     if (!activeToken) {

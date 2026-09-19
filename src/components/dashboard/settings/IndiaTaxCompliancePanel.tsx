@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Button, Input, Select } from "@/components/ui";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 import { taxComplianceSchema } from "@/lib/validations/auth";
 
 type TaxComplianceData = {
@@ -119,7 +120,7 @@ try {
     itrAssessmentYear: next.compliance?.itrAssessmentYear || "",
   });
 } catch (err) {
-  setError(err instanceof ApiClientError ? err.message : "Failed to load tax compliance");
+  setError(formatUserError(err, "Unable to load tax compliance details. Please try refreshing the page."));
 } finally {
   setLoading(false);
 }
@@ -174,7 +175,7 @@ try {
   setSuccess("India tax compliance updated.");
   await loadCompliance();
 } catch (err) {
-  setError(err instanceof ApiClientError ? err.message : "Failed to save tax compliance");
+  setError(formatUserError(err, "Failed to save tax compliance information. Please verify your PAN/GST details and try again."));
 } finally {
 setSaving(false);
 }

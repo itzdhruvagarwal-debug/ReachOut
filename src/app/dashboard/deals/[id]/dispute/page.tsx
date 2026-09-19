@@ -4,11 +4,11 @@
 import { logger } from "@/lib/logger-client";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError } from "@/lib/user-messages";
 import { useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ToastContainer, type ToastItem, type ToastType } from "@/components/ui/toast";
-import { Button, Select, Textarea } from "@/components/ui";
+import { Button, Select, Textarea, ToastContainer, type ToastItem, type ToastType } from "@/components/ui";
 import { createDisputeSchema } from "@/lib/validations/campaign";
 
 export default function DisputePage({
@@ -58,15 +58,14 @@ try {
   })) as { success?: boolean; message?: string; error?: string };
 
   if (data?.success) {
-    showToast("success", data?.message || "Dispute submitted successfully");
+    showToast("success", data?.message || "Dispute submitted successfully. Our team will review the case.");
     router.push(`/dashboard/deals/${dealId}`);
   } else {
-    showToast("error", data?.error || "Failed to raise dispute");
+    showToast("error", formatUserError(data?.error, "Failed to raise dispute. Please try again."));
   }
 } catch (error) {
   logger.error("[deal-dispute] Failed to raise dispute:", error);
-  const msg = error instanceof ApiClientError ? error.message : "Something went wrong";
-  showToast("error", msg);
+  showToast("error", formatUserError(error, "Failed to raise dispute. Please try again."));
 } finally {
   setIsSubmitting(false);
 }

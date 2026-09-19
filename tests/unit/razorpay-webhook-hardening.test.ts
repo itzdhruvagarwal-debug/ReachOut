@@ -5,12 +5,15 @@ import { publishWebhookJob, WebhookJobPayload } from "@/lib/qstash";
 import { verifySignatureAppRouter } from "@/lib/qstash-guard";
 import { NextRequest } from "next/server";
 import { processWebhookEventInternal } from "@/app/api/webhooks/razorpay/process/route";
+import prisma from "@/lib/db";
+import { PaymentService } from "@/services/payment.service";
 
 describe("Hardened Razorpay Webhook Handling & Background Processing", () => {
   const webhookSecret = "test_webhook_secret_key_88888888";
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   // =========================================================================
@@ -113,48 +116,84 @@ describe("Hardened Razorpay Webhook Handling & Background Processing", () => {
   // 3. 5X DELIBERATE REPLAY IDEMPOTENCY TEST (DEFINITION OF DONE)
   // =========================================================================
   describe("Requirement 3 & Definition of Done: 5x Deliberate Webhook Replay", () => {
-    it("should process the business logic exactly once on Call 1 and no-op on Calls 2 through 5", async () => {
+    it("should process the business logic exactly once on Call 1 and no-op on Calls 2 through 5 via real processWebhookEventInternal", async () => {
       const processedEventsDb = new Set<string>();
-      let balance = 0;
-      let executions = 0;
+      let walletIncrementCount = 0;
 
-      // Simulated background handler logic matching processWebhookEventInternal
-      const handleWebhookJob = (job: { eventId: string; amount: number }) => {
-        // 1. Idempotency table check
-        if (processedEventsDb.has(job.eventId)) {
-          return { success: true, message: "Duplicate webhook ignored", executed: false };
+      (vi.spyOn(prisma.processedWebhookEvent, "findUnique") as any).mockImplementation(async ({ where }: any) => {
+        if (processedEventsDb.has(where.eventId)) {
+          return {
+            id: "proc_1",
+            eventId: where.eventId,
+            eventType: "payment.captured",
+            payload: null,
+            processedAt: new Date(),
+            updatedAt: new Date(),
+          };
         }
+        return null;
+      });
 
-        // 2. Business mutation
-        balance += job.amount;
-        executions += 1;
+      (vi.spyOn(prisma.processedWebhookEvent, "create") as any).mockImplementation(async ({ data }: any) => {
+        processedEventsDb.add(data.eventId);
+        return {
+          id: "proc_" + Date.now(),
+          eventId: data.eventId,
+          eventType: data.eventType,
+          payload: data.payload,
+          processedAt: new Date(),
+          updatedAt: new Date(),
+        };
+      });
 
-        // 3. Mark processed in unique-constraint table
-        processedEventsDb.add(job.eventId);
+      vi.spyOn(prisma.transaction, "findFirst").mockResolvedValue({
+        id: "tx_replay_hardened",
+        walletId: "w_replay_hardened",
+        amount: 75_000,
+        status: "PENDING",
+      } as any);
 
-        return { success: true, message: "Top-up completed", executed: true };
-      };
+      vi.spyOn(prisma, "$transaction").mockImplementation(async (cb: any) => cb(prisma));
+      (vi.spyOn(prisma.transaction, "updateMany") as any).mockResolvedValue({ count: 1 });
+      (vi.spyOn(prisma.wallet, "update") as any).mockImplementation(async () => {
+        walletIncrementCount++;
+        return {} as any;
+      });
 
       const eventId = "payment.captured:pay_replay_test_9999";
       const paymentAmount = 75_000; // ₹750 in paise
+      const job: WebhookJobPayload = {
+        eventId,
+        eventType: "payment.captured",
+        rawBody: "{}",
+        payload: {
+          event: "payment.captured",
+          payload: {
+            payment: {
+              entity: {
+                id: "pay_replay_test_9999",
+                order_id: "order_replay_888",
+                amount: paymentAmount,
+                status: "captured",
+              },
+            },
+          },
+        },
+      };
 
       // Call 1: First arrival
-      const call1 = handleWebhookJob({ eventId, amount: paymentAmount });
+      const call1 = await processWebhookEventInternal(job);
       expect(call1.success).toBe(true);
-      expect(call1.executed).toBe(true);
       expect(call1.message).toBe("Top-up completed");
-      expect(balance).toBe(75_000);
-      expect(executions).toBe(1);
+      expect(walletIncrementCount).toBe(1);
 
       // Calls 2 through 5: Deliberate Razorpay re-deliveries
       for (let i = 2; i <= 5; i++) {
-        const replayCall = handleWebhookJob({ eventId, amount: paymentAmount });
+        const replayCall = await processWebhookEventInternal(job);
         expect(replayCall.success).toBe(true);
-        expect(replayCall.executed).toBe(false);
         expect(replayCall.message).toBe("Duplicate webhook ignored");
-        // Invariants: Balance and execution count remain strictly unchanged
-        expect(balance).toBe(75_000);
-        expect(executions).toBe(1);
+        // Invariants: Execution count remains strictly 1
+        expect(walletIncrementCount).toBe(1);
       }
     });
   });
@@ -163,48 +202,101 @@ describe("Hardened Razorpay Webhook Handling & Background Processing", () => {
   // 4. AMOUNT VERIFICATION & TAMPER DEFENSE (DEFINITION OF DONE)
   // =========================================================================
   describe("Requirement 4 & Definition of Done: Strict Amount Verification", () => {
-    it("should reject and mark transaction FAILED when webhook amount mismatches expected DB amount", () => {
+    it("should reject and mark transaction FAILED when webhook amount mismatches expected DB amount via real processWebhookEventInternal", async () => {
       const expectedDbAmount = 100_000; // Expected ₹1,000 in paise
       const webhookCapturedAmount = 70_000; // Webhook reports ₹700 (tampered or mismatch)
 
-      let txStatus = "PENDING";
-      let walletCredited = false;
+      vi.spyOn(prisma.processedWebhookEvent, "findUnique").mockResolvedValue(null as any);
+      vi.spyOn(prisma.processedWebhookEvent, "create").mockResolvedValue({} as any);
 
-      const verifyAndProcessPayment = (expected: number, captured: number) => {
-        if (expected !== captured) {
-          txStatus = "FAILED";
-          return {
-            success: false,
-            message: `Amount mismatch: expected ${expected} got ${captured}`,
-          };
-        }
-        txStatus = "COMPLETED";
-        walletCredited = true;
-        return { success: true, message: "Top-up completed" };
+      vi.spyOn(prisma.transaction, "findFirst").mockResolvedValue({
+        id: "tx_mismatch_hardened",
+        walletId: "w_mismatch_hardened",
+        amount: expectedDbAmount,
+        status: "PENDING",
+      } as any);
+
+      let markedFailed = false;
+      (vi.spyOn(prisma.transaction, "updateMany") as any).mockImplementation(async ({ data }: any) => {
+        if (data.status === "FAILED") markedFailed = true;
+        return { count: 1 };
+      });
+
+      const completeTopUpSpy = vi.spyOn(PaymentService, "completeWalletTopUp");
+
+      const job: WebhookJobPayload = {
+        eventId: "payment.captured:pay_mismatch_test_123",
+        eventType: "payment.captured",
+        rawBody: "{}",
+        payload: {
+          event: "payment.captured",
+          payload: {
+            payment: {
+              entity: {
+                id: "pay_mismatch_test_123",
+                order_id: "order_mismatch_888",
+                amount: webhookCapturedAmount,
+                status: "captured",
+              },
+            },
+          },
+        },
       };
 
-      const result = verifyAndProcessPayment(expectedDbAmount, webhookCapturedAmount);
+      const result = await processWebhookEventInternal(job);
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain("Amount mismatch");
-      expect(txStatus).toBe("FAILED");
-      expect(walletCredited).toBe(false);
+      expect(result.message).toContain("Amount mismatch: transaction marked FAILED");
+      expect(markedFailed).toBe(true);
+      expect(completeTopUpSpy).not.toHaveBeenCalled();
     });
 
-    it("should accept payment when webhook amount matches expected DB amount exactly", () => {
+    it("should accept payment and complete top-up when webhook amount matches expected DB amount exactly via real processWebhookEventInternal", async () => {
       const expectedDbAmount = 100_000;
       const webhookCapturedAmount = 100_000;
 
-      let txStatus = "PENDING";
-      let walletBalance = 0;
+      vi.spyOn(prisma.processedWebhookEvent, "findUnique").mockResolvedValue(null as any);
+      vi.spyOn(prisma.processedWebhookEvent, "create").mockResolvedValue({} as any);
 
-      if (expectedDbAmount === webhookCapturedAmount) {
-        txStatus = "COMPLETED";
-        walletBalance += webhookCapturedAmount;
-      }
+      vi.spyOn(prisma.transaction, "findFirst").mockResolvedValue({
+        id: "tx_match_hardened",
+        walletId: "w_match_hardened",
+        amount: expectedDbAmount,
+        status: "PENDING",
+      } as any);
 
-      expect(txStatus).toBe("COMPLETED");
-      expect(walletBalance).toBe(100_000);
+      let walletCredited = false;
+      vi.spyOn(prisma, "$transaction").mockImplementation(async (cb: any) => cb(prisma));
+      (vi.spyOn(prisma.transaction, "updateMany") as any).mockResolvedValue({ count: 1 });
+      (vi.spyOn(prisma.wallet, "update") as any).mockImplementation(async () => {
+        walletCredited = true;
+        return {} as any;
+      });
+
+      const job: WebhookJobPayload = {
+        eventId: "payment.captured:pay_match_test_456",
+        eventType: "payment.captured",
+        rawBody: "{}",
+        payload: {
+          event: "payment.captured",
+          payload: {
+            payment: {
+              entity: {
+                id: "pay_match_test_456",
+                order_id: "order_match_888",
+                amount: webhookCapturedAmount,
+                status: "captured",
+              },
+            },
+          },
+        },
+      };
+
+      const result = await processWebhookEventInternal(job);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe("Top-up completed");
+      expect(walletCredited).toBe(true);
     });
   });
 
@@ -229,43 +321,77 @@ describe("Hardened Razorpay Webhook Handling & Background Processing", () => {
   // 6. TERMINAL-STATE GUARDS (REQUIREMENT 6)
   // =========================================================================
   describe("Requirement 6: Terminal-State Guard Invariants", () => {
-    it("should refuse status mutations on transactions already in COMPLETED, FAILED, or REVERSED", () => {
-      const terminalStatuses = new Set(["COMPLETED", "FAILED", "REVERSED"]);
+    it("should refuse processing and return Already terminal for COMPLETED, FAILED, and REVERSED via real processWebhookEventInternal", async () => {
+      vi.spyOn(prisma.processedWebhookEvent, "findUnique").mockResolvedValue(null);
+      vi.spyOn(prisma.processedWebhookEvent, "create").mockResolvedValue({} as any);
+      const completeTopUpSpy = vi.spyOn(PaymentService, "completeWalletTopUp");
 
-      const attemptStatusUpdate = (
-        currentStatus: string,
-        newStatus: string,
-      ): { updated: boolean; status: string } => {
-        // Query predicate: WHERE id = ? AND status NOT IN ('COMPLETED', 'FAILED', 'REVERSED')
-        if (terminalStatuses.has(currentStatus)) {
-          return { updated: false, status: currentStatus };
-        }
-        return { updated: true, status: newStatus };
+      const terminalStatuses = ["COMPLETED", "FAILED", "REVERSED"];
+
+      for (const status of terminalStatuses) {
+        vi.spyOn(prisma.transaction, "findFirst").mockResolvedValue({
+          id: `tx_${status}`,
+          walletId: "w_terminal",
+          amount: 50_000,
+          status,
+        } as any);
+
+        const job: WebhookJobPayload = {
+          eventId: `payment.captured:pay_term_${status}`,
+          eventType: "payment.captured",
+          rawBody: "{}",
+          payload: {
+            event: "payment.captured",
+            payload: {
+              payment: {
+                entity: {
+                  id: `pay_term_${status}`,
+                  order_id: `order_term_${status}`,
+                  amount: 50_000,
+                  status: "captured",
+                },
+              },
+            },
+          },
+        };
+
+        const result = await processWebhookEventInternal(job);
+        expect(result.success).toBe(true);
+        expect(result.message).toBe("Already terminal");
+      }
+
+      expect(completeTopUpSpy).not.toHaveBeenCalled();
+    });
+
+    it("should ensure real PaymentService.completeWalletTopUp uses atomic status notIn guard", async () => {
+      const mockTx = {
+        transaction: {
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
+        wallet: {
+          update: vi.fn(),
+        },
       };
 
-      // Non-terminal states can update
-      expect(attemptStatusUpdate("PENDING", "COMPLETED")).toEqual({
-        updated: true,
-        status: "COMPLETED",
-      });
-      expect(attemptStatusUpdate("PROCESSING", "FAILED")).toEqual({
-        updated: true,
-        status: "FAILED",
+      const result = await PaymentService.completeWalletTopUp(mockTx as never, {
+        transactionId: "tx_term_1",
+        walletId: "w_term_1",
+        amount: 50_000,
+        razorpayPaymentId: "pay_term_1",
       });
 
-      // Terminal states CANNOT be overwritten
-      expect(attemptStatusUpdate("COMPLETED", "FAILED")).toEqual({
-        updated: false,
-        status: "COMPLETED",
+      expect(result).toBe(false);
+      expect(mockTx.transaction.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: "tx_term_1",
+          status: { notIn: ["COMPLETED", "FAILED", "REVERSED"] },
+        },
+        data: {
+          status: "COMPLETED",
+          razorpayPaymentId: "pay_term_1",
+        },
       });
-      expect(attemptStatusUpdate("FAILED", "COMPLETED")).toEqual({
-        updated: false,
-        status: "FAILED",
-      });
-      expect(attemptStatusUpdate("REVERSED", "COMPLETED")).toEqual({
-        updated: false,
-        status: "REVERSED",
-      });
+      expect(mockTx.wallet.update).not.toHaveBeenCalled();
     });
   });
 });

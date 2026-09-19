@@ -56,7 +56,7 @@ const forceSignOut = (reason: string) => {
 };
 
 if (lastRefreshed !== undefined && lastRefreshed !== null) {
-  // --- Primary path: use lastRefreshed timestamp ---
+  // Primary path: use lastRefreshed timestamp
 
   // Clock Skew Detection: If token appears to be from the future
   if (lastRefreshed > now + MAX_CLOCK_SKEW_MS) {
@@ -86,7 +86,7 @@ if (lastRefreshed !== undefined && lastRefreshed !== null) {
     );
   }
 } else if (sessionExpires !== null) {
-  // --- Fallback path: estimate from session `expires` field ---
+  // Fallback path: estimate from session expires field
   // NextAuth default session maxAge is typically 7 days.
   // We warn/sign out if expires is within 6 hours to nudge re-auth.
   const timeUntilExpiry = sessionExpires - now;

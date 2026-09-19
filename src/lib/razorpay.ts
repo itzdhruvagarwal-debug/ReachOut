@@ -581,8 +581,6 @@ return await getRazorpay().orders.fetch(orderId);
 
 export default getRazorpay;
 
-// ==================== FUND ACCOUNT VALIDATION (Penny-Drop) ====================
-
 interface FundAccountValidationResult {
   /** Razorpay fund_account_id for this bank account */
   fundAccountId: string;

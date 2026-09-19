@@ -13,8 +13,6 @@ import { getYouTubeChannel, calculateYouTubeEngagement } from "./youtube";
 import { getInstagramProfile, calculateEngagement } from "./instagram";
 import { decrypt } from "./encryption";
 
-// ==================== TYPES ====================
-
 interface SocialProofResult {
 followerAuthenticityScore: number; // 0-100
 contentQualityScore: number; // 0-100
@@ -34,8 +32,6 @@ postingConsistencyScore: number;
 contentVarietyScore: number;
 completionRateScore: number;
 }
-
-// ==================== MAIN CALCULATORS ====================
 
 /**
 * Calculate follower authenticity score based on engagement patterns.
@@ -253,8 +249,6 @@ profile.instagramFollowers = updates.instagramFollowers;
 profile.instagramEngagementRate = updates.instagramEngagementRate;
 }
 }
-
-// ==================== ORCHESTRATOR ====================
 
 /**
 * Recalculate and save social proof scores for a specific influencer.
@@ -483,8 +477,6 @@ skip += take;
 
 return { processed, failed };
 }
-
-// ==================== HELPERS ====================
 
 function calculateEngagementScore(
   followers: number,

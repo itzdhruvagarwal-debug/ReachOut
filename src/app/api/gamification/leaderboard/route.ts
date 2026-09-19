@@ -86,7 +86,6 @@ async function getWeeklyLeaderboard(city: string, category: string, limit: numbe
     weeklyInfluencers[0].isWeeklyChampion = true;
   }
 
-  // ================== BRANDS (WEEKLY) ==================
   const weeklyTopBrands = await getTopBrands(limit, "weekly", city);
 
   return {
@@ -210,8 +209,6 @@ async function _handler_GET(request: NextRequest) {
   }
 }
 
-// ==================== HELPER ====================
-
 async function getTopBrands(limit: number, filter: string, city: string) {
   if (filter === "weekly") {
     const weekAgo = subDays(new Date(), 7);
@@ -302,6 +299,4 @@ async function getTopBrands(limit: number, filter: string, city: string) {
   }));
 }
 
-
-// Wrapped handlers via apiWrapper
 export const GET = apiWrapper(_handler_GET);

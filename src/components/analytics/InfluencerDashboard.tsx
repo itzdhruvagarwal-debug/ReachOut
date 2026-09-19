@@ -11,11 +11,10 @@ CartesianGrid,
 Tooltip,
 } from "recharts";
 
-import { ToastContainer, useToasts } from "@/components/ui/toast";
 import EmptyState from "@/components/ui/EmptyState";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button, ToastContainer, useToasts } from "@/components/ui";
 import { useChartWidth } from "@/hooks/useChartWidth";
-import { getTrustTierLabel } from "@/lib/utils-client";
+import { getTrustTierLabel, formatCurrency, formatDate } from "@/lib/utils-client";
 import { copyToClipboard } from "@/lib/clipboard";
 
 export interface InfluencerAnalyticsData {
@@ -154,7 +153,7 @@ className={trustScoreColorClass}
 <StatCard
 icon="earnings"
 label="Earnings"
-value={`${(overview.totalEarnings / 100).toLocaleString("en-IN")}`}
+value={formatCurrency(overview.totalEarnings)}
 subvalue="Lifetime"
 accentColorClass="text-[var(--color-accent-emerald)]"
 />
@@ -254,7 +253,7 @@ tickFormatter={(val) => {
 />
 <Tooltip
 formatter={(value: number | undefined) => [
-`${((value ?? 0) / 100).toLocaleString("en-IN")}`,
+formatCurrency(value ?? 0),
 "Earnings",
 ]}
 />
@@ -376,10 +375,7 @@ displayValue={`${performance.engagementRate}%`}
                 Total Earnings
               </div>
               <div className="text-2xl font-extrabold text-emerald">
-                Rs{" "}
-                {(
-                  (data.gamification?.referralStats?.earnings || 0) / 100
-                ).toLocaleString()}
+                {formatCurrency(data.gamification?.referralStats?.earnings || 0)}
               </div>
             </div>
           </div>
@@ -437,7 +433,7 @@ displayValue={`${performance.engagementRate}%`}
                   {formatAction(log.action)}
                 </div>
                 <div className="text-xs text-muted">
-                  {new Date(log.createdAt).toLocaleDateString()}
+                  {formatDate(log.createdAt)}
                 </div>
               </div>
             </div>

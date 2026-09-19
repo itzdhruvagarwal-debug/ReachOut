@@ -13,8 +13,6 @@ import { cleanUrl } from "./utils";
 const GRAPH_API_BASE = "https://graph.instagram.com";
 const GRAPH_API_VERSION = "v18.0";
 
-// ==================== TYPES ====================
-
 interface InstagramProfile {
 id: string;
 username: string;
@@ -47,8 +45,6 @@ avgLikes: number;
 avgComments: number;
 reachEstimate: number;
 }
-
-// ==================== OAUTH ====================
 
 /**
 * Generate Instagram OAuth URL for user authorization.
@@ -154,8 +150,6 @@ return null;
 }
 }
 
-// ==================== PROFILE DATA ====================
-
 /**
 * Fetch Instagram profile data using access token.
 */
@@ -198,8 +192,6 @@ logger.error("Instagram profile fetch error", error);
 return null;
 }
 }
-
-// ==================== POST VERIFICATION ====================
 
 /**
 * Fetch recent media (posts) for verification.
@@ -346,9 +338,6 @@ export async function findPostByUrl(
   const result = await findPostByUrlDetailed(accessToken, postUrl);
   return result.status === "FOUND" ? result.post : null;
 }
-
-
-// ==================== ENGAGEMENT METRICS ====================
 
 /**
 * Calculate engagement rate from recent posts.

@@ -8,6 +8,7 @@ import {
   InfluencerProfileData,
   CampaignProofItem,
 } from "./types";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/utils-client";
 import CampaignProofModal from "./CampaignProofModal";
 import {
   ShieldCheck,
@@ -212,7 +213,7 @@ export default function InfluencerProfileClient({
               ) : (
                 <>
                   <Link
-                    href={`/dashboard/deals?createWith=${profile.id}`}
+                    href={`/dashboard/campaigns/create?invite=${profile.id}`}
                     className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/25 hover:bg-primary/90 active:scale-95 transition-all"
                   >
                     <PlusCircle className="w-4 h-4 stroke-[2.5]" />
@@ -220,7 +221,7 @@ export default function InfluencerProfileClient({
                   </Link>
 
                   <Link
-                    href={`/dashboard/messages?recipientId=${profile.userId}`}
+                    href={`/dashboard/messages?with=${profile.userId}`}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border/80 bg-card hover:bg-muted text-foreground text-xs font-semibold transition-all"
                   >
                     <Send className="w-3.5 h-3.5" />
@@ -408,9 +409,7 @@ export default function InfluencerProfileClient({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {profile.rateCard.map((item) => {
-                const formattedPrice = (item.pricePaise / 100).toLocaleString("en-IN", {
-                  maximumFractionDigits: 0,
-                });
+                const formattedPrice = formatCurrency(item.pricePaise);
                 return (
                   <div
                     key={item.id}
@@ -422,7 +421,7 @@ export default function InfluencerProfileClient({
                           {item.deliverable}
                         </h4>
                         <span className="text-base font-extrabold text-foreground tabular-nums shrink-0">
-                          ₹{formattedPrice}
+                          {formattedPrice}
                         </span>
                       </div>
                       <p className="text-xs text-muted-foreground leading-relaxed">
@@ -482,7 +481,7 @@ export default function InfluencerProfileClient({
                             {review.brandName}
                           </h5>
                           <p className="text-[10px] text-muted-foreground">
-                            {new Date(review.createdAt).toLocaleDateString()}
+                            {formatDate(review.createdAt)}
                           </p>
                         </div>
                       </div>
@@ -527,7 +526,7 @@ export default function InfluencerProfileClient({
                         @{profile.instagramHandle}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        {profile.instagramFollowers?.toLocaleString("en-IN") || "0"} Followers • {profile.instagramEngagementRate || 4.2}% Eng.
+                        {formatNumber(profile.instagramFollowers)} Followers • {profile.instagramEngagementRate || 4.2}% Eng.
                       </p>
                     </div>
                   </div>
@@ -544,7 +543,7 @@ export default function InfluencerProfileClient({
                         {profile.youtubeHandle}
                       </p>
                       <p className="text-[11px] text-muted-foreground">
-                        {profile.youtubeSubscribers?.toLocaleString("en-IN") || "0"} Subscribers
+                        {formatNumber(profile.youtubeSubscribers)} Subscribers
                       </p>
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 import { useDeal } from "@/hooks/api/useDeal";
 
 import {
@@ -18,17 +19,11 @@ import {
   normalizeTextArray,
   EngagementReport,
 } from "./DealDetailHelpers";
-import { ToastItem, ToastType } from "@/components/ui/toast";
-
-// ── helpers ──────────────────────────────────────────────────────────────────
+import type { ToastItem, ToastType } from "@/components/ui";
 
 function extractMessage(err: unknown): string {
-  if (err instanceof ApiClientError) return err.message;
-  if (err instanceof Error) return err.message;
-  return String(err);
+  return formatUserError(err, "Failed to process deal action. Please try again.");
 }
-
-// ── hook ─────────────────────────────────────────────────────────────────────
 
 export function useDealDetail(
   id: string,
@@ -97,8 +92,6 @@ export function useDealDetail(
     ? " Some figures are rule-based estimates, not real-time API data."
     : null;
 
-  // ── File upload ─────────────────────────────────────────────────────────────
-
   const handleContentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -126,8 +119,6 @@ export function useDealDetail(
     }
   };
 
-  // ── Generic deal action ─────────────────────────────────────────────────────
-
   const handleAction = async (action: string, payload?: Record<string, unknown>) => {
     const ok = await dealCore.doAction(action, payload);
     if (ok) {
@@ -137,8 +128,6 @@ export function useDealDetail(
     return ok;
   };
 
-  // ── Product action ──────────────────────────────────────────────────────────
-
   const handleProductAction = async (payload: Record<string, unknown>) => {
     const ok = await dealCore.updateProduct(payload);
     if (ok) {
@@ -147,8 +136,6 @@ export function useDealDetail(
     }
     return ok;
   };
-
-  // ── Sign contract ───────────────────────────────────────────────────────────
 
   const handleSignContract = async () => {
     const fresh = await requireFreshSession();
@@ -191,8 +178,6 @@ export function useDealDetail(
     }
   };
 
-  // ── Review content ──────────────────────────────────────────────────────────
-
   const handleReviewContent = async () => {
     const deliverablesList = getFlatDeliverablesList(deal);
 
@@ -229,8 +214,6 @@ export function useDealDetail(
     }
   };
 
-  // ── Reject invite ───────────────────────────────────────────────────────────
-
   const handleRejectInvite = async () => {
     if (confirm("Are you sure you want to reject this invite? Direct-invite campaign funds will be refunded to the brand.")) {
       setIsSubmitting(true);
@@ -245,8 +228,6 @@ export function useDealDetail(
       }
     }
   };
-
-  // ── Cancel deal ─────────────────────────────────────────────────────────────
 
   const handleCancelDeal = async () => {
     if (!confirm("Are you sure you want to cancel this deal? This action cannot be undone. Depending on the payment state, cancellation policies apply.")) return;
@@ -318,10 +299,7 @@ export function useDealDetail(
   };
 }
 
-// ---------------------------------------------------------------------------
-// Derived-value helper absorbs all if/else-if and ternary chains so that
-// DealDetailPage does not accumulate CC from them.
-// ---------------------------------------------------------------------------
+// Derived-value helper absorbs all if/else-if and ternary chains so that DealDetailPage does not accumulate CC
 export function computeDealDisplay(
   deal: DealDetail,
   contractTerms: ContractTermsJson,

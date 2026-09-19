@@ -1,7 +1,7 @@
 import { AdminService } from "@/services/admin.service";
 import { Prisma } from "@prisma/client";
 import { approveFlaggedApplication, rejectFlaggedApplication } from "../actions";
-import { formatCurrency } from "@/lib/utils-client";
+import { formatCurrency, formatDate } from "@/lib/utils-client";
 import { z } from "zod";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Input } from "@/components/ui";
@@ -101,11 +101,7 @@ className="flex justify-between flex-wrap gap-4 mb-4"
 FLAGGED
 </Badge>
 <span className="text-muted text-xs">
-{new Date(app.createdAt).toLocaleDateString("en-IN", {
-day: "numeric",
-month: "short",
-year: "numeric",
-})}
+{formatDate(app.createdAt)}
 </span>
 </div>
 <h3 className="font-extrabold mb-1 text-primary text-base">

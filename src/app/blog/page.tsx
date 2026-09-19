@@ -7,6 +7,7 @@ import { Button, Input } from "@/components/ui";
 import { z } from "zod";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError } from "@/lib/user-messages";
 
 interface BlogPost {
 id: string;
@@ -165,14 +166,9 @@ try {
   });
   setEmail("");
 } catch (err: unknown) {
-  const msg =
-    err instanceof ApiClientError
-      ? err.message
-      : (err instanceof Error ? err.message : String(err)) ||
-        "Failed to subscribe. Please try again.";
   setStatus({
     type: "error",
-    message: msg,
+    message: formatUserError(err, "Failed to subscribe. Please try again."),
   });
 } finally {
   setLoading(false);

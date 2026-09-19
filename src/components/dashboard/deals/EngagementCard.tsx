@@ -1,6 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui";
+import { formatCurrency, formatNumber } from "@/lib/utils-client";
 import { EngagementReport, EngagementSnapshot } from "./DealDetailHelpers";
 
 export function EngagementCard({
@@ -54,11 +55,11 @@ return (
 </div>
 <div className="grid gap-1">
 {([
-["Views", snap.metrics.views.toLocaleString("en-IN")],
-["Likes", snap.metrics.likes.toLocaleString("en-IN")],
-["Comments", snap.metrics.comments.toLocaleString("en-IN")],
-["Shares", (snap.metrics.shares || 0).toLocaleString("en-IN")],
-["Reach", (snap.metrics.estimatedReach ?? 0).toLocaleString("en-IN")],
+["Views", formatNumber(snap.metrics.views)],
+["Likes", formatNumber(snap.metrics.likes)],
+["Comments", formatNumber(snap.metrics.comments)],
+["Shares", formatNumber(snap.metrics.shares || 0)],
+["Reach", formatNumber(snap.metrics.estimatedReach ?? 0)],
 ["Eng. Rate", `${(snap.metrics.engagementRate ?? 0).toFixed(2)}%`],
 ] as [string, string][]).map(([label, val]) => (
 <div key={label} className="flex justify-between text-xs">
@@ -83,7 +84,7 @@ return (
     </div>
     <div className="grid gap-2.5 engagement-roi-grid">
       {([
-        ["Est. Value", `₹${((roi.estimatedValue ?? 0) / 100).toLocaleString("en-IN")}`],
+        ["Est. Value", formatCurrency(roi.estimatedValue ?? 0)],
         ["ROI", `${(roi.roiPercentage ?? 0) >= 0 ? "+" : ""}${roi.roiPercentage ?? 0}%`],
         ["Cost/View", `₹${((roi.costPerView ?? 0) / 100).toFixed(2)}`],
         ["Cost/Eng.", `₹${((roi.costPerEngagement ?? 0) / 100).toFixed(2)}`],

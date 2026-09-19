@@ -11,9 +11,11 @@ import {
   subscribeToIncomingMessages,
   subscribeToTypingPresence,
 } from "@/lib/supabase-messaging-realtime";
-import { ToastItem, ToastType } from "@/components/ui/toast";
+import type { ToastItem, ToastType } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatCurrency, formatTime } from "@/lib/utils-client";
+import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
 import {
   Message,
   Conversation,
@@ -30,8 +32,8 @@ import { type SingleDealResponse as DealPartnerDetailResponse } from "@/lib/sche
 export function useMessages() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
-  const dealIdParam = searchParams?.get("deal");
-  const withParam = searchParams?.get("with");
+  const dealIdParam = searchParams?.get("deal") || searchParams?.get("dealId");
+  const withParam = searchParams?.get("with") || searchParams?.get("recipientId") || searchParams?.get("userId");
   const processedDealRef = useRef<string | null>(null);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -244,10 +246,7 @@ export function useMessages() {
           id: m.id,
           senderId: m.senderId,
           content: m.content,
-          createdAt: new Date(m.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+          createdAt: formatTime(m.createdAt),
           rawCreatedAt: m.createdAt,
           isMe: m.senderId === session?.user?.id,
           isBlocked: Boolean(m.isBlocked),
@@ -311,10 +310,7 @@ export function useMessages() {
             id: incomingMsg.id,
             senderId: incomingMsg.senderId,
             content: incomingMsg.content,
-            createdAt: new Date(incomingMsg.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
+            createdAt: formatTime(incomingMsg.createdAt),
             rawCreatedAt: incomingMsg.createdAt,
             isMe: incomingMsg.senderId === currentUserId,
             messageType: (incomingMsg.messageType as Message["messageType"]) || "TEXT",
@@ -450,10 +446,7 @@ export function useMessages() {
                   ...msg,
                   id: sentMsg.id || msg.id,
                   createdAt: sentMsg.createdAt
-                    ? new Date(sentMsg.createdAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
+                    ? formatTime(sentMsg.createdAt)
                     : msg.createdAt,
                   rawCreatedAt: sentMsg.createdAt || msg.rawCreatedAt,
                   status: "sent",
@@ -474,7 +467,7 @@ export function useMessages() {
       setMessages((prev) =>
         prev.map((msg) => (msg.id === tempId ? { ...msg, status: "failed" } : msg))
       );
-      showToast("error", err instanceof Error ? err.message : "Message send failed. Tap to retry.");
+      showToast("error", formatUserError(err, "Message send failed. Tap to retry."));
     }
   };
 
@@ -497,10 +490,7 @@ export function useMessages() {
         id: tempId,
         senderId: session?.user?.id || "me",
         content: trimmedMessage,
-        createdAt: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        createdAt: formatTime(new Date()),
         rawCreatedAt: new Date().toISOString(),
         isMe: true,
         status: "sending",
@@ -581,10 +571,7 @@ export function useMessages() {
         id: tempId,
         senderId: session?.user?.id || "me",
         content: displayContent,
-        createdAt: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        createdAt: formatTime(new Date()),
         rawCreatedAt: new Date().toISOString(),
         isMe: true,
         messageType: "FILE",
@@ -633,9 +620,7 @@ export function useMessages() {
     if (!selectedConversation) return;
 
     const tempId = `temp-${Date.now()}`;
-    const displayContent = `Custom Offer: ${offerDetails.title} (₹${(
-      offerDetails.amount / 100
-    ).toLocaleString("en-IN")})`;
+    const displayContent = `Custom Offer: ${offerDetails.title} (${formatCurrency(offerDetails.amount)})`;
 
     setMessages((prev) => [
       ...prev,
@@ -643,10 +628,7 @@ export function useMessages() {
         id: tempId,
         senderId: session?.user?.id || "me",
         content: displayContent,
-        createdAt: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        createdAt: formatTime(new Date()),
         isMe: true,
         messageType: "OFFER",
         status: "sending",
@@ -699,9 +681,7 @@ export function useMessages() {
       fetchMessages(false);
     } catch (err) {
       logger.error("[messages] Failed to update offer:", err);
-      const errorMsg =
-        err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Failed to update offer status. Please try again.");
-      showToast("error", errorMsg);
+      showToast("error", formatUserError(err, "Failed to update offer status. Please try again."));
     }
   };
 
@@ -716,9 +696,9 @@ export function useMessages() {
     try {
       await apiClient.users.blockUser({ blockedUserId: selectedConversation, action: "block" });
       setIsChatUserBlocked(true);
-      showToast("success", "User blocked.");
+      showToast("success", USER_SUCCESS_MESSAGES.USER_BLOCKED);
     } catch (err) {
-      showToast("error", err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Failed to block user."));
+      showToast("error", formatUserError(err, "Failed to block user. Please try again."));
     }
   };
 
@@ -727,9 +707,9 @@ export function useMessages() {
     try {
       await apiClient.users.blockUser({ blockedUserId: selectedConversation, action: "unblock" });
       setIsChatUserBlocked(false);
-      showToast("success", "User unblocked.");
+      showToast("success", USER_SUCCESS_MESSAGES.USER_UNBLOCKED);
     } catch (err) {
-      showToast("error", err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Failed to unblock user."));
+      showToast("error", formatUserError(err, "Failed to unblock user. Please try again."));
     }
   };
 
@@ -753,12 +733,12 @@ export function useMessages() {
         reason: reportReason,
         description: reportDescription,
       });
-      showToast("success", "Report submitted. Our moderation team will investigate.");
+      showToast("success", USER_SUCCESS_MESSAGES.REPORT_SUBMITTED);
       setIsReportModalOpen(false);
       setReportReason("");
       setReportDescription("");
     } catch (err) {
-      showToast("error", err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Failed to submit report."));
+      showToast("error", formatUserError(err, "Failed to submit report. Please try again."));
     } finally {
       setSubmittingReport(false);
     }

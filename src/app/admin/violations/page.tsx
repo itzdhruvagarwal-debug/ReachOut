@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Input } from "@/components/ui";
+import { formatDate } from "@/lib/utils-client";
 import type { AdminService } from "@/services/admin.service";
 import type { Prisma } from "@prisma/client";
 
@@ -125,12 +126,10 @@ return (
 </div>
 </td>
 <td className="p-card text-secondary text-sm">
-{new Date(violation.createdAt).toLocaleDateString("en-IN")}
+{formatDate(violation.createdAt)}
 </td>
 <td className="p-card text-secondary text-sm">
-{violation.expiresAt
-? new Date(violation.expiresAt).toLocaleDateString("en-IN")
-: "Never"}
+{formatDate(violation.expiresAt, "Never")}
 </td>
 </tr>
 );

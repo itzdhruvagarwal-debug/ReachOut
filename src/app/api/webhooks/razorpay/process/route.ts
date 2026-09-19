@@ -52,9 +52,7 @@ export async function processWebhookEventInternal(
 
   const event = payload?.event || job.eventType;
 
-  // ---------------------------------------------------------------------------
-  // Handling: payment.captured (Top-Up / Deal Escrow Payment)
-  // ---------------------------------------------------------------------------
+  // payment.captured: Top-Up / Deal Escrow Payment
   if (event === "payment.captured") {
     const payment = payload?.payload?.payment?.entity;
     if (!payment) {
@@ -147,9 +145,7 @@ export async function processWebhookEventInternal(
     return { success: true, message: "Top-up completed" };
   }
 
-  // ---------------------------------------------------------------------------
-  // Handling: payout.processed / payout.failed / payout.reversed
-  // ---------------------------------------------------------------------------
+  // payout.*: payout.processed / payout.failed / payout.reversed
   if (event.startsWith("payout.")) {
     const payout = payload?.payload?.payout?.entity;
     const withdrawalId = payout?.reference_id;

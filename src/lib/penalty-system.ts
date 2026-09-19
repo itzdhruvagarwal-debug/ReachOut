@@ -21,8 +21,6 @@ import { createActivityLog } from "./audit";
 import { revokeAllUserSessions } from "./blacklist";
 import { ESCROW_HELD_STATUSES } from "./utils";
 
-// ==================== TYPES ====================
-
 export type ViolationCategory =
 | "FAKE_ENGAGEMENT"
 | "POST_DELETION"
@@ -51,8 +49,6 @@ type PenaltyAction =
 | "SUSPENSION_14D"
 | "BAN_90D"
 | "PERMANENT_BAN";
-
-// ==================== PENALTY CALCULATION ====================
 
 const PENALTY_TIERS: Record<
 number,
@@ -221,8 +217,6 @@ requiresManualReview: strikeNumber >= 4,
 };
 }
 
-// ==================== ACTIVE PAYOUT HOLD ====================
-
 async function holdActivePayouts(userId: string) {
   try {
     // Find active deals where the influencer has pending payouts
@@ -286,9 +280,6 @@ async function holdActivePayouts(userId: string) {
     logger.error("Failed to hold active payouts", error instanceof Error ? error : new Error(String(error)), { userId });
   }
 }
-
-
-// ==================== SUSPENSION LIFT (CRON) ====================
 
 /**
 * Check and lift expired suspensions.
@@ -407,10 +398,6 @@ message:
 
 return { lifted: userIdsToLift.length };
 }
-
-
-
-// ==================== HELPERS ====================
 
 function mapCategoryToViolationType(category: ViolationCategory) {
 const map: Record<

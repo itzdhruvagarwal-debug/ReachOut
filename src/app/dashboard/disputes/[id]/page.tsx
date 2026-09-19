@@ -8,8 +8,9 @@ import { fetcher } from "@/lib/fetcher";
 import { logger } from "@/lib/logger-client";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
-import { ToastContainer, type ToastItem, type ToastType } from "@/components/ui/toast";
-import { Button, Textarea } from "@/components/ui";
+import { formatUserError } from "@/lib/user-messages";
+import { Button, Textarea, ToastContainer, type ToastItem, type ToastType } from "@/components/ui";
+import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils-client";
 import {
 DisputeDetail,
 MediatorAnalysis,
@@ -127,12 +128,11 @@ try {
     setEvidenceDesc("");
     fetchDispute();
   } else {
-    showToast("error", data?.error || "Failed to add evidence");
+    showToast("error", formatUserError(data?.error, "Failed to add evidence. Please try again."));
   }
 } catch (error) {
   logger.error("[dispute-detail] Failed to add evidence:", error);
-  const msg = error instanceof ApiClientError ? error.message : "Something went wrong";
-  showToast("error", msg);
+  showToast("error", formatUserError(error, "Failed to add evidence. Please try again."));
 } finally {
   setIsSubmitting(false);
 }
@@ -161,12 +161,11 @@ try {
     setShowEscalateForm(false);
     fetchDispute();
   } else {
-    showToast("error", data?.error || "Action failed");
+    showToast("error", formatUserError(data?.error, "Failed to process dispute action. Please try again."));
   }
 } catch (error) {
   logger.error("[dispute-detail] Failed to perform dispute action:", error);
-  const msg = error instanceof ApiClientError ? error.message : "Something went wrong";
-  showToast("error", msg);
+  showToast("error", formatUserError(error, "Failed to process dispute action. Please try again."));
 } finally {
   setActionLoading(null);
 }
@@ -239,12 +238,12 @@ handleDisputeAction={handleDisputeAction}
 <div className="mb-4">
 <div className="text-xs text-secondary">Deal</div>
 <Link href={`/dashboard/deals/${dispute.deal.id}`} className="text-primary font-semibold">
-{dispute.deal.campaign.title} ({dispute.deal.amount / 100} INR)
+{dispute.deal.campaign.title} ({formatCurrency(dispute.deal.amount)})
 </Link>
 </div>
 <div className="mb-4">
 <div className="text-xs text-secondary">Filed on</div>
-<div className="text-sm">{new Date(dispute.createdAt).toLocaleString()}</div>
+<div className="text-sm">{formatDateTime(dispute.createdAt)}</div>
 </div>
 </div>
 
@@ -255,7 +254,7 @@ handleDisputeAction={handleDisputeAction}
 <p>{dispute.resolution}</p>
 {dispute.resolvedAt && (
 <div className="mt-4 text-xs text-secondary">
-Resolved on {new Date(dispute.resolvedAt).toLocaleDateString()}
+Resolved on {formatDate(dispute.resolvedAt)}
 </div>
 )}
 </div>

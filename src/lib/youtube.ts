@@ -37,7 +37,6 @@ return res.json();
 }
 
 
-// ==================== TYPES ====================
 
 interface YouTubeChannel {
 id: string;
@@ -75,7 +74,7 @@ engagementRate: number;
 uploadFrequency: string; // e.g., "2 videos/week"
 }
 
-// ==================== OAUTH ====================
+
 
 export function getYouTubeOAuthUrl(redirectUri: string, state: string): string {
 const isHex = /^[0-9a-fA-F]+$/.test(state);
@@ -261,7 +260,7 @@ return null;
 }
 }
 
-// ==================== CHANNEL DATA ====================
+
 
 /**
 * Fetch YouTube channel info by channel ID or username.
@@ -399,7 +398,7 @@ return null;
 }
 }
 
-// ==================== VIDEO DATA ====================
+
 
 export type YouTubeVideoFetchResult =
   | { status: "FOUND"; video: YouTubeVideo }
@@ -536,7 +535,7 @@ return { isLive: false, error: "Video not found or private" };
 return { isLive: video.isLive, video };
 }
 
-// ==================== RECENT VIDEOS ====================
+
 
 /**
 * Fetch recent videos from a channel.
@@ -589,7 +588,7 @@ return [];
 }
 }
 
-// ==================== ENGAGEMENT METRICS ====================
+
 
 /**
 * Calculate channel engagement from recent videos.

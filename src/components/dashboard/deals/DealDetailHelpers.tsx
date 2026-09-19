@@ -1,6 +1,7 @@
 "use client";
 
-export { formatCurrency } from "@/lib/utils-client";
+export { formatCurrency, formatDate } from "@/lib/utils-client";
+import { formatDate } from "@/lib/utils-client";
 import {
   type DealDetail,
   type ContentSubmissionItem as ContentSubmission,
@@ -10,15 +11,7 @@ import {
 export type { DealDetail, ContentSubmission, ContentUrlEntry };
 
 export const formatContractDate = (value: unknown) => {
-if (!value || typeof value !== "string") return "Not set";
-const date = new Date(value);
-return Number.isNaN(date.getTime())
-? value
-: date.toLocaleDateString("en-IN", {
-day: "numeric",
-month: "short",
-year: "numeric",
-});
+  return formatDate(value as string | Date | null | undefined, "Not set");
 };
 
 export const normalizeTextArray = (value: unknown): string[] =>

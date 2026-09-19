@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { formatCurrency } from "@/lib/utils-client";
 import { subscribeToWalletUpdates } from "@/lib/supabase-realtime";
+import { validateWithdrawalAmount } from "@/components/dashboard/wallet/FullScreenWithdrawFlow";
+import { withdrawalSchema } from "@/lib/validations/payment";
 
 describe("Wallet Screen: Balance Segregation & Formatting", () => {
   it("formats currency values cleanly in INR format", () => {
@@ -37,48 +39,43 @@ describe("Wallet Screen: Balance Segregation & Formatting", () => {
 });
 
 describe("Wallet Screen: Withdrawal Amount Validation Guards", () => {
-  const MIN_WITHDRAWAL_PAISE = 50000; // ₹500
-  const MAX_WITHDRAWAL_PAISE = 50000000; // ₹5,00,000
   const availableBalanceInPaise = 2500000; // ₹25,000
 
-  function validateWithdrawal(amountPaise: number) {
-    if (amountPaise <= 0 || Number.isNaN(amountPaise)) {
-      return { valid: false, error: "Please enter a valid positive amount." };
-    }
-    if (amountPaise < MIN_WITHDRAWAL_PAISE) {
-      return { valid: false, error: `Minimum withdrawal is ${formatCurrency(MIN_WITHDRAWAL_PAISE)}.` };
-    }
-    if (amountPaise > MAX_WITHDRAWAL_PAISE) {
-      return { valid: false, error: `Maximum single withdrawal is ${formatCurrency(MAX_WITHDRAWAL_PAISE)}.` };
-    }
-    if (amountPaise > availableBalanceInPaise) {
-      return { valid: false, error: "Amount exceeds available balance." };
-    }
-    return { valid: true, error: null };
-  }
-
   it("rejects amounts below minimum ₹500", () => {
-    const result = validateWithdrawal(20000); // ₹200
+    // Client-side UI validation
+    const result = validateWithdrawalAmount("200", availableBalanceInPaise);
     expect(result.valid).toBe(false);
-    expect(result.error).toContain("Minimum withdrawal");
+    expect(result.error).toContain("Minimum withdrawal amount is");
+
+    // Server-side route schema validation
+    const serverResult = withdrawalSchema.safeParse({ amount: 20000, bankAccountId: "acc_test_1" });
+    expect(serverResult.success).toBe(false);
   });
 
   it("rejects amounts exceeding available balance", () => {
-    const result = validateWithdrawal(3000000); // ₹30,000 when only ₹25,000 available
-    expect(result.valid).false;
-    expect(result.error).toContain("exceeds available balance");
+    const result = validateWithdrawalAmount("30000", availableBalanceInPaise);
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("exceeds your available balance");
   });
 
   it("rejects amounts exceeding maximum ₹5,00,000", () => {
-    const result = validateWithdrawal(60000000); // ₹6,00,000
+    const result = validateWithdrawalAmount("600000", availableBalanceInPaise);
     expect(result.valid).toBe(false);
-    expect(result.error).toContain("Maximum single withdrawal");
+    expect(result.error).toContain("Maximum single withdrawal is");
+
+    // Server-side route schema validation
+    const serverResult = withdrawalSchema.safeParse({ amount: 60000000, bankAccountId: "acc_test_1" });
+    expect(serverResult.success).toBe(false);
   });
 
   it("approves valid amounts within boundaries", () => {
-    const result = validateWithdrawal(1000000); // ₹10,000
+    const result = validateWithdrawalAmount("10000", availableBalanceInPaise);
     expect(result.valid).toBe(true);
     expect(result.error).toBeNull();
+
+    // Server-side route schema validation
+    const serverResult = withdrawalSchema.safeParse({ amount: 1000000, bankAccountId: "acc_test_1" });
+    expect(serverResult.success).toBe(true);
   });
 });
 

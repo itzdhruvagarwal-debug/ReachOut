@@ -199,10 +199,6 @@ export async function checkPaymentFraud(
   };
 }
 
-
-// ==================== POST VERIFICATION CHECKS ====================
-
-
 export type PostVerificationFetchResult =
   | { status: "FOUND"; data: VerifiedPostData }
   | { status: "CONFIRMED_DELETED"; reason: string }

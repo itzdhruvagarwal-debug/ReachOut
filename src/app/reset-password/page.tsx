@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { apiClient, ApiClientError } from "@/lib/api-client";
-
+import { formatUserError } from "@/lib/user-messages";
 import { z } from "zod";
 
 export const resetPasswordSchema = z.object({
@@ -63,11 +63,7 @@ setTimeout(() => router.push("/login"), 2000);
 } catch (err: unknown) {
 logger.error("[reset-password] submission error:", err);
 setStatus("error");
-if (err instanceof ApiClientError) {
-setMessage(err.message || "Failed to reset password");
-} else {
-setMessage("Network error. Please try again.");
-}
+setMessage(formatUserError(err, "Failed to reset password. The link may be invalid or expired. Please request a new link."));
 }
 };
 

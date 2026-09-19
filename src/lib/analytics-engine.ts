@@ -27,8 +27,6 @@ return value.split(",")[0]?.trim() || "Other";
 return "Other";
 }
 
-// ==================== INFLUENCER ANALYTICS ====================
-
 export async function getInfluencerAnalytics(userId: string, fy?: string) {
 const profile = await prisma.influencerProfile.findUnique({
 where: { userId },
@@ -265,8 +263,6 @@ where: { influencerId, status: "COMPLETED" },
 
 return Math.round((completed / totalDeals) * 100);
 }
-
-// ==================== BRAND ANALYTICS (Enhanced) ====================
 
 export async function getBrandAnalytics(userId: string, fy?: string) {
 const profile = await prisma.brandProfile.findUnique({

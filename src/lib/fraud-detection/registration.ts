@@ -120,8 +120,3 @@ riskScore,
 action,
 };
 }
-
-// ==================== APPLICATION CHECKS ====================
-
-
-

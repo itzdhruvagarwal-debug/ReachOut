@@ -6,8 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import ReferralList from "@/components/dashboard/referrals/ReferralList";
-import { Button } from "@/components/ui";
+import { Button, Modal, Skeleton } from "@/components/ui";
 import { copyToClipboard } from "@/lib/clipboard";
+import { formatCurrency } from "@/lib/utils-client";
 
 interface ReferralStats {
 totalReferrals: number;
@@ -76,130 +77,92 @@ href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
 },
 ];
 
-const handleBackdropClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-if (e.target === e.currentTarget) onClose();
-}, [onClose]);
+  return (
+    <Modal open={open} onClose={onClose} title="Invite Your Network" maxWidth="480px">
+      <div className="space-y-5">
+        <p className="text-xs text-secondary -mt-2">
+          Share your referral link with brands &amp; creators to earn commission.
+        </p>
 
-return (
-<AnimatePresence>
-{open && (
-<motion.div
-initial={{ opacity: 0 }}
-animate={{ opacity: 1 }}
-exit={{ opacity: 0 }}
-transition={{ duration: 0.2 }}
-onClick={handleBackdropClick}
-className="referral-modal-overlay fixed flex items-center justify-center p-5 inset-0 backdrop-blur z-1000"
->
-<motion.div
-initial={{ opacity: 0, scale: 0.92, y: 24 }}
-animate={{ opacity: 1, scale: 1, y: 0 }}
-exit={{ opacity: 0, scale: 0.92, y: 24 }}
-transition={{ type: "spring", stiffness: 320, damping: 28 }}
-className="referral-share-modal w-full relative overflow-hidden"
->
-{/* Glow accent */}
-<div className="referral-share-glow absolute pointer-events-none" />
+        {/* Referral link */}
+        <div className="referral-link-box flex items-center gap-3 rounded-xl min-w-0 bg-glass-card p-3 border border-border">
+          <div className="flex-1 min-w-0">
+            <div className="font-bold text-muted mb-1 uppercase text-2xs tracking-wider">
+              Your Referral Link
+            </div>
+            <div className="text-sm font-semibold text-secondary overflow-hidden whitespace-nowrap font-mono text-ellipsis">
+              {referralLink}
+            </div>
+          </div>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleCopyLink}
+            aria-label="Copy referral link"
+            className="referral-copy-btn text-xs font-bold cursor-pointer flex-shrink-0 flex items-center border-none px-4 py-2 whitespace-nowrap text-white rounded-lg gap-1.5"
+            data-copied={linkCopied}
+          >
+            {linkCopied ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                Copy Link
+              </>
+            )}
+          </motion.button>
+        </div>
 
-{/* Header */}
-<div className="flex items-center justify-between relative mb-6">
-<div>
-<div className="font-extrabold text-xs uppercase mb-1 text-blue-400 tracking-widest">
-Share &amp; Earn
-</div>
-<h2 className="font-extrabold text-2xl text-white m-0">
-Invite Your Network
-</h2>
-</div>
-<Button
-variant="ghost"
-onClick={onClose}
-aria-label="Close share modal"
-className="text-lg flex-shrink-0 p-0 w-36 h-36"
->
-&times;
-</Button>
-</div>
+        {/* Share channels */}
+        <div className="grid gap-3 grid-cols-3">
+          {channels.map((ch) => (
+            <motion.a
+              key={ch.id}
+              href={ch.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              whileHover={{ y: -3, scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              className="referral-channel text-center flex flex-col items-center gap-2 cursor-pointer rounded-xl no-underline p-3 border border-border"
+              data-channel={ch.id}
+            >
+              <span className="referral-channel-icon font-extrabold leading-none text-xl">
+                {ch.icon}
+              </span>
+              <span className="font-bold text-secondary text-xs whitespace-nowrap">
+                {ch.label}
+              </span>
+            </motion.a>
+          ))}
+        </div>
 
-{/* Referral link */}
-<div className="referral-link-box mb-6 flex items-center gap-3 rounded-xl min-w-0 bg-glass-card">
-<div className="flex-1 min-w-0">
-<div className="font-bold text-muted mb-1 uppercase text-2xs tracking-wider">
-Your Referral Link
-</div>
-<div className="text-sm font-semibold text-secondary overflow-hidden whitespace-nowrap font-mono text-ellipsis">
-{referralLink}
-</div>
-</div>
-<motion.button
-whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-onClick={handleCopyLink}
-aria-label="Copy referral link"
-className="referral-copy-btn text-xs font-bold cursor-pointer flex-shrink-0 flex items-center border-none px-4-py-2 whitespace-nowrap text-white rounded-lg gap-1.5"
-data-copied={linkCopied}
->
-{linkCopied ? (
-<>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-<polyline points="20 6 9 17 4 12" />
-</svg>
-Copied!
-</>
-) : (
-<>
-<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-<rect x="9" y="9" width="13" height="13" rx="2" />
-<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-</svg>
-Copy Link
-</>
-)}
-</motion.button>
-</div>
-
-{/* Share channels */}
-<div className="grid gap-3 mb-4 grid-cols-3">
-{channels.map((ch) => (
-<motion.a
-key={ch.id}
-href={ch.href}
-target="_blank"
-rel="noopener noreferrer"
-whileHover={{ y: -3, scale: 1.03 }}
-whileTap={{ scale: 0.96 }}
-className="referral-channel text-center flex flex-col items-center gap-2 cursor-pointer rounded-xl no-underline"
-data-channel={ch.id}
->
-<span className="referral-channel-icon font-extrabold leading-none">
-{ch.icon}
-</span>
-<span className="font-bold text-secondary text-xs whitespace-nowrap">
-{ch.label}
-</span>
-</motion.a>
-))}
-</div>
-
-{/* Native share shown only on devices that support it */}
-{typeof navigator !== "undefined" && "share" in navigator && (
-<motion.button
-whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-onClick={handleNativeShare}
-className="referral-native-share w-full text-sm font-bold cursor-pointer flex items-center justify-center gap-2 p-3.5 rounded-lg bg-indigo-12 text-indigo-light"
->
-<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-<path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-<polyline points="16 6 12 2 8 6" />
-<line x1="12" y1="2" x2="12" y2="15" />
-</svg>
-Share via Device
-</motion.button>
-)}
-</motion.div>
-</motion.div>
-)}
-</AnimatePresence>
-);
+        {/* Native share shown only on devices that support it */}
+        {typeof navigator !== "undefined" && "share" in navigator && (
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={handleNativeShare}
+            className="referral-native-share w-full text-sm font-bold cursor-pointer flex items-center justify-center gap-2 p-3.5 rounded-lg bg-indigo-12 text-indigo-light"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+            Share via Device
+          </motion.button>
+        )}
+      </div>
+    </Modal>
+  );
 }
 
 // Main Page
@@ -243,9 +206,17 @@ export default function ReferralsPage() {
 
   if (loading || !session) {
     return (
-      <div className="flex items-center justify-center min-h-60vh">
-        <div className="loading" />
-      </div>
+      <DashboardShell user={session?.user}>
+        <div className="max-w-5xl mx-auto space-y-6 py-6">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
+          </div>
+          <Skeleton className="h-48 rounded-xl" />
+          <Skeleton className="h-64 rounded-xl" />
+        </div>
+      </DashboardShell>
     );
   }
 
@@ -406,7 +377,7 @@ export default function ReferralsPage() {
                   />
                   <StatBox
                     label="Total Earnings"
-                    value={`₹${((stats.earnings || 0) / 100).toLocaleString("en-IN")}`}
+                    value={formatCurrency(stats.earnings || 0)}
                     color="#f59e0b" icon="💰"
                   />
                 </div>

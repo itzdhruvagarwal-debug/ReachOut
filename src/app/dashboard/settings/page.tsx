@@ -4,6 +4,7 @@
 import { logger } from "@/lib/logger-client";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
 import { useState, useEffect, useRef, useCallback } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -16,8 +17,7 @@ import SocialTab, { type SocialConnections } from "@/components/dashboard/settin
 import RatesTab from "@/components/dashboard/settings/RatesTab";
 import VerificationTab, { type VerificationData } from "@/components/dashboard/settings/VerificationTab";
 import SecurityTab from "@/components/dashboard/settings/SecurityTab";
-import { ToastContainer } from "@/components/ui/toast";
-import { Button } from "@/components/ui";
+import { Button, ConfirmationBadge, Skeleton, ToastContainer } from "@/components/ui";
 
 
 
@@ -32,6 +32,7 @@ isMounted.current = false;
 
 const { data: session, update } = useSession();
 const [activeTab, setActiveTab] = useState<string>("profile");
+const [showSavedBadge, setShowSavedBadge] = useState(false);
 const [toasts, setToasts] = useState<Array<{ id: string; type: "success" | "error" | "info"; message: string }>>([]);
 const toastCounterRef = useRef(0);
 
@@ -183,9 +184,13 @@ try {
     logger.warn("[settings] Session update error after profile save:", { error: String(e) });
   }
   showToast("Profile saved successfully!", "success");
+  setShowSavedBadge(true);
+  setTimeout(() => {
+    if (isMounted.current) setShowSavedBadge(false);
+  }, 3000);
 } catch (error) {
   logger.error("[settings] Failed to save profile:", error);
-  const errorMsg = error instanceof ApiClientError ? error.message : "Failed to save profile";
+  const errorMsg = formatUserError(error, "Failed to save profile. Please check your details and try again.");
   showToast(errorMsg, "error");
 } finally {
   if (isMounted.current) {
@@ -195,16 +200,26 @@ try {
 };
 
 if (loading) {
-
-return (
-<DashboardShell user={session?.user || user}>
-<div
-className="flex items-center justify-center min-h-60vh"
->
-<span className="loading" />
-</div>
-</DashboardShell>
-);
+  return (
+    <DashboardShell user={session?.user || user}>
+      <div className="max-w-4xl mx-auto py-8 space-y-6">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-16 w-16 rounded-full" />
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-48 rounded-md" />
+            <Skeleton className="h-4 w-32 rounded-md" />
+          </div>
+        </div>
+        <div className="flex gap-2 border-b border-border/40 pb-3">
+          <Skeleton className="h-9 w-24 rounded-md" />
+          <Skeleton className="h-9 w-24 rounded-md" />
+          <Skeleton className="h-9 w-24 rounded-md" />
+          <Skeleton className="h-9 w-24 rounded-md" />
+        </div>
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    </DashboardShell>
+  );
 }
 
 if (!profile || !user) {
@@ -230,21 +245,24 @@ Manage your profile and preferences
 </p>
 </div>
 {activeTab !== "notifications" && activeTab !== "tax" && activeTab !== "security" && activeTab !== "verification" && (
-<Button
-variant="primary"
-aria-label={isSaving ? "Saving changes" : "Save Changes"}
-aria-busy={isSaving}
-onClick={handleSave}
-disabled={isSaving}
->
-{isSaving ? (
-<span className="loading" />
-) : (
-<>
-<span aria-hidden="true"></span> Save Changes
-</>
-)}
-</Button>
+  <div className="flex items-center gap-3">
+    <ConfirmationBadge show={showSavedBadge} message="Saved" />
+    <Button
+      variant="primary"
+      aria-label={isSaving ? "Saving changes" : "Save Changes"}
+      aria-busy={isSaving}
+      onClick={handleSave}
+      disabled={isSaving}
+    >
+      {isSaving ? (
+        <span className="loading" />
+      ) : (
+        <>
+          <span aria-hidden="true"></span> Save Changes
+        </>
+      )}
+    </Button>
+  </div>
 )}
 </div>
 

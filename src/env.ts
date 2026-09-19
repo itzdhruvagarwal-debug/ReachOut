@@ -46,7 +46,21 @@ const envSchema = z.object({
   // Redis: required in production for rate limiting, idempotency, and queues.
   REDIS_URL: z.string().min(1).optional(),
 
-  // Third-party APIs
+  // Upstash QStash (Background & Cron Scheduler)
+  QSTASH_TOKEN: emptyAsUndefined(z.string().min(1).optional()),
+  QSTASH_CURRENT_SIGNING_KEY: emptyAsUndefined(z.string().min(1).optional()),
+  QSTASH_NEXT_SIGNING_KEY: emptyAsUndefined(z.string().min(1).optional()),
+
+  // Database Read Replica & Tuning
+  DATABASE_READ_REPLICA_URL: emptyAsUndefined(z.string().min(1).optional()),
+  ALLOW_INSECURE_DATABASE: z.enum(["true", "false"]).optional().default("false"),
+  DB_SLOW_QUERY_THRESHOLD_MS: z.coerce.number().optional().default(500),
+
+  // Third-party APIs & Realtime
+  NEXT_PUBLIC_RAZORPAY_KEY_ID: z
+    .string()
+    .optional()
+    .default("rzp_test_placeholder"),
   RAZORPAY_KEY_ID: z
     .string()
     .optional()
@@ -61,6 +75,16 @@ const envSchema = z.object({
   DIGILOCKER_CLIENT_SECRET: emptyAsUndefined(z.string().min(1).optional()),
   REPLY_TO_EMAIL: z.string().email().default("support@VyaparMedia.in"),
 
+  // Supabase Realtime (Websocket updates)
+  NEXT_PUBLIC_SUPABASE_URL: emptyAsUndefined(z.string().url().optional()),
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: emptyAsUndefined(z.string().min(1).optional()),
+
+  // Web Push Notifications
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY: emptyAsUndefined(z.string().min(1).optional()),
+
+  // Computer Vision OCR (Contact Leakage Detection)
+  VISION_API_KEY: emptyAsUndefined(z.string().min(1).optional()),
+
   // Logging and monitoring
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
   PROMETHEUS_AUTH_TOKEN: emptyAsUndefined(z.string().min(32).optional()),
@@ -74,61 +98,56 @@ const envSchema = z.object({
   SENTRY_AUTH_TOKEN: emptyAsUndefined(z.string().min(1).optional()),
   SENTRY_ORG: emptyAsUndefined(z.string().min(1).optional()),
   SENTRY_PROJECT: emptyAsUndefined(z.string().min(1).optional()),
-SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
-NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
-NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE: z.coerce
-.number()
-.min(0)
-.max(1)
-.default(0.1),
-NEXT_PUBLIC_SENTRY_REPLAYS_SESSION_SAMPLE_RATE: z.coerce
-.number()
-.min(0)
-.max(1)
-.default(0),
+  SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
+  NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE: z.coerce.number().min(0).max(1).optional(),
+  NEXT_PUBLIC_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE: z.coerce
+    .number()
+    .min(0)
+    .max(1)
+    .default(0.1),
+  NEXT_PUBLIC_SENTRY_REPLAYS_SESSION_SAMPLE_RATE: z.coerce
+    .number()
+    .min(0)
+    .max(1)
+    .default(0),
 
-// Security
-CRON_SECRET: z.string().min(32).optional(),
-CONTRACT_SIGNING_SECRET: z.string().min(32).optional(),
-HMAC_KEY: z.string().min(32),
-ENCRYPTION_KEYS: z.string().min(67), // Format: v1:<64hex> = minimum 67 chars
-ENCRYPTION_KEY: z.string().min(32).optional(),
-KYC_PROVIDER: z.enum(["manual", "surepass"]).default("manual"),
-KYC_API_KEY: z.string().min(1).optional(),
-MSG91_TEMPLATE_ID: z.string().min(1).optional(),
+  // Security
+  CRON_SECRET: z.string().min(32).optional(),
+  CONTRACT_SIGNING_SECRET: z.string().min(32).optional(),
+  HMAC_KEY: z.string().min(32),
+  ENCRYPTION_KEYS: z.string().min(67), // Format: v1:<64hex> = minimum 67 chars
+  ENCRYPTION_KEY: z.string().min(32).optional(),
+  KYC_PROVIDER: z.enum(["manual", "surepass"]).default("manual"),
+  KYC_API_KEY: z.string().min(1).optional(),
+  MSG91_TEMPLATE_ID: z.string().min(1).optional(),
+  OTP_HASH_SECRET: emptyAsUndefined(z.string().min(16).optional()),
 
-// Feature flags and limits
-PLATFORM_FEE_PERCENTAGE: z.coerce.number().default(10),
-GATEWAY_FEE_PERCENTAGE: z.coerce.number().default(2),
-MIN_WITHDRAWAL_AMOUNT: z.coerce.number().default(50000),
-MAX_WALLET_BALANCE: z.coerce.number().default(1000000000),
-ADMIN_EMAILS: z
-.string()
-.min(1)
-.optional()
-.refine(
-(val) => {
-if (!val) return true;
-const emails = val.split(",").map((email) => email.trim());
-return emails.every((email) => z.string().email().safeParse(email).success);
-},
-{
-message: "All values in ADMIN_EMAILS must be valid emails separated by commas.",
-}
-),
-E2E_MAGIC_OTP: z.string().optional(),
+  // Platform Corporate & Tax Compliance Details (Used in CSV/PDF statement exports)
+  PLATFORM_GSTIN: emptyAsUndefined(z.string().optional()),
+  PLATFORM_CIN: emptyAsUndefined(z.string().optional()),
+  PLATFORM_PAN: emptyAsUndefined(z.string().optional()),
+  PLATFORM_ADDRESS: emptyAsUndefined(z.string().optional()),
+  PLATFORM_EMAIL: z.string().email().default("support@VyaparMedia.in"),
+  PLATFORM_PHONE: z.string().default("+91-XXXXXXXXXX"),
+  PLATFORM_WEBSITE: z.string().default("https://VyaparMedia.in"),
 
-// Storage
-STORAGE_PROVIDER: z
-.enum(["local", "s3", "r2"])
-.default("local"),
-S3_BUCKET: z.string().optional(),
-S3_REGION: z.string().optional(),
-S3_ACCESS_KEY: z.string().optional(),
-S3_SECRET_KEY: z.string().optional(),
-S3_ENDPOINT: z.string().optional(),
-STORAGE_PUBLIC_URL: z.string().optional(),
-R2_PUBLIC_URL: z.string().optional(),
+  // Feature flags and limits
+  PLATFORM_FEE_PERCENTAGE: z.coerce.number().default(10),
+  GATEWAY_FEE_PERCENTAGE: z.coerce.number().default(2),
+  MIN_WITHDRAWAL_AMOUNT: z.coerce.number().default(50000),
+  E2E_MAGIC_OTP: z.string().optional(),
+
+  // Storage
+  STORAGE_PROVIDER: z
+    .enum(["local", "s3", "r2"])
+    .default("local"),
+  S3_BUCKET: z.string().optional(),
+  S3_REGION: z.string().optional(),
+  S3_ACCESS_KEY: z.string().optional(),
+  S3_SECRET_KEY: z.string().optional(),
+  S3_ENDPOINT: z.string().optional(),
+  STORAGE_PUBLIC_URL: z.string().optional(),
+  R2_PUBLIC_URL: z.string().optional(),
 }).superRefine((env, ctx) => {
 if (env.NODE_ENV !== "production") return;
 
@@ -312,7 +331,6 @@ if (isServer) {
   const CRITICAL_SECRETS = [
     "CRON_SECRET",
     "CONTRACT_SIGNING_SECRET",
-    "SIGNING_SECRET",
     "HMAC_KEY",
     "NEXTAUTH_SECRET",
   ] as const;

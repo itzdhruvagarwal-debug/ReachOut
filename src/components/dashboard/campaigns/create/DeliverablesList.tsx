@@ -1,6 +1,7 @@
 "use client";
 
 import { Button, Input, Select } from "@/components/ui";
+import { formatCurrency } from "@/lib/utils-client";
 import {
 CampaignFormData,
 deliverableTypes,
@@ -131,7 +132,7 @@ className="w-110"
 aria-label="Rate in Rupees"
 />
 <span className="text-muted whitespace-nowrap text-2xs">
-Rec: ₹{getRecommendedRate(item.type, formData.minFollowers).toLocaleString("en-IN")}
+Rec: {formatCurrency(getRecommendedRate(item.type, formData.minFollowers) * 100)}
 </span>
 </div>
 

@@ -23,14 +23,7 @@ export interface EscrowTrustCardProps {
  * Formats currency strictly to the Indian numbering system:
  * e.g. 100000 rupees -> ₹1,00,000
  */
-export function formatIndianRupees(amountInPaise: number): string {
-  const rupees = Math.round(amountInPaise / 100);
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(rupees);
-}
+export const formatIndianRupees = formatCurrency;
 
 export function EscrowTrustCard({
   amountInPaise,

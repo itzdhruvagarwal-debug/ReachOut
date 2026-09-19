@@ -3,9 +3,10 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
 import { logger } from "@/lib/logger-client";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Skeleton } from "@/components/ui";
 import { z } from "zod";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
 
 import {
   bankAccountInputSchema as bankAccountSchema,
@@ -109,13 +110,13 @@ bankName: "",
 upiId: "",
 isDefault: false,
 });
-showNotice("Bank account added successfully!");
+        showNotice(USER_SUCCESS_MESSAGES.BANK_ACCOUNT_SAVED);
       } else {
         showNotice((data as { error?: string }).error || "Failed to add account", "error");
       }
     } catch (error) {
       logger.error("[bank-account] Failed to add account:", error);
-      showNotice(error instanceof ApiClientError ? error.message : "An error occurred", "error");
+      showNotice(formatUserError(error, "Failed to add bank account. Please verify details and try again."), "error");
     } finally {
 setIsSaving(false);
 }
@@ -127,7 +128,7 @@ setIsSaving(false);
       fetchAccounts();
       showNotice("Default bank account updated.");
     } catch (err) {
-      showNotice(err instanceof ApiClientError ? err.message : "An error occurred", "error");
+      showNotice(formatUserError(err, "Failed to set default bank account. Please try again."), "error");
     }
   };
 
@@ -142,14 +143,27 @@ setDeleteConfirmId(id);
     try {
       await apiClient.wallet.deleteBankAccount(id);
       fetchAccounts();
-      showNotice("Account removed.");
+      showNotice(USER_SUCCESS_MESSAGES.BANK_ACCOUNT_DELETED);
     } catch (error) {
       logger.error("[bank-account] Failed to delete account:", error);
-      showNotice(error instanceof ApiClientError ? error.message : "Failed to delete account", "error");
+      showNotice(formatUserError(error, "Failed to delete bank account. Please try again."), "error");
     }
   };
 
-if (loading) return <div className="loading"></div>;
+if (loading) {
+  return (
+    <div className="card space-y-4">
+      <div className="flex justify-between items-center">
+        <Skeleton className="h-6 w-44 rounded-md" />
+        <Skeleton className="h-9 w-32 rounded-md" />
+      </div>
+      <div className="space-y-3">
+        <Skeleton className="h-20 w-full rounded-lg" />
+        <Skeleton className="h-20 w-full rounded-lg" />
+      </div>
+    </div>
+  );
+}
 
 return (
 <div className="card">

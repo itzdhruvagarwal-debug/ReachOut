@@ -12,6 +12,7 @@ import {
 } from "@/lib/schemas";
 import { calculateDealProgress, getCreateActionConfig } from "@/config/navigation";
 import { Plus, ChevronLeft, ChevronRight, ShieldCheck, Lock, AlertTriangle, AlertCircle } from "lucide-react";
+import { Avatar } from "@/components/ui";
 
 export type { StoryDeal };
 
@@ -169,21 +170,12 @@ export default function EscrowStoriesBar({
 
                   {/* Inner Circular Avatar */}
                   <div className="w-13 h-13 rounded-full overflow-hidden p-0.5 bg-card relative z-1 group-hover/deal:scale-95 transition-transform flex items-center justify-center">
-                    {deal.counterpartyAvatar ? (
-                      <Image
-                        src={deal.counterpartyAvatar}
-                        alt={deal.counterpartyName || "Counterparty"}
-                        width={50}
-                        height={50}
-                        className="w-full h-full object-cover rounded-full"
-                      />
-                    ) : (
-                      <div className="w-full h-full rounded-full bg-muted flex items-center justify-center text-xs font-bold text-foreground">
-                        {(deal.counterpartyName || deal.title || "VM")
-                          .substring(0, 2)
-                          .toUpperCase()}
-                      </div>
-                    )}
+                    <Avatar
+                      src={deal.counterpartyAvatar}
+                      name={deal.counterpartyName || deal.title || "VM"}
+                      size="md"
+                      className="w-full h-full rounded-full"
+                    />
                   </div>
 
                   {/* Tiny Status Icon Indicator badge */}

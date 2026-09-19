@@ -9,19 +9,6 @@ export function getInfluencer(id: string, options?: HttpOptions) {
   return get(`/api/influencers/${encodeURIComponent(id)}`, options);
 }
 
-/** GET /api/settings — fetch current user's settings */
-export function getSettings(options?: HttpOptions) {
-  return get("/api/settings", options);
-}
-
-/** PATCH /api/settings */
-export function saveSettings(
-  data: Record<string, unknown>,
-  options?: HttpOptions,
-) {
-  return post("/api/settings", data, { method: "PATCH", ...options });
-}
-
 /** POST /api/user/send-otp */
 export function sendOtp(
   data: { type: string; value?: string; contact?: string },

@@ -94,6 +94,44 @@ export const DEAL_TRANSITION_MATRIX: Record<DealStatus, StateTransitionRule[]> =
   CANCELLED: [],
 };
 
+/**
+ * Returns true if the deal status has locked/held escrow active.
+ */
+export function isEscrowLockedStatus(status: DealStatus): boolean {
+  return [
+    "PAYMENT_HELD",
+    "ACTIVE",
+    "CONTENT_SUBMITTED",
+    "REVISION_REQUESTED",
+    "CONTENT_APPROVED",
+    "POSTED",
+    "VERIFICATION_PENDING",
+    "VERIFIED",
+  ].includes(status);
+}
+
+/**
+ * Returns true if the deal status allows filing a dispute according to DEAL_TRANSITION_MATRIX.
+ */
+export function isDisputeAllowedStatus(status: DealStatus): boolean {
+  const transitions = DEAL_TRANSITION_MATRIX[status] || [];
+  return transitions.some((t) => t.to === "DISPUTED");
+}
+
+/**
+ * Checks whether an actor role is authorized to trigger a specific state transition.
+ */
+export function canRoleTransition(
+  fromState: DealStatus,
+  toState: DealStatus,
+  role: DealActorRole,
+): boolean {
+  const transitions = DEAL_TRANSITION_MATRIX[fromState] || [];
+  const rule = transitions.find((t) => t.to === toState);
+  return !!rule && rule.allowedRoles.includes(role);
+}
+
+
 export interface DealTransitionParams {
   dealId: string;
   fromState?: DealStatus | undefined;

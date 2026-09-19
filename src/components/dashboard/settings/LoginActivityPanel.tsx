@@ -4,6 +4,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui";
+import { formatDateTime } from "@/lib/utils-client";
 import { useState, useMemo } from "react";
 
 import {
@@ -87,7 +88,7 @@ className="font-normal text-muted"
 <div
 className={`text-xs ${login.success ? "text-secondary" : "text-rose"}`}
 >
-{new Date(login.time || login.lastActive || Date.now()).toLocaleString()}{" "}
+{formatDateTime(login.time || login.lastActive || Date.now())}{" "}
 {login.success ? "" : "(Failed Attempt)"}
 </div>
 </div>

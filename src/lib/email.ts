@@ -20,13 +20,11 @@
 */
 
 import { logger } from "./logger";
-import { escapeHtml, sleep } from "./utils";
+import { escapeHtml, sleep, formatCurrency } from "./utils";
 
 import { stripHtml, sanitizeHtml } from "./sanitize";
 import { randomUUID } from "node:crypto";
 import { env } from "@/env";
-
-// ==================== CONFIG ====================
 
 const APP_NAME = "VyaparMedia";
 const RESEND_API_URL = "https://api.resend.com/emails";
@@ -50,8 +48,6 @@ function getAppUrl(): string {
 return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 }
 
-// ==================== TYPES ====================
-
 interface EmailParams {
 to: string;
 subject: string;
@@ -67,8 +63,6 @@ messageId?: string;
 error?: string;
 correlationId: string;
 }
-
-// ==================== BRANDED HTML WRAPPER ====================
 
 /**
 * Wraps email body content in a consistent, branded HTML shell.
@@ -141,8 +135,6 @@ This is an automated message. Please do not reply directly.
 </body>
 </html>`.trim();
 }
-
-// ==================== CORE SEND (with retry + timeout) ====================
 
 /**
 * Core email sender with enterprise guarantees:
@@ -336,8 +328,6 @@ correlationId,
 };
 }
 
-// ==================== EMAIL TEMPLATES ====================
-
 /**
 * OTP Verification Email
 */
@@ -521,7 +511,7 @@ to: string,
 amount: number,
 status: "success" | "failed",
 ): Promise<boolean> {
-const amountStr = `${(amount / 100).toLocaleString("en-IN")}`;
+const amountStr = formatCurrency(amount);
 const isSuccess = status === "success";
 
 const result = await sendEmail({

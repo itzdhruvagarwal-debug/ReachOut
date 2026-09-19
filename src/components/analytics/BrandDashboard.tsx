@@ -10,11 +10,10 @@ CartesianGrid,
 Tooltip,
 } from "recharts";
 import Link from "next/link";
-import { ToastContainer, useToasts } from "@/components/ui/toast";
 import EmptyState from "@/components/ui/EmptyState";
-import { Badge, Button } from "@/components/ui";
+import { Badge, Button, ToastContainer, useToasts } from "@/components/ui";
 import { useChartWidth } from "@/hooks/useChartWidth";
-import { getTrustTierLabel } from "@/lib/utils-client";
+import { getTrustTierLabel, formatCurrency } from "@/lib/utils-client";
 import { copyToClipboard } from "@/lib/clipboard";
 
 export interface BrandAnalyticsData {
@@ -112,7 +111,7 @@ return (
 <StatCard
 icon="spend"
 label="Total Spent"
-value={`${(overview.totalSpent / 100).toLocaleString("en-IN")}`}
+value={formatCurrency(overview.totalSpent)}
 tone="primary"
 />
 <StatCard
@@ -169,7 +168,7 @@ tickFormatter={(val) => {
 <Tooltip
 cursor={{ fill: "rgba(37, 99, 235, 0.05)" }}
 formatter={(value: number | undefined) => [
-`${((value ?? 0) / 100).toLocaleString("en-IN")}`,
+formatCurrency(value ?? 0),
 "Spent",
 ]}
 />
@@ -202,7 +201,7 @@ Referral Program
 <div className="referral-stat">
 <span className="referral-stat-label">Total Earnings</span>
 <span className="referral-stat-value text-emerald">
-Rs {((data.referralStats?.earnings || 0) / 100).toLocaleString()}
+{formatCurrency(data.referralStats?.earnings || 0)}
 </span>
 </div>
 
@@ -310,7 +309,7 @@ View Details
                     {renderStatusBadge(c.status)}
                   </td>
                   <td className="text-sm text-secondary font-medium px-4 py-3.5 align-middle">
-                    Rs {(c.budget / 100).toLocaleString()}
+                    {formatCurrency(c.budget)}
                   </td>
                   <td className="text-sm text-secondary px-4 py-3.5 align-middle">
                     {c.dealsCount || 0} deals

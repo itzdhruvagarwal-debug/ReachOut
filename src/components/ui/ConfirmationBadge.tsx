@@ -16,7 +16,7 @@ interface ConfirmationBadgeProps {
  * Answers: "Did that work?" with an immediate, satisfying confirmation
  * pulse. Instantly displays without motion if user prefers reduced motion.
  */
-export default function ConfirmationBadge({
+export function ConfirmationBadge({
   show,
   message = "Saved",
   className = "",
@@ -63,3 +63,5 @@ export default function ConfirmationBadge({
     </AnimatePresence>
   );
 }
+
+export default ConfirmationBadge;

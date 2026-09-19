@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { formatIndianRupees } from "@/components/dashboard/deals/EscrowTrustCard";
 import { getStageIndex, DEAL_STAGES } from "@/components/dashboard/deals/DealProgressStepper";
+import {
+  isEscrowLockedStatus,
+  isDisputeAllowedStatus,
+  canRoleTransition,
+} from "@/lib/deal-state-machine";
 
 describe("Deal Detail Screen: Currency, Progress Stepper & Role-Based Actions", () => {
   describe("Requirement 2: Currency Display & Indian Numbering Format (en-IN)", () => {
@@ -78,142 +83,67 @@ describe("Deal Detail Screen: Currency, Progress Stepper & Role-Based Actions", 
   });
 
   describe("Requirement 3: Escrow Lock Status & Protection", () => {
-    const isEscrowLocked = (status: string) =>
-      [
-        "PAYMENT_HELD",
-        "ACTIVE",
-        "CONTENT_SUBMITTED",
-        "REVISION_REQUESTED",
-        "CONTENT_APPROVED",
-        "POSTED",
-        "VERIFICATION_PENDING",
-        "VERIFIED",
-      ].includes(status);
-
-    it("should correctly identify escrow locked statuses", () => {
-      expect(isEscrowLocked("ACTIVE")).toBe(true);
-      expect(isEscrowLocked("PAYMENT_HELD")).toBe(true);
-      expect(isEscrowLocked("CONTENT_SUBMITTED")).toBe(true);
-      expect(isEscrowLocked("REVISION_REQUESTED")).toBe(true);
-      expect(isEscrowLocked("POSTED")).toBe(true);
-      expect(isEscrowLocked("VERIFIED")).toBe(true);
+    it("should correctly identify escrow locked statuses using production deal state machine", () => {
+      expect(isEscrowLockedStatus("ACTIVE")).toBe(true);
+      expect(isEscrowLockedStatus("PAYMENT_HELD")).toBe(true);
+      expect(isEscrowLockedStatus("CONTENT_SUBMITTED")).toBe(true);
+      expect(isEscrowLockedStatus("REVISION_REQUESTED")).toBe(true);
+      expect(isEscrowLockedStatus("POSTED")).toBe(true);
+      expect(isEscrowLockedStatus("VERIFIED")).toBe(true);
     });
 
     it("should not consider unsigned, completed, or cancelled deals as active escrow locked", () => {
-      expect(isEscrowLocked("PENDING_SIGNATURE")).toBe(false);
-      expect(isEscrowLocked("PAYMENT_PENDING")).toBe(false);
-      expect(isEscrowLocked("COMPLETED")).toBe(false);
-      expect(isEscrowLocked("CANCELLED")).toBe(false);
+      expect(isEscrowLockedStatus("PENDING_SIGNATURE")).toBe(false);
+      expect(isEscrowLockedStatus("PAYMENT_PENDING")).toBe(false);
+      expect(isEscrowLockedStatus("COMPLETED")).toBe(false);
+      expect(isEscrowLockedStatus("CANCELLED")).toBe(false);
     });
   });
 
   describe("Requirement 4 & Definition of Done: Role-Isolated Action Matrix", () => {
-    // Model the frontend button visibility rules
-    interface ButtonVisibilityMatrix {
-      canSign: boolean;
-      canSubmitContent: boolean;
-      canSubmitPostUrl: boolean;
-      canReviewContent: boolean;
-      canReleasePayment: boolean;
-      canCancelDeal: boolean;
-    }
-
-    function computeAvailableActions(
-      status: string,
-      role: "BRAND" | "INFLUENCER",
-      hasSigned: boolean
-    ): ButtonVisibilityMatrix {
-      const isInfluencer = role === "INFLUENCER";
-      const isBrand = role === "BRAND";
-
-      return {
-        canSign: status === "PENDING_SIGNATURE" && !hasSigned,
-        canSubmitContent:
-          isInfluencer && ["ACTIVE", "PAYMENT_HELD", "REVISION_REQUESTED"].includes(status),
-        canSubmitPostUrl: isInfluencer && status === "CONTENT_APPROVED",
-        canReviewContent: isBrand && status === "CONTENT_SUBMITTED",
-        canReleasePayment:
-          isBrand && ["POSTED", "VERIFICATION_PENDING", "VERIFIED"].includes(status),
-        canCancelDeal: isBrand && !["COMPLETED", "CANCELLED", "DISPUTED"].includes(status),
-      };
-    }
-
-    it("should NEVER show Brand action buttons to an Influencer", () => {
-      const statuses = [
-        "PENDING_SIGNATURE",
-        "ACTIVE",
-        "CONTENT_SUBMITTED",
-        "CONTENT_APPROVED",
-        "POSTED",
-        "VERIFIED",
-        "COMPLETED",
-      ];
-
-      for (const status of statuses) {
-        const influencerActions = computeAvailableActions(status, "INFLUENCER", false);
-        // Influencer must never be able to review content, release payment, or cancel deal
-        expect(influencerActions.canReviewContent).toBe(false);
-        expect(influencerActions.canReleasePayment).toBe(false);
-        expect(influencerActions.canCancelDeal).toBe(false);
-      }
+    it("should NEVER allow an Influencer to perform Brand-only state transitions", () => {
+      // Content approval, payment release, and cancellation of held escrow are Brand/Admin actions
+      expect(canRoleTransition("CONTENT_SUBMITTED", "CONTENT_APPROVED", "INFLUENCER")).toBe(false);
+      expect(canRoleTransition("POSTED", "COMPLETED", "INFLUENCER")).toBe(false);
+      expect(canRoleTransition("VERIFIED", "COMPLETED", "INFLUENCER")).toBe(false);
+      expect(canRoleTransition("PAYMENT_HELD", "CANCELLED", "INFLUENCER")).toBe(false);
     });
 
-    it("should NEVER show Influencer action buttons to a Brand", () => {
-      const statuses = [
-        "PENDING_SIGNATURE",
-        "ACTIVE",
-        "CONTENT_SUBMITTED",
-        "CONTENT_APPROVED",
-        "POSTED",
-        "VERIFIED",
-        "COMPLETED",
-      ];
-
-      for (const status of statuses) {
-        const brandActions = computeAvailableActions(status, "BRAND", false);
-        // Brand must never be able to submit content or submit post URLs
-        expect(brandActions.canSubmitContent).toBe(false);
-        expect(brandActions.canSubmitPostUrl).toBe(false);
-      }
+    it("should NEVER allow a Brand to perform Influencer-only state transitions", () => {
+      // Submitting content and posting deliverable URLs are Influencer actions
+      expect(canRoleTransition("ACTIVE", "CONTENT_SUBMITTED", "BRAND")).toBe(false);
+      expect(canRoleTransition("REVISION_REQUESTED", "CONTENT_SUBMITTED", "BRAND")).toBe(false);
+      expect(canRoleTransition("CONTENT_APPROVED", "POSTED", "BRAND")).toBe(false);
     });
 
     it("should allow Influencer to submit content when ACTIVE and post URL when CONTENT_APPROVED", () => {
-      const activeActions = computeAvailableActions("ACTIVE", "INFLUENCER", true);
-      expect(activeActions.canSubmitContent).toBe(true);
-      expect(activeActions.canSubmitPostUrl).toBe(false);
-
-      const approvedActions = computeAvailableActions("CONTENT_APPROVED", "INFLUENCER", true);
-      expect(approvedActions.canSubmitContent).toBe(false);
-      expect(approvedActions.canSubmitPostUrl).toBe(true);
+      expect(canRoleTransition("ACTIVE", "CONTENT_SUBMITTED", "INFLUENCER")).toBe(true);
+      expect(canRoleTransition("CONTENT_APPROVED", "POSTED", "INFLUENCER")).toBe(true);
+      expect(canRoleTransition("CONTENT_APPROVED", "VERIFICATION_PENDING", "INFLUENCER")).toBe(true);
     });
 
     it("should allow Brand to review content when SUBMITTED and release payment when POSTED/VERIFIED", () => {
-      const submittedActions = computeAvailableActions("CONTENT_SUBMITTED", "BRAND", true);
-      expect(submittedActions.canReviewContent).toBe(true);
-      expect(submittedActions.canReleasePayment).toBe(false);
-
-      const postedActions = computeAvailableActions("POSTED", "BRAND", true);
-      expect(postedActions.canReviewContent).toBe(false);
-      expect(postedActions.canReleasePayment).toBe(true);
-
-      const verifiedActions = computeAvailableActions("VERIFIED", "BRAND", true);
-      expect(verifiedActions.canReleasePayment).toBe(true);
+      expect(canRoleTransition("CONTENT_SUBMITTED", "CONTENT_APPROVED", "BRAND")).toBe(true);
+      expect(canRoleTransition("CONTENT_SUBMITTED", "REVISION_REQUESTED", "BRAND")).toBe(true);
+      expect(canRoleTransition("POSTED", "COMPLETED", "BRAND")).toBe(true);
+      expect(canRoleTransition("VERIFIED", "COMPLETED", "BRAND")).toBe(true);
     });
   });
 
   describe("Requirement 5: Dispute Entry Point Logic", () => {
-    it("should keep dispute entry point non-alarmist during active deal stages", () => {
-      const isDisputed = (status: string) => status === "DISPUTED";
-      const isEligibleForDispute = (status: string) =>
-        !["COMPLETED", "CANCELLED"].includes(status);
+    it("should keep dispute entry point non-alarmist during active deal stages and allow dispute only on valid states", () => {
+      expect(isDisputeAllowedStatus("ACTIVE")).toBe(true);
+      expect(isDisputeAllowedStatus("PAYMENT_HELD")).toBe(true);
+      expect(isDisputeAllowedStatus("CONTENT_SUBMITTED")).toBe(true);
+      expect(isDisputeAllowedStatus("REVISION_REQUESTED")).toBe(true);
+      expect(isDisputeAllowedStatus("CONTENT_APPROVED")).toBe(true);
+      expect(isDisputeAllowedStatus("POSTED")).toBe(true);
+      expect(isDisputeAllowedStatus("VERIFIED")).toBe(true);
 
-      expect(isEligibleForDispute("ACTIVE")).toBe(true);
-      expect(isDisputed("ACTIVE")).toBe(false); // Calm secondary entry
-
-      expect(isEligibleForDispute("DISPUTED")).toBe(true);
-      expect(isDisputed("DISPUTED")).toBe(true); // Prominent amber/red banner
-
-      expect(isEligibleForDispute("CANCELLED")).toBe(false); // No dispute trigger
+      // Terminal or non-escrow states cannot be disputed
+      expect(isDisputeAllowedStatus("PENDING_SIGNATURE")).toBe(false);
+      expect(isDisputeAllowedStatus("COMPLETED")).toBe(false);
+      expect(isDisputeAllowedStatus("CANCELLED")).toBe(false);
     });
   });
 });

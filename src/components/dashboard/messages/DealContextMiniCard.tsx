@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Shield, ChevronDown, ChevronUp, ExternalLink, IndianRupee } from "lucide-react";
-import { formatIndianRupees } from "@/components/dashboard/deals/EscrowTrustCard";
+import { formatCurrency, formatDate } from "@/lib/utils-client";
 
 export interface DealContextData {
   id: string;
@@ -49,7 +49,7 @@ export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
             {deal.title}
           </span>
           <span className="font-extrabold text-foreground tabular-nums font-mono shrink-0">
-            {formatIndianRupees(deal.amountInPaise)}
+            {formatCurrency(deal.amountInPaise)}
           </span>
         </div>
 
@@ -78,15 +78,13 @@ export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
           <div>
             <span className="text-secondary block text-[11px]">Deal Status</span>
             <span className="font-bold text-foreground capitalize">
-              {deal.status.replaceAll("_", " ").toLowerCase()}
+              {deal.status.toLowerCase().replace(/_/g, " ")}
             </span>
           </div>
           <div>
             <span className="text-secondary block text-[11px]">Escrow State</span>
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">
-              {isCompleted
-                ? "Payout Released"
-                : isDisputed
+            <span className="font-bold text-foreground">
+              {isDisputed
                 ? "Frozen in Dispute"
                 : isEscrowLocked
                 ? "Locked in Escrow"
@@ -97,7 +95,7 @@ export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
             <div>
               <span className="text-secondary block text-[11px]">Deadline</span>
               <span className="font-bold text-foreground">
-                {new Date(deal.submissionDeadline).toLocaleDateString("en-IN", {
+                {formatDate(deal.submissionDeadline, "-", {
                   day: "numeric",
                   month: "short",
                 })}

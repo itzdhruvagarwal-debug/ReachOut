@@ -130,13 +130,11 @@ export class PaymentService {
     }
   }
 
-// ==================== DEAL COMPLETION (Wallet Settlement) ====================
-
-/**
-* TWO-PHASE COMPLETION PATTERN
-* Phase 1: DB Lock & Validate (Atomic)
-* Phase 2: DB Transaction for state updates
-*/
+  /**
+   * TWO-PHASE COMPLETION PATTERN
+   * Phase 1: DB Lock & Validate (Atomic)
+   * Phase 2: DB Transaction for state updates
+   */
   static async processDealCompletion(dealId: string) {
     const lockToken = randomUUID();
     const lockKey = `lock:deal_completion:${dealId}`;

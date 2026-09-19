@@ -87,8 +87,6 @@ detail: passed
 };
 }
 
-// ==================== TIMELINE DISPUTE ====================
-
 export function checkSubmissionDeadline(deal: FullDeal, findings: Finding[]): { submissionDeadline: Date | null; submittedAt: Date | null } {
 const submissionDeadline = deal.submissionDeadline ? new Date(deal.submissionDeadline) : null;
 const latestSubmission = deal.contentSubmissions?.[0];

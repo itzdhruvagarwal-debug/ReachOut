@@ -221,27 +221,10 @@ async function handleLedgerDriftAnomaly(
       drift,
     });
   }
-
-  if (process.env.AUTO_CORRECT_LEDGER_DRIFT === "true") {
-    await tx.wallet.update({
-      where: { id: wallet.id },
-      data: { balance: calculatedBalance },
-    });
-
-    await createActivityLog({
-      userId: wallet.userId,
-      action: "SECURITY_LEDGER_AUTO_CORRECTED",
-      entityType: "Wallet",
-      entityId: wallet.id,
-      metadata: {
-        ...anomaly,
-        correctedBalance: calculatedBalance,
-      },
-    }, tx);
-  }
 }
 
 /**
+
 * Scan all wallets for financial drift.
 * Runs periodically to guard system integrity.
 */

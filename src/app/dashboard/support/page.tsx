@@ -8,6 +8,7 @@ import { Button, Input, Select, Textarea } from "@/components/ui";
 import { createSupportSchema } from "@/lib/validations/campaign";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError } from "@/lib/user-messages";
 
 export default function SupportPage() {
 const { data: session } = useSession();
@@ -34,7 +35,7 @@ try {
   const data = await apiClient.upload.file(file, "feedback");
   setScreenshotUrl(data.data?.url || data.url || "");
 } catch (err: unknown) {
-  setErrorMsg(err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : "Screenshot upload failed."));
+  setErrorMsg(formatUserError(err, "Screenshot upload failed. Please try again."));
 } finally {
   setUploadingScreenshot(false);
 }
@@ -68,7 +69,7 @@ try {
     screenshotUrl: screenshotUrl || undefined,
   })) as { message?: string; data?: { badgeAwarded?: string } };
 
-  setStatusMsg(data?.message || "Submitted successfully.");
+  setStatusMsg(data?.message || "Submitted successfully. Thank you for your feedback!");
   setTitle("");
   setDescription("");
   setScreenshotUrl("");
@@ -76,11 +77,7 @@ try {
     setBadgeAwarded(data.data.badgeAwarded);
   }
 } catch (err: unknown) {
-  setErrorMsg(
-    err instanceof ApiClientError
-      ? err.message
-      : (err instanceof Error ? err.message : "An error occurred.")
-  );
+  setErrorMsg(formatUserError(err, "Failed to submit feedback. Please try again."));
 } finally {
   setLoading(false);
 }

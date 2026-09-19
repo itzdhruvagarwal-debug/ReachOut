@@ -43,9 +43,6 @@ return url;
 })();
 let s3Client: S3Client | null = null;
 
-
-// ==================== TYPES ====================
-
 interface UploadResult {
 success: boolean;
 url?: string;
@@ -99,8 +96,6 @@ return `${endpoint}/${S3_BUCKET}/${key}`;
 
 return `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${key}`;
 }
-
-// ==================== UPLOAD ====================
 
 /**
 * Upload a file to cloud storage.
@@ -157,8 +152,6 @@ const buffer = Buffer.from(data, "base64");
 return uploadFile(buffer, fileName, folder, contentType);
 }
 
-// ==================== DELETE ====================
-
 /**
 * Delete a file from cloud storage by key.
 */
@@ -178,8 +171,6 @@ logger.error("Storage delete failed", error, { key });
 return { success: false, error: "File deletion failed" };
 }
 }
-
-// ==================== GET SIGNED URL (for private files) ====================
 
 /**
 * Generate a signed/presigned URL for temporary access to a private file.
@@ -280,8 +271,6 @@ export async function createUploadPresignedUrl(
     isDirect: true,
   };
 }
-
-// ==================== PROVIDER IMPLEMENTATIONS ====================
 
 async function uploadToS3(
 file: Buffer | Uint8Array,
@@ -389,9 +378,6 @@ return { success: false, error: "S3 not configured" };
 await client.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: key }));
 return { success: true };
 }
-
-
-// ==================== HELPERS ====================
 
 function sanitizeFileName(name: string): string {
   const sanitized = String(name ?? "")

@@ -16,7 +16,7 @@ import {
   FileText,
 } from "lucide-react";
 import { Input, Card } from "@/components/ui";
-import { formatDateTime } from "@/lib/utils-client";
+import { formatCurrency, formatDateTime } from "@/lib/utils-client";
 
 import type { WalletTransactionItem } from "@/lib/schemas";
 
@@ -213,10 +213,7 @@ export function VirtualizedTransactionList({
               const tx = filteredTransactions[virtualRow.index];
               if (!tx) return null;
               const isCredit = CREDIT_TYPES.has(tx.type);
-              const amountInRupees = (tx.amount / 100).toLocaleString("en-IN", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              });
+              const formattedAmount = formatCurrency(tx.amount);
 
               // Status badge config
               let statusBadge = (
@@ -302,7 +299,7 @@ export function VirtualizedTransactionList({
                           : "text-foreground"
                       }`}
                     >
-                      {isCredit ? `+ ₹${amountInRupees}` : `- ₹${amountInRupees}`}
+                      {isCredit ? `+ ${formattedAmount}` : `- ${formattedAmount}`}
                     </div>
                     <div className="mt-0.5">{statusBadge}</div>
                   </div>

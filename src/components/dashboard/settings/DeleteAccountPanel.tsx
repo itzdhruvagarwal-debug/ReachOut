@@ -2,6 +2,7 @@
 
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError } from "@/lib/user-messages";
 
 import { logger } from "@/lib/logger-client";
 import { useState } from "react";
@@ -59,7 +60,7 @@ signOut({ callbackUrl: "/" });
 }, 1500);
 } catch (err: unknown) {
 logger.error("[delete-account] error:", err);
-setError(err instanceof ApiClientError ? err.message : "An error occurred during account deletion");
+setError(formatUserError(err, "Unable to delete account. Please verify your password and active deals before retrying."));
 setIsSaving(false);
 }
 };

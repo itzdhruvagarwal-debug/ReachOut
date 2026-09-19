@@ -498,7 +498,7 @@ return { success: false, message: "Failed to apply resolution" };
 }
 }
 
-// ==================== ESCALATION ====================
+
 
 /**
 * Escalate a dispute to the next tier.
@@ -530,6 +530,3 @@ logger.info("Dispute escalated", { disputeId, newTier, reason });
 
 return { success: true, newTier };
 }
-
-// ==================== HELPERS ====================
-

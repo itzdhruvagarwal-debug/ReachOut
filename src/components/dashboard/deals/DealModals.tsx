@@ -1,9 +1,8 @@
 "use client";
 
 import React from "react";
-import { Modal, Button, Input, Textarea } from "@/components/ui";
+import { Modal, Button, Input, Textarea, type ToastType } from "@/components/ui";
 import { DealDetail, getFlatDeliverablesList, ContentUrlEntry } from "./DealDetailHelpers";
-import { ToastType } from "@/components/ui/toast";
 
 interface DealModalsProps {
   readonly showAddressModal: boolean;
@@ -12,13 +11,18 @@ interface DealModalsProps {
   readonly setShowReviewModal: (open: boolean) => void;
   readonly showVerifyModal: boolean;
   readonly setShowVerifyModal: (open: boolean) => void;
+  readonly showDispatchModal?: boolean;
+  readonly setShowDispatchModal?: (open: boolean) => void;
   readonly deal: DealDetail | null;
   readonly shippingForm: { fullName: string; phone: string; line1: string; line2: string; city: string; state: string; pinCode: string; country: string };
   readonly setShippingForm: React.Dispatch<React.SetStateAction<{ fullName: string; phone: string; line1: string; line2: string; city: string; state: string; pinCode: string; country: string }>>;
+  readonly dispatchForm?: { trackingNumber: string; carrier: string };
+  readonly setDispatchForm?: React.Dispatch<React.SetStateAction<{ trackingNumber: string; carrier: string }>>;
   readonly postUrl: string;
   readonly setPostUrl: (val: string) => void;
   readonly isSubmitting: boolean;
   readonly handleAction: (action: string, payload?: Record<string, unknown>) => Promise<boolean>;
+  readonly handleProductAction?: (payload: Record<string, unknown>) => Promise<boolean>;
   readonly showToast: (type: ToastType, message: string) => void;
   readonly handleReviewContent: () => Promise<void>;
   readonly itemizedReviews: Record<string, { status: "APPROVED" | "REVISION_REQUESTED"; feedback: string }>;
@@ -32,13 +36,18 @@ export function DealModals({
   setShowReviewModal,
   showVerifyModal,
   setShowVerifyModal,
+  showDispatchModal = false,
+  setShowDispatchModal,
   deal,
   shippingForm,
   setShippingForm,
+  dispatchForm,
+  setDispatchForm,
   postUrl,
   setPostUrl,
   isSubmitting,
   handleAction,
+  handleProductAction,
   showToast,
   handleReviewContent,
   itemizedReviews,
@@ -294,6 +303,66 @@ className="flex-1"
 </Button>
 </div>
 </Modal>
+
+{setShowDispatchModal && dispatchForm && setDispatchForm && handleProductAction && (
+  <Modal
+    open={showDispatchModal}
+    onClose={() => setShowDispatchModal(false)}
+    title="Confirm Product Dispatch"
+    maxWidth="500px"
+  >
+    <div className="mb-4 space-y-3">
+      <p className="text-xs text-secondary">
+        Enter the courier tracking details after shipping the required product to the creator.
+      </p>
+      <Input
+        label="Tracking / AWB Number *"
+        id="dispatch-tracking-input"
+        type="text"
+        placeholder="e.g. 1234567890"
+        value={dispatchForm.trackingNumber}
+        onChange={(e) => setDispatchForm({ ...dispatchForm, trackingNumber: e.target.value })}
+        fullWidth
+      />
+      <Input
+        label="Courier / Carrier Partner"
+        id="dispatch-carrier-input"
+        type="text"
+        placeholder="e.g. BlueDart, Delhivery, DTDC, India Post"
+        value={dispatchForm.carrier}
+        onChange={(e) => setDispatchForm({ ...dispatchForm, carrier: e.target.value })}
+        fullWidth
+      />
+    </div>
+    <div className="flex gap-3">
+      <Button
+        variant="secondary"
+        onClick={() => setShowDispatchModal(false)}
+        className="flex-1"
+      >
+        Cancel
+      </Button>
+      <Button
+        variant="primary"
+        onClick={() => {
+          if (!dispatchForm.trackingNumber.trim()) {
+            showToast("error", "Please enter a valid tracking number");
+            return;
+          }
+          handleProductAction({
+            action: "confirm_dispatch",
+            trackingNumber: dispatchForm.trackingNumber.trim(),
+            carrier: dispatchForm.carrier.trim() || undefined,
+          });
+        }}
+        disabled={isSubmitting || !dispatchForm.trackingNumber.trim()}
+        className="flex-1"
+      >
+        {isSubmitting ? <span className="loading" /> : "Confirm Dispatch"}
+      </Button>
+    </div>
+  </Modal>
+)}
 </>
 );
 }

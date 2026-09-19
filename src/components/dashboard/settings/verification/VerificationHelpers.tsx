@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui";
+import { formatCurrency } from "@/lib/utils-client";
 
 interface StatusBadgeProps {
 doc?: { status: string; rejectionReason?: string | null } | null | undefined;
@@ -189,7 +190,7 @@ onUpload={onUpload}
 export function getMonthlyLimitText(isUnlimited: boolean, tier: number, tierLimit: number | null) {
 if (isUnlimited) return "∞ Unlimited";
 if (tier === 0) return "Locked";
-if (tierLimit) return `₹${(tierLimit / 100).toLocaleString("en-IN")}`;
+if (tierLimit) return formatCurrency(tierLimit);
 return "—";
 }
 

@@ -10,6 +10,7 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import { BadgeDefinition } from "@/lib/badges";
 import EmptyState from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui";
+import { formatNumber } from "@/lib/utils-client";
 
 interface BadgeWithStatus extends BadgeDefinition {
 earned: boolean;
@@ -93,7 +94,7 @@ export default function BadgesPage() {
             <StatCard
               icon="⚡"
               label="Total XP"
-              value={stats.xp.toLocaleString()}
+              value={formatNumber(stats.xp)}
               tone="amber"
               delay={0.1}
             />
@@ -232,7 +233,7 @@ export default function BadgesPage() {
                     <div className="flex justify-between font-bold text-secondary text-xs mb-1">
                       <span>Progress</span>
                       <span className="font-mono">
-                        {badge.id.startsWith("earn_") ? `${(badge.currentProgress || 0).toLocaleString()}` : (badge.currentProgress || 0)} / {badge.id.startsWith("earn_") ? `${(badge.targetProgress || 1).toLocaleString()}` : (badge.targetProgress || 1)}
+                        {badge.id.startsWith("earn_") ? `${formatNumber(badge.currentProgress || 0)}` : (badge.currentProgress || 0)} / {badge.id.startsWith("earn_") ? `${formatNumber(badge.targetProgress || 1)}` : (badge.targetProgress || 1)}
                       </span>
                     </div>
                     <progress

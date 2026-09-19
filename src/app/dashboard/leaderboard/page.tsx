@@ -10,6 +10,7 @@ import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import EmptyState from "@/components/ui/EmptyState";
 import { Button, Select } from "@/components/ui";
+import { formatNumber } from "@/lib/utils-client";
 import { ALL_CATEGORIES } from "@/lib/categories";
 
 interface LeaderboardUser {
@@ -174,7 +175,7 @@ className="text-xs text-secondary"
 className="text-right font-bold text-sm text-primary"
 >
 {typeof user.score === "number"
-? user.score.toLocaleString()
+? formatNumber(user.score)
 : user.score}
 </div>
 
@@ -460,7 +461,7 @@ data-first={Boolean(isFirst)}
 {rank}
 </div>
 <div className="text-secondary text-xs">
-{user.xp.toLocaleString()} {unit}
+{formatNumber(user.xp)} {unit}
 </div>
 </div>
 </motion.div>

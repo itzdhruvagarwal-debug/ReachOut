@@ -5,6 +5,7 @@ import Image from "next/image";
 import EmptyState from "@/components/ui/EmptyState";
 import { useMessages } from "./useMessages";
 import { Conversation } from "./MessagesHelpers";
+import { formatDate, formatTime } from "@/lib/utils-client";
 
 interface ConversationsSidebarProps {
   readonly state: ReturnType<typeof useMessages>;
@@ -18,7 +19,7 @@ function formatConversationTime(timestamp?: string): string {
     const isToday = date.toDateString() === now.toDateString();
     
     if (isToday) {
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return formatTime(date);
     }
     
     const yesterday = new Date(now);
@@ -27,7 +28,7 @@ function formatConversationTime(timestamp?: string): string {
       return "Yesterday";
     }
     
-    return date.toLocaleDateString([], { month: "short", day: "numeric" });
+    return formatDate(date, "", { month: "short", day: "numeric" });
   } catch {
     return "";
   }

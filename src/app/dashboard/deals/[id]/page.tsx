@@ -6,7 +6,6 @@ import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { ArrowLeft, Radio, Building2, User } from "lucide-react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import { ToastContainer } from "@/components/ui/toast";
 import { useTokenRefreshGuard } from "@/hooks/useTokenRefreshGuard";
 import { useDealDetail, computeDealDisplay } from "@/components/dashboard/deals/useDealDetail";
 import { parseContractTerms } from "@/components/dashboard/deals/DealDetailHelpers";
@@ -20,9 +19,10 @@ import { EngagementCard } from "@/components/dashboard/deals/EngagementCard";
 import { ContentSubmissionsCard } from "@/components/dashboard/deals/ContentSubmissionsCard";
 import { ContentSubmissionModal } from "@/components/dashboard/deals/ContentSubmissionModal";
 import { DealModals } from "@/components/dashboard/deals/DealModals";
-import { Button, Textarea } from "@/components/ui";
+import { Button, Skeleton, Textarea, ToastContainer } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError } from "@/lib/user-messages";
 
 export default function DealDetailPage() {
   const { id } = useParams() as { id: string };
@@ -52,6 +52,11 @@ export default function DealDetailPage() {
     setShowSubmitModal,
     showVerifyModal,
     setShowVerifyModal,
+    showDispatchModal,
+    setShowDispatchModal,
+    dispatchForm,
+    setDispatchForm,
+    handleProductAction,
     shippingAddress: shippingForm,
     setShippingAddress: setShippingForm,
     itemizedUrls,
@@ -101,9 +106,21 @@ export default function DealDetailPage() {
   if (loading) {
     return (
       <DashboardShell user={session?.user || undefined}>
-        <div className="flex flex-col justify-center items-center h-80 gap-3">
-          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          <span className="text-sm text-secondary font-medium">Loading deal details...</span>
+        <div className="max-w-5xl mx-auto space-y-6 py-4">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-8 w-24 rounded-md" />
+            <Skeleton className="h-8 w-48 rounded-md" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2 space-y-6">
+              <Skeleton className="h-44 w-full rounded-xl" />
+              <Skeleton className="h-64 w-full rounded-xl" />
+            </div>
+            <div className="space-y-6">
+              <Skeleton className="h-56 w-full rounded-xl" />
+              <Skeleton className="h-40 w-full rounded-xl" />
+            </div>
+          </div>
         </div>
       </DashboardShell>
     );
@@ -249,7 +266,12 @@ export default function DealDetailPage() {
         <div className="lg:col-span-2 flex flex-col gap-6">
           <DealContractCard
             deal={deal}
+            isBrand={isClient}
+            isInfluencer={isInfluencer}
             onOpenAddressModal={() => setShowAddressModal(true)}
+            onOpenDispatchModal={() => setShowDispatchModal(true)}
+            onConfirmReceived={() => handleProductAction({ action: "confirm_received" })}
+            isSubmitting={isSubmitting}
           />
 
           <ContentSubmissionsCard submissions={deal.contentSubmissions} />
@@ -318,8 +340,7 @@ export default function DealDetailPage() {
                 showToast("success", "Review submitted! Thank you.");
                 setReviewSubmitted(true);
               } catch (err: unknown) {
-                const msg = err instanceof ApiClientError ? err.message : (err instanceof Error ? err.message : String(err));
-                showToast("error", msg);
+                showToast("error", formatUserError(err, "Failed to submit review. Please try again."));
               } finally {
                 setIsSubmitting(false);
               }
@@ -351,13 +372,18 @@ export default function DealDetailPage() {
         setShowReviewModal={setShowReviewModal}
         showVerifyModal={showVerifyModal}
         setShowVerifyModal={setShowVerifyModal}
+        showDispatchModal={showDispatchModal}
+        setShowDispatchModal={setShowDispatchModal}
         deal={deal}
         shippingForm={shippingForm}
         setShippingForm={setShippingForm}
+        dispatchForm={dispatchForm}
+        setDispatchForm={setDispatchForm}
         postUrl={postUrl}
         setPostUrl={setPostUrl}
         isSubmitting={isSubmitting}
         handleAction={handleAction}
+        handleProductAction={handleProductAction}
         showToast={showToast}
         handleReviewContent={handleReviewContent}
         itemizedReviews={itemizedReviews}

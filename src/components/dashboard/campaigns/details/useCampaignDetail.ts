@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 import {
   CampaignApplication,
   CampaignDetailResponse,
@@ -14,15 +15,9 @@ import {
   buildApplicationActionRequest,
 } from "./CampaignDetailHelpers";
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-
 function extractMessage(err: unknown): string {
-  if (err instanceof ApiClientError) return err.message;
-  if (err instanceof Error) return err.message;
-  return String(err);
+  return formatUserError(err, "Failed to process campaign request. Please try again.");
 }
-
-// ── types ─────────────────────────────────────────────────────────────────────
 
 interface UseCampaignDetailProps {
   readonly campaignId: string | null | undefined;
@@ -35,8 +30,6 @@ interface UseCampaignDetailProps {
   } | null;
   readonly router: ReturnType<typeof useRouter>;
 }
-
-// ── hook ─────────────────────────────────────────────────────────────────────
 
 export function useCampaignDetail({
   campaignId,
@@ -87,8 +80,6 @@ export function useCampaignDetail({
   const isOwner = Boolean(campaign?.brand?.userId && campaign?.brand?.userId === user?.id);
   const canApply = user?.userType === "INFLUENCER" && campaign?.status === "ACTIVE" && !hasApplied;
 
-  // ── Fetch applications (brand-only) ───────────────────────────────────────
-
   const fetchApplications = useCallback(async () => {
     if (!campaignId || !isOwner) return;
     setApplicationsLoading(true);
@@ -114,8 +105,6 @@ export function useCampaignDetail({
   useEffect(() => {
     fetchApplications();
   }, [fetchApplications]);
-
-  // ── Accept / Reject application ───────────────────────────────────────────
 
   const handleApplicationAction = async (
     applicationId: string,
@@ -159,8 +148,6 @@ export function useCampaignDetail({
     }
   };
 
-  // ── Apply to campaign ─────────────────────────────────────────────────────
-
   const handleApply = async () => {
     if (!campaign) return;
     if (proposal.trim().length < 50) {
@@ -190,8 +177,6 @@ export function useCampaignDetail({
       setIsSubmitting(false);
     }
   };
-
-  // ── Activate / Cancel campaign (brand) ───────────────────────────────────
 
   const handleCampaignAction = async (action: "ACTIVATE" | "CANCEL") => {
     if (!campaignId) return;

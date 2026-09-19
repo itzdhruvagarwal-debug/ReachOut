@@ -14,8 +14,6 @@ import { findPostByUrl } from "./instagram";
 import { verifyYouTubeVideoIsLive } from "./youtube";
 import { decrypt } from "./encryption";
 
-// ==================== TYPES ====================
-
 interface EngagementMetrics {
 views: number;
 likes: number;
@@ -52,8 +50,6 @@ costPerClick: number; // in paise
 estimatedValue: number; // in paise
 roiPercentage: number; // positive = profit
 }
-
-// ==================== METRICS CAPTURE ====================
 
 /**
 * Capture engagement metrics for a deal's post at a specific interval.
@@ -291,8 +287,6 @@ estimatedReach,
 };
 }
 
-// ==================== REPORT GENERATION ====================
-
 /**
 * Get engagement report for a deal, including all snapshots and ROI calculation.
 */
@@ -422,8 +416,6 @@ if (changePercent > 10) return "GROWING";
 if (changePercent < -10) return "DECLINING";
 return "STABLE";
 }
-
-// ==================== BATCH CAPTURE ====================
 
 /**
 * Batch capture engagement for all verified deals.

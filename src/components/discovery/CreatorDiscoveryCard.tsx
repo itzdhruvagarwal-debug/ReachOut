@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatCurrency } from "@/lib/utils-client";
 import { CreatorDiscoveryItem } from "./types";
 import { apiClient } from "@/lib/api-client";
 import {
@@ -82,9 +83,7 @@ export default function CreatorDiscoveryCard({
     return count.toString();
   };
 
-  const startingRateRupees = (creator.startingRatePaise / 100).toLocaleString("en-IN", {
-    maximumFractionDigits: 0,
-  });
+  const startingRate = formatCurrency(creator.startingRatePaise);
 
   return (
     <article className="relative w-full rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col mb-6 group">
@@ -201,7 +200,7 @@ export default function CreatorDiscoveryCard({
               Starting At
             </div>
             <span className="text-sm font-bold text-foreground tabular-nums">
-              ₹{startingRateRupees}
+              {startingRate}
             </span>
           </div>
         </div>

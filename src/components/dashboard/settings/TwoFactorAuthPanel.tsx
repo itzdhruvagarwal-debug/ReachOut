@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import useSWR from "swr";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 import { fetcher } from "@/lib/fetcher";
 import { Badge, Button, Input } from "@/components/ui";
 import { copyToClipboard } from "@/lib/clipboard";
@@ -120,7 +121,7 @@ onClick={async () => {
     }
 
   } catch (err: unknown) {
-    showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
+    showToast(formatUserError(err, "Unable to initiate 2FA setup. Please try again."), "error");
   } finally {
     setIsSaving(false);
   }
@@ -196,7 +197,7 @@ onClick={async () => {
       showToast(data.error || "Invalid code", "error");
     }
   } catch (err: unknown) {
-    showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
+    showToast(formatUserError(err, "The 2FA code is invalid or has expired. Please check and try again."), "error");
   } finally {
     setIsSaving(false);
   }
@@ -250,7 +251,7 @@ onClick={async () => {
       showToast(data.error || "Failed to disable 2FA", "error");
     }
   } catch (err: unknown) {
-    showToast(err instanceof ApiClientError ? err.message : "Network error", "error");
+    showToast(formatUserError(err, "Failed to disable 2FA. Please verify your password and try again."), "error");
   } finally {
     setIsSaving(false);
   }

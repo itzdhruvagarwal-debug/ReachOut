@@ -71,8 +71,23 @@ import { sendOTP, verifyOTP, normalizeIndianPhone } from "@/lib/sms";
 import { rateLimit, checkRateLimit } from "@/lib/rate-limit";
 import { revokeAllUserSessions, isTokenRevoked } from "@/lib/blacklist";
 import { authConfig } from "@/auth.config";
+import { PUT as PUT_email_otp, POST as POST_email_otp } from "@/app/api/auth/verify-email-otp/route";
+import { POST as POST_disable_2fa } from "@/app/api/user/2fa/disable/route";
+import { AuthService } from "@/services/auth.service";
+import { verifyActiveSessionToken } from "@/lib/auth/session";
+import { auth } from "@/lib/auth";
+import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
+
+vi.mock("@/lib/auth", () => ({
+  auth: vi.fn(),
+}));
+
+vi.mock("@/lib/email", () => ({
+  sendVerificationEmail: vi.fn().mockResolvedValue(true),
+  sendWelcomeEmail: vi.fn().mockResolvedValue(true),
+}));
 
 describe("Unit Tests: Authentication & Authorization Layer Hardening", () => {
   beforeEach(() => {
@@ -254,64 +269,64 @@ describe("Unit Tests: Authentication & Authorization Layer Hardening", () => {
       expect(ipLimit.success).toBe(true);
     });
 
-    it("should ensure registration phone checks return generic enumeration-safe responses", () => {
+    it("should ensure registration phone/email checks return generic enumeration-safe responses", async () => {
       // Anti-enumeration test: regardless of user presence, response message must remain identical
-      const formatGenericResponse = (existsInDb: boolean) => {
-        if (existsInDb) {
-          return {
-            handled: true,
-            message: "If this phone number can be registered, an OTP has been sent.",
-          };
-        }
-        return {
-          handled: false,
-          message: "OTP sent by SMS",
-        };
-      };
+      vi.spyOn(prisma.user, "findUnique").mockResolvedValueOnce({
+        id: "existing_user_1",
+      } as any);
 
-      const existingUserResponse = formatGenericResponse(true);
-      expect(existingUserResponse.handled).toBe(true);
-      expect(existingUserResponse.message).toContain("If this phone number can be registered");
+      const req = new NextRequest("http://localhost:3000/api/auth/verify-email-otp", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "existing@example.com", type: "registration" }),
+      });
+
+      const res = await PUT_email_otp(req);
+      const data = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.message).toContain("If this email can be registered");
     });
 
-    it("should lock out email contact OTP verification after 5 failed attempts and burn key", async () => {
-      const mockUserId = "usr_email_lockout_test_01";
-      const key = `email-contact-otp:${mockUserId}`;
-      const correctOtp = "123456";
+    it("should lock out email contact OTP verification after 3 failed attempts and burn key", async () => {
+      const testEmail = "lockout_test@example.com";
+      const key = `email-otp:registration:${testEmail}`;
+      const correctOtp = "654321";
       const submittedHash = crypto.createHash("sha256").update(correctOtp).digest("hex");
-      await redis.setex(key, 600, submittedHash);
+      await redis.setex(
+        key,
+        600,
+        JSON.stringify({
+          otp: submittedHash,
+          attempts: 0,
+          createdAt: new Date().toISOString(),
+        }),
+      );
 
-      const attemptsKey = `${key}:attempts`;
-      const verifyEmailOtp = async (inputCode: string) => {
-        const stored = await redis.get(key);
-        if (!stored) return { success: false, error: "OTP not found or expired" };
-
-        const attempts = await redis.incr(attemptsKey);
-        if (attempts > 5) {
-          await Promise.allSettled([redis.del(key), redis.del(attemptsKey)]);
-          return { success: false, error: "Maximum attempts exceeded" };
-        }
-
-        const inputHash = crypto.createHash("sha256").update(inputCode).digest("hex");
-        if (inputHash !== stored) {
-          return { success: false, error: "Invalid OTP" };
-        }
-
-        await Promise.allSettled([redis.del(key), redis.del(attemptsKey)]);
-        return { success: true };
-      };
-
-      // 5 failed attempts
-      for (let i = 1; i <= 5; i++) {
-        const res = await verifyEmailOtp("000000");
-        expect(res.success).toBe(false);
-        expect(res.error).toBe("Invalid OTP");
+      // 3 failed attempts via real POST route handler
+      for (let i = 1; i <= 3; i++) {
+        const req = new NextRequest("http://localhost:3000/api/auth/verify-email-otp", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: testEmail, otp: "000000", type: "registration" }),
+        });
+        const res = await POST_email_otp(req);
+        const data = await res.json();
+        expect(res.status).toBe(400);
+        expect(data.error).toBe("Invalid OTP. Please try again.");
       }
 
-      // 6th attempt triggers lockout and burns key
-      const lockRes = await verifyEmailOtp("000000");
-      expect(lockRes.success).toBe(false);
-      expect(lockRes.error).toBe("Maximum attempts exceeded");
+      // 4th attempt triggers lockout and burns key in real handler
+      const lockReq = new NextRequest("http://localhost:3000/api/auth/verify-email-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: testEmail, otp: "000000", type: "registration" }),
+      });
+      const lockRes = await POST_email_otp(lockReq);
+      const lockData = await lockRes.json();
+      expect(lockRes.status).toBe(429);
+      expect(lockData.error).toContain("Too many failed attempts");
 
       // Key should now be purged
       const burnedKey = await redis.get(key);
@@ -360,52 +375,56 @@ describe("Unit Tests: Authentication & Authorization Layer Hardening", () => {
     it("should require re-authentication (password, TOTP, or phone OTP) before disabling 2FA", async () => {
       const testPassword = "SuperSecurePassword123!";
       const passwordHash = await bcrypt.hash(testPassword, 10);
-      const testPhoneOtp = "654321";
+      const testPhone = "+919876543210";
 
-      // Evaluation logic matching src/app/api/user/2fa/disable/route.ts
-      const evaluateReAuth = async (inputPassword?: string, inputTotp?: string, inputOtp?: string) => {
-        if (!inputPassword && !inputTotp && !inputOtp) {
-          throw AppError.badRequest("Re-authentication required: Please provide your password, 6-digit 2FA code, or phone OTP to disable 2FA.");
-        }
-
-        let isAuthorized = false;
-        if (inputPassword && passwordHash) {
-          isAuthorized = await bcrypt.compare(inputPassword, passwordHash);
-        }
-
-        if (!isAuthorized && inputTotp === "123456") {
-          isAuthorized = true; // Simulated valid TOTP code
-        }
-
-        if (!isAuthorized && inputOtp === testPhoneOtp) {
-          isAuthorized = true; // Simulated valid phone OTP
-        }
-
-        if (!isAuthorized) {
-          throw AppError.forbidden("Re-authentication failed: Incorrect password, 2FA code, or OTP");
-        }
-
-        return true;
+      const mockSession = {
+        user: { id: "usr_2fa_test_01", email: "user2fa@example.com" },
       };
+      (auth as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(mockSession);
+
+      vi.spyOn(prisma.user, "findUnique").mockResolvedValue({
+        id: "usr_2fa_test_01",
+        email: "user2fa@example.com",
+        phone: testPhone,
+        passwordHash,
+        twoFactorSecret: "mockSecret",
+        isTwoFactorEnabled: true,
+      } as any);
+
+      vi.spyOn(prisma.user, "update").mockResolvedValue({} as any);
 
       // Case 1: Missing credentials -> 400
-      await expect(evaluateReAuth()).rejects.toThrow("Re-authentication required");
+      const req1 = new NextRequest("http://localhost:3000/api/user/2fa/disable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const res1 = await POST_disable_2fa(req1);
+      const data1 = await res1.json();
+      expect(res1.status).toBe(400);
+      expect(data1.error).toContain("Re-authentication required");
 
       // Case 2: Incorrect credentials -> 403
-      await expect(evaluateReAuth("WrongPassword999")).rejects.toThrow("Re-authentication failed");
-      await expect(evaluateReAuth(undefined, "999999", "000000")).rejects.toThrow("Re-authentication failed");
+      const req2 = new NextRequest("http://localhost:3000/api/user/2fa/disable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: "WrongPassword999" }),
+      });
+      const res2 = await POST_disable_2fa(req2);
+      const data2 = await res2.json();
+      expect(res2.status).toBe(403);
+      expect(data2.error).toContain("Re-authentication failed");
 
-      // Case 3: Correct password -> Authorized
-      const authorizedPass = await evaluateReAuth(testPassword);
-      expect(authorizedPass).toBe(true);
-
-      // Case 4: Correct TOTP -> Authorized
-      const authorizedTotp = await evaluateReAuth(undefined, "123456");
-      expect(authorizedTotp).toBe(true);
-
-      // Case 5: Correct Phone OTP -> Authorized
-      const authorizedOtp = await evaluateReAuth(undefined, undefined, testPhoneOtp);
-      expect(authorizedOtp).toBe(true);
+      // Case 3: Correct password -> Authorized (200)
+      const req3 = new NextRequest("http://localhost:3000/api/user/2fa/disable", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: testPassword }),
+      });
+      const res3 = await POST_disable_2fa(req3);
+      const data3 = await res3.json();
+      expect(res3.status).toBe(200);
+      expect(data3.success).toBe(true);
     });
   });
 
@@ -432,25 +451,33 @@ describe("Unit Tests: Authentication & Authorization Layer Hardening", () => {
     });
 
     it("should prevent replay attacks by atomically consuming single-use reset token", async () => {
-      // Mock DB state for user with valid reset token
       let tokenInDb: string | null = hashedResetToken;
 
-      const atomicResetPassword = async (token: string) => {
-        const hashed = crypto.createHash("sha256").update(token).digest("hex");
-        if (tokenInDb !== hashed) {
-          throw AppError.badRequest("Invalid or expired token");
+      vi.spyOn(prisma.user, "findFirst").mockImplementation((async (args: any) => {
+        if (tokenInDb && args.where.resetToken === tokenInDb) {
+          return { id: mockUserId };
         }
-        // Atomically clear token in DB
-        tokenInDb = null;
-        return true;
-      };
+        return null;
+      }) as any);
 
-      // First attempt: succeeds
-      const firstResult = await atomicResetPassword(rawResetToken);
+      vi.spyOn(prisma.user, "updateMany").mockImplementation((async (args: any) => {
+        if (tokenInDb && args.where.resetToken === tokenInDb) {
+          tokenInDb = null;
+          return { count: 1 };
+        }
+        return { count: 0 };
+      }) as any);
+
+      vi.spyOn(prisma.refreshToken, "updateMany").mockResolvedValue({ count: 0 });
+
+      // First attempt: succeeds via real AuthService.resetPassword
+      const firstResult = await AuthService.resetPassword(rawResetToken, "NewSecurePassword123!");
       expect(firstResult).toBe(true);
 
-      // Second attempt (replay attack): fails immediately
-      await expect(atomicResetPassword(rawResetToken)).rejects.toThrow("Invalid or expired token");
+      // Second attempt (replay attack): fails immediately via real AuthService.resetPassword
+      await expect(
+        AuthService.resetPassword(rawResetToken, "NewSecurePassword123!"),
+      ).rejects.toThrow("Invalid or expired token");
     });
 
     it("should revoke all active user sessions and JTIs upon password reset", async () => {
@@ -514,15 +541,10 @@ describe("Unit Tests: Authentication & Authorization Layer Hardening", () => {
       expect(activeToken).not.toBe(preLoginSessionId);
 
       // Verify that presenting the pre-login token fails validation against Redis active session
-      const validateSessionToken = async (userId: string, candidateRefreshToken: string) => {
-        const storedToken = await redis.get(`active_session:${userId}`);
-        return storedToken === candidateRefreshToken;
-      };
-
-      const preLoginValidation = await validateSessionToken(testUserId, preLoginSessionId);
+      const preLoginValidation = await verifyActiveSessionToken(testUserId, preLoginSessionId);
       expect(preLoginValidation).toBe(false);
 
-      const postLoginValidation = await validateSessionToken(testUserId, postLoginRefreshToken);
+      const postLoginValidation = await verifyActiveSessionToken(testUserId, postLoginRefreshToken);
       expect(postLoginValidation).toBe(true);
 
       // Clean up

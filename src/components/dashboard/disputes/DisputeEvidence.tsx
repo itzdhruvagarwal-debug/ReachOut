@@ -3,6 +3,7 @@
 import React from "react";
 import { Card, Button, Select, Input, Textarea } from "@/components/ui";
 import { DisputeDetail } from "./DisputeHelpers";
+import { formatDate } from "@/lib/utils-client";
 
 interface DisputeEvidenceProps {
 readonly dispute: DisputeDetail;
@@ -130,7 +131,7 @@ className="flex justify-between mb-1"
 <span
 className="text-secondary text-xs"
 >
-{ev.submittedAt ? new Date(ev.submittedAt).toLocaleDateString() : ""}
+{ev.submittedAt ? formatDate(ev.submittedAt) : ""}
 </span>
 </div>
 <p className="text-sm mb-2">

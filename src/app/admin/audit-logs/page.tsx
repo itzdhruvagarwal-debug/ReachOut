@@ -5,6 +5,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Input, Select } from "@/components/ui";
+import { formatDateTime } from "@/lib/utils-client";
 import type { AdminService } from "@/services/admin.service";
 import type { Prisma } from "@prisma/client";
 
@@ -100,7 +101,7 @@ className="uppercase text-xs"
 {log.entityId || "-"}
 </td>
 <td className="p-card text-secondary text-sm">
-{new Date(log.timestamp).toLocaleString("en-IN")}
+{formatDateTime(log.timestamp)}
 </td>
 <td className="p-card">
 <div

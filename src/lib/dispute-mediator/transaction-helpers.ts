@@ -41,8 +41,6 @@ totalAmount: number;
 analysis: MediatorAnalysis;
 }
 
-// ==================== APPLY RESOLUTION ====================
-
 /**
 * Apply a mediator analysis resolution to the dispute and deal.
 * Updates dispute status, deal status, wallet balances, trust scores, and notifications.

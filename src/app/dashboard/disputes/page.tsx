@@ -6,9 +6,30 @@ import Link from "next/link";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { useSession } from "next-auth/react";
 import EmptyState from "@/components/ui/EmptyState";
-import { Badge, Button, Spinner } from "@/components/ui";
+import { Badge, Button, Skeleton } from "@/components/ui";
+import { formatCurrency, formatDate } from "@/lib/utils-client";
 import { type DisputeItem as Dispute, type DisputesResponse } from "@/lib/schemas";
 
+function DisputeSkeleton() {
+  return (
+    <div className="flex flex-col gap-4">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="card p-5 space-y-3">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-2">
+              <Skeleton width={80} height={24} borderRadius={12} />
+              <Skeleton width={60} height={16} borderRadius={4} />
+              <Skeleton width={90} height={16} borderRadius={4} />
+            </div>
+            <Skeleton width={70} height={20} borderRadius={4} />
+          </div>
+          <Skeleton width="60%" height={20} borderRadius={4} />
+          <Skeleton width="40%" height={16} borderRadius={4} />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export default function DisputesPage() {
 const { data: session } = useSession();
@@ -65,11 +86,7 @@ aria-label="Back to Deals"
 {/* Content */}
 {(() => {
 if (isLoading) {
-return (
-<div className="flex justify-center p-10">
-<Spinner size="lg" />
-</div>
-);
+return <DisputeSkeleton />;
 }
 if (disputes.length === 0) {
 return (
@@ -105,11 +122,7 @@ variant={getStatusBadgeVariant(dispute.status)}
 #{dispute.id.slice(-6)}
 </span>
 <span className="text-xs text-muted">
-{new Date(dispute.createdAt).toLocaleDateString("en-IN", {
-day: "numeric",
-month: "short",
-year: "numeric",
-})}
+{formatDate(dispute.createdAt)}
 </span>
 </div>
 <span
@@ -128,7 +141,7 @@ className="text-xs font-semibold text-amber rounded-md px-2 py-1 bg-amber-subtle
 <div
 className="flex flex-wrap gap-3 text-sm text-secondary mb-3"
 >
-<span> {(dispute.deal.amount / 100).toLocaleString("en-IN")}</span>
+<span>{formatCurrency(dispute.deal.amount)}</span>
 <span> {dispute.deal.influencer?.displayName}</span>
 <span> {dispute.deal.brand?.companyName}</span>
 </div>

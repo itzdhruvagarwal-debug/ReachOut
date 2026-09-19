@@ -1,4 +1,5 @@
-import { isToday, differenceInDays, formatDistanceToNow, parseISO } from "date-fns";
+import { isToday, differenceInDays, parseISO } from "date-fns";
+import { formatRelativeTime } from "@/lib/utils-client";
 
 export interface NotificationItem {
   id: string;
@@ -58,26 +59,13 @@ export function groupNotificationsByRecency(
   return result;
 }
 
+
 /**
  * Formats a notification timestamp to a compact, human-readable string.
  * Example: "Just now", "5m ago", "2h ago", "Yesterday", "3d ago".
  */
 export function formatNotificationTime(createdAt: string | Date): string {
-  try {
-    const date = typeof createdAt === "string" ? parseISO(createdAt) : createdAt;
-    if (isNaN(date.getTime())) return "";
-
-    const distance = formatDistanceToNow(date, { addSuffix: true });
-    // Convert e.g. "about 5 minutes ago" -> "5m ago", "about 1 hour ago" -> "1h ago"
-    return distance
-      .replace(/^about\s+/, "")
-      .replace(/^less than a minute ago$/, "Just now")
-      .replace(/\s+minute[s]?\s+ago/, "m ago")
-      .replace(/\s+hour[s]?\s+ago/, "h ago")
-      .replace(/\s+day[s]?\s+ago/, "d ago");
-  } catch {
-    return "";
-  }
+  return formatRelativeTime(createdAt);
 }
 
 export interface NotificationTypeMeta {

@@ -14,6 +14,7 @@ systemErrorsTotal,
 import { getSecureClientIp } from "./ip";
 import { AppError } from "./errors";
 import { validateCsrfProtection } from "./csrf";
+import { formatUserError } from "./user-messages";
 
 import type { RATE_LIMIT_CONFIGS, TIERED_LIMIT_CONFIGS } from "./rate-limit";
 import { Permission } from "./rbac";
@@ -84,11 +85,13 @@ params?: z.ZodSchema;
 export const ApiResponse = {
 success: (data: unknown, message = "Success", status = 200) =>
 NextResponse.json({ success: true, message, data }, { status }),
-error: (message: string, status = 400, errors?: unknown) =>
-NextResponse.json(
-{ success: false, message, ...(errors && typeof errors === "object" ? { errors } : {}) },
-{ status },
-),
+  error: (message: string, status = 400, errors?: unknown) => {
+    const safeMessage = formatUserError(message, "Unable to complete request. Please try again.");
+    return NextResponse.json(
+      { success: false, message: safeMessage, ...(errors && typeof errors === "object" ? { errors } : {}) },
+      { status },
+    );
+  },
 forbidden: (message = "Forbidden") =>
 NextResponse.json({ success: false, message }, { status: 403 }),
 unauthorized: () =>
@@ -123,7 +126,8 @@ status: 429,
 * 6. Anything else 500 Internal Server Error (never leaks internals)
 */
 export function apiWrapper(handler: ApiHandler, options?: ApiWrapperOptions) {
-return async (req: NextRequest, context: ApiContext) => {
+return async (req: NextRequest, context?: ApiContext) => {
+const effectiveContext = context ?? { params: Promise.resolve({}) };
 const start = Date.now();
 const requestId = randomUUID();
 const method = req.method;
@@ -195,10 +199,10 @@ return authResponse;
 }
 
 // 5. Schema Validation
-await performSchemaValidation(req, context, options);
+await performSchemaValidation(req, effectiveContext, options);
 
 // 6. Execute Handler
-const response = await handler(req, context);
+const response = await handler(req, effectiveContext);
 
 // 7. Logging Response
 const duration = Date.now() - start;

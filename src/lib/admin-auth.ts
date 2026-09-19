@@ -41,7 +41,7 @@ throw AppError.forbidden("Unauthorized: Admin access required");
 
 const cacheKey = `admin_verified:${input.id}`;
 
-// --- Redis cache-hit path (~0 ms) ---
+// Redis cache-hit path (~0 ms)
 try {
 const cached = await redis.get(cacheKey);
 if (cached === "1") {
@@ -55,7 +55,7 @@ error: String(redisErr),
 });
 }
 
-// --- DB authoritative check ---
+// DB authoritative check
 const dbAdmin = await prisma.user.findUnique({
 where: { id: input.id },
 select: {

@@ -12,8 +12,6 @@ import { createActivityLog } from "./audit";
 import { PLATFORM_CONFIG } from "./platform-config";
 import { env } from "@/env";
 
-// ==================== TYPES ====================
-
 export interface ContractDeliverable {
 type: string;
 count: number;
@@ -88,8 +86,6 @@ proposalMessage?: string;
 createdAt: string;
 version: number;
 }
-
-// ==================== GENERATE CONTRACT ====================
 
 function collectContractText(value: unknown, depth = 0): string[] {
   if (depth > 5 || value === null || value === undefined) return [];
@@ -340,8 +336,6 @@ version: 3,
 };
 }
 
-// ==================== FEE CALCULATORS ====================
-
 export async function calculateCancellation(dealId: string, tx?: Prisma.TransactionClient): Promise<{
   refundAmount: number;
   payoutAmount: number;
@@ -447,8 +441,6 @@ export function checkRevisionLimit(
     message: `Free revisions used. This revision will cost INR ${(contract.costPerExtraRevision / 100).toFixed(2)}.`,
   };
 }
-
-// ==================== DIGITAL SIGNATURES ====================
 
 import crypto from "node:crypto";
 import { logger } from "./logger";

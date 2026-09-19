@@ -262,7 +262,6 @@ const todayIST = new Date(now.getTime() + istOffset);
 todayIST.setUTCHours(0, 0, 0, 0);
 const today = new Date(todayIST.getTime() - istOffset);
 
-// ===== 1. REAL-TIME COUNTS =====
 const [totalUsers, totalInfluencers, totalBrands, activeUsers7d] =
 await Promise.all([
 prisma.user.count(),
@@ -273,7 +272,6 @@ prisma.user.count({ where: { userType: "BRAND", status: "ACTIVE" } }),
 prisma.user.count({ where: { updatedAt: { gte: sevenDaysAgo } } }),
 ]);
 
-// ===== 2. DEALS IN PROGRESS =====
 const [
 activeDeals,
 completedDealsToday,
@@ -296,13 +294,11 @@ in: ["OPEN", "TIER1_AUTO", "TIER2_MEDIATION", "TIER3_ARBITRATION"],
 }),
 ]);
 
-// ===== 3. REVENUE TODAY =====
 const revenueToday = await prisma.deal.aggregate({
 where: { status: "COMPLETED", completedAt: { gte: today } },
 _sum: { platformFee: true },
 });
 
-// ===== 4. USER GROWTH (Last 30 days) =====
 const users = await prisma.user.findMany({
 where: { createdAt: { gte: thirtyDaysAgo } },
 select: { createdAt: true, userType: true },
@@ -323,7 +319,6 @@ if (u.userType === "INFLUENCER") entry.influencer++;
 else if (u.userType === "BRAND") entry.brand++;
 });
 
-// ===== 5. FINANCIAL OVERVIEW =====
 const [totalRevenue, totalGMV, pendingPayouts, totalRefunds] =
 await Promise.all([
   prisma.deal.aggregate({
@@ -366,7 +361,6 @@ await Promise.all([
 const monthlyRevenue =
 await AdminAnalyticsService.getMonthlyRevenueHistory(12);
 
-// ===== 6. GROWTH METRICS =====
 // Signups trend (last 30d vs previous 30d)
 const sixtyDaysAgo = subDays(now, 60);
 const signupsLast30 = users.length;
@@ -412,7 +406,6 @@ const kFactor = Number(
 (avgInvitesPerUser * referralConversionRate).toFixed(2),
 );
 
-// ===== 7. PAYMENT SUCCESS RATE =====
 const [totalPayments, failedPayments] = await Promise.all([
 prisma.transaction.count({
 where: { type: { in: ["CREDIT", "DEBIT"] } },
@@ -424,7 +417,6 @@ totalPayments > 0
 ? Math.round(((totalPayments - failedPayments) / totalPayments) * 100)
 : 100;
 
-// ===== 8. SYSTEM HEALTH =====
 const recentErrors = await prisma.activityLog.count({
 where: {
 action: { contains: "ERROR" },

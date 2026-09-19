@@ -1,10 +1,12 @@
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui";
 import {
   type ChallengeItem as Challenge,
   type ChallengesResponse,
 } from "@/lib/schemas";
+import { formatDate } from "@/lib/utils-client";
 
 
 const renderChallengeIcon = (icon: string) => {
@@ -159,11 +161,13 @@ const { data, isLoading: loading } = useSWR<ChallengesResponse>("/api/gamificati
 const challenges = data?.data || [];
 
 if (loading) {
-return (
-<div className="card p-8 text-center">
-<div className="loading"></div>
-</div>
-);
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <Skeleton className="h-24 w-full rounded-xl" />
+    </div>
+  );
 }
 
 if (challenges.length === 0) {
@@ -297,7 +301,7 @@ Progress
 
 {challenge.completed && challenge.completedAt && (
 <div className="text-xs text-muted mt-2">
-Completed on {new Date(challenge.completedAt).toLocaleDateString()}
+Completed on {formatDate(challenge.completedAt)}
 </div>
 )}
 </div>

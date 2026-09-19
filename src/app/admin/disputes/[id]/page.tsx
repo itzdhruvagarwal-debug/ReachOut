@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { resolveDispute } from "../../dispute-actions";
 import EmptyState from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui";
+import { formatCurrency, formatDate } from "@/lib/utils-client";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ className="flex justify-between items-center bg-tertiary rounded-md border-card 
 <div>
 <div className="text-sm font-semibold">{d.campaign?.title || "Campaign"}</div>
 <div className="text-muted text-xs">
-{new Date(d.createdAt).toLocaleDateString()} {(d.amount / 100).toFixed(0)}
+{formatDate(d.createdAt)} • {formatCurrency(d.amount)}
 </div>
 </div>
 <StatusBadge status={d.status} />
@@ -181,7 +182,7 @@ className="p-3 border-b border-card"
 className="text-xs text-muted"
 >
 Uploaded by User {ev.submittedByUserId.slice(0, 8)}... on{" "}
-{new Date(ev.submittedAt).toLocaleDateString()}
+{formatDate(ev.submittedAt)}
 </div>
 {ev.url && (
 <a

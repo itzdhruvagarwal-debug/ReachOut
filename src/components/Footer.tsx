@@ -63,7 +63,7 @@ const socialLinks = [
   },
 ];
 
-export default function Footer() {
+export function Footer() {
   return (
     <footer className="site-footer bg-secondary border-t border-card">
       <div className="container">
@@ -138,3 +138,5 @@ function FooterColumn({
     </div>
   );
 }
+
+export default Footer;

@@ -1,8 +1,8 @@
 "use client";
 
-import { Badge, Button, Spinner } from "@/components/ui";
+import { Badge, Button, Spinner, Skeleton } from "@/components/ui";
 import EmptyState from "@/components/ui/EmptyState";
-import { formatCurrency } from "@/lib/utils-client";
+import { formatCurrency, formatNumber } from "@/lib/utils-client";
 import { CampaignApplication } from "./CampaignDetailHelpers";
 
 interface ApplicationsListProps {
@@ -19,11 +19,13 @@ actionId,
 onAction,
 }: ApplicationsListProps) {
 if (loading) {
-return (
-<div className="flex justify-center p-6">
-<Spinner size="md" />
-</div>
-);
+  return (
+    <div className="space-y-3" aria-label="Loading applications">
+      <Skeleton height={70} borderRadius={8} />
+      <Skeleton height={70} borderRadius={8} />
+      <Skeleton height={70} borderRadius={8} />
+    </div>
+  );
 }
 if (applications.length === 0) {
 return (
@@ -85,7 +87,7 @@ className="flex flex-wrap text-muted text-xs gap-2.5"
 >
 <span>
 Followers:{" "}
-{(application.influencer.instagramFollowers || 0).toLocaleString("en-IN")}
+{formatNumber(application.influencer.instagramFollowers || 0)}
 </span>
 <span>
 Deals: {application.influencer.completedDeals || 0}

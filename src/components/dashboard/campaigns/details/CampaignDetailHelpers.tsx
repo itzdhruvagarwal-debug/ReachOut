@@ -1,6 +1,6 @@
 "use client";
 
-import { normalizeStringArray, normalizeDeliverables } from "@/lib/utils-client";
+import { normalizeStringArray, normalizeDeliverables, formatCurrency } from "@/lib/utils-client";
 export { normalizeDeliverables };
 
 interface CampaignDetail {
@@ -156,7 +156,7 @@ return Math.round(instagramPayout + youtubePayout);
 function promptNegotiatedRate(proposedRate: number): number | null {
 const proposedRateInRupees = proposedRate / 100;
   const rateInput = prompt(
-    `Accept application at the proposed rate of ₹${proposedRateInRupees.toLocaleString()}?\n\nOr enter a custom negotiated payout rate in INR:`,
+    `Accept application at the proposed rate of ${formatCurrency(proposedRate)}?\n\nOr enter a custom negotiated payout rate in INR:`,
     proposedRateInRupees.toString()
   );
 if (rateInput === null) {

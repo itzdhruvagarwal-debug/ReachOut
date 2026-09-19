@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { formatCurrency } from "@/lib/utils-client";
 import { CampaignDiscoveryItem } from "./types";
 import { apiClient } from "@/lib/api-client";
 import {
@@ -78,9 +79,7 @@ export default function CampaignDiscoveryCard({
     }
   };
 
-  const formattedBudget = (campaign.budgetPaise / 100).toLocaleString("en-IN", {
-    maximumFractionDigits: 0,
-  });
+  const formattedBudget = formatCurrency(campaign.budgetPaise);
 
   return (
     <article className="relative w-full rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col mb-6 group">
@@ -219,7 +218,7 @@ export default function CampaignDiscoveryCard({
               Budget Per Creator
             </span>
             <span className="text-base font-extrabold text-foreground tabular-nums">
-              ₹{formattedBudget}
+              {formattedBudget}
             </span>
           </div>
 

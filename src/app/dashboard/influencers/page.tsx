@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import EmptyState from "@/components/ui/EmptyState";
 import { Button, Input, Select } from "@/components/ui";
+import DiscoveryCardSkeleton from "@/components/discovery/DiscoveryCardSkeleton";
 import { formatNumber } from "@/lib/utils-client";
 import { z } from "zod";
 
@@ -271,16 +272,11 @@ Find verified creators by category, reach, and trust score.
 {(() => {
 if (loading) {
 return (
-<motion.div
-key="loader"
-initial={{ opacity: 0 }}
-animate={{ opacity: 1 }}
-exit={{ opacity: 0 }}
-className="creators-loading text-center text-secondary"
->
-<div className="creator-loader loader rounded-md w-48 h-48" />
-<p className="text-base font-semibold tracking-normal">Loading creator data...</p>
-</motion.div>
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <DiscoveryCardSkeleton />
+    <DiscoveryCardSkeleton />
+    <DiscoveryCardSkeleton />
+  </div>
 );
 }
 if (influencers.length === 0) {

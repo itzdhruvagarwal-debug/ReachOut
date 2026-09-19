@@ -18,7 +18,7 @@ const mobileLinks = [
 { label: "Contact", href: "/contact" },
 ];
 
-export default function Navbar() {
+export function Navbar() {
 const [isScrolled, setIsScrolled] = useState(false);
 const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -111,3 +111,5 @@ Get Started Free
 </>
 );
 }
+
+export default Navbar;

@@ -134,8 +134,6 @@ const idx = tierOrder.findIndex((t) => t.name === currentTier.name);
 return idx >= 0 && idx < tierOrder.length - 1 ? tierOrder[idx + 1] ?? null : null;
 }
 
-// ==================== REFERRAL STATS ====================
-
 async function getCachedReferralStats(cacheKey: string) {
   try {
     const cached = await redis.get(cacheKey);
@@ -330,8 +328,6 @@ logger.warn("Redis write failed for getReferralStats", err instanceof Error ? { 
 
 return result;
 }
-
-// ==================== REFERRAL REWARD PROCESSING ====================
 
 /**
 * Process a referral reward for a completed deal.
@@ -727,8 +723,6 @@ export async function processReferralReward(
 
   return { referrerId };
 }
-
-// ==================== FEE DISCOUNT CALCULATOR ====================
 
 /**
 * Calculate the effective platform fee for a user considering referral tier discounts.

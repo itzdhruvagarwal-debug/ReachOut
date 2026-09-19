@@ -7,6 +7,8 @@ import { banUser, unbanUser, awardBadgeAction } from "../actions";
 import Image from "next/image";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Input, Select } from "@/components/ui";
+import { formatDate } from "@/lib/utils-client";
+import { formatUserError } from "@/lib/user-messages";
 import type { AdminService } from "@/services/admin.service";
 import type { Prisma } from "@prisma/client";
 
@@ -140,7 +142,7 @@ GST ****{user.taxCompliance.gstinLast4}
 </span>
 </td>
 <td className="p-card text-muted text-sm">
-{new Date(user.createdAt).toLocaleDateString("en-IN")}
+{formatDate(user.createdAt)}
 </td>
 <td className="p-card text-right">
 <div className="flex justify-end items-center gap-2">
@@ -252,7 +254,7 @@ try {
 await banUser(userId);
 mutate();
 } catch (err) {
-alert(err instanceof Error ? err.message : "Failed to ban user");
+alert(formatUserError(err, "Failed to ban user. Please try again."));
 } finally {
 setLoadingAction(null);
 }
@@ -264,7 +266,7 @@ try {
 await unbanUser(userId);
 mutate();
 } catch (err) {
-alert(err instanceof Error ? err.message : "Failed to unban user");
+alert(formatUserError(err, "Failed to unban user. Please try again."));
 } finally {
 setLoadingAction(null);
 }
@@ -279,7 +281,7 @@ await awardBadgeAction(formData);
 alert("Badge awarded successfully!");
 mutate();
 } catch (err) {
-alert(err instanceof Error ? err.message : "Failed to award badge");
+alert(formatUserError(err, "Failed to award badge. Please try again."));
 } finally {
 setLoadingAction(null);
 }

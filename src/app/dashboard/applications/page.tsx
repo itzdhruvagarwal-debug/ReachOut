@@ -11,7 +11,7 @@ import {
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import { formatCurrency } from "@/lib/utils-client";
+import { formatCurrency, formatDate } from "@/lib/utils-client";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Skeleton, Spinner } from "@/components/ui";
 
@@ -239,11 +239,7 @@ applicationsList = (
                   {displayRate}
                 </td>
                 <td className="p-4 text-secondary text-sm">
-                  {new Date(app.createdAt).toLocaleDateString("en-IN", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  {formatDate(app.createdAt)}
                 </td>
                 <td className="p-4">
                   <Badge variant={getStatusVariant(app.status)} className="text-xs font-extrabold">
@@ -346,11 +342,7 @@ applicationsList = (
           <div>
             <div className="text-secondary text-2xs mb-0.5">SUBMITTED ON</div>
             <div className="font-medium text-secondary">
-              {new Date(app.createdAt).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
+              {formatDate(app.createdAt)}
             </div>
           </div>
         </div>

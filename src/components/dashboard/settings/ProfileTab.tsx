@@ -11,6 +11,7 @@ import { isBrand, isInfluencer } from "@/lib/rbac";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 import { ALL_CATEGORIES } from "@/lib/categories";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 
 
 export interface Profile {
@@ -176,13 +177,13 @@ const handleProfileImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) 
       } else {
         // Revert optimistic update — upload failed
         setProfile((prev) => (prev ? revertProfileImage(prev) : null));
-        showToast("Upload failed: " + (data.message || data.error || "Unknown error"), "error");
+        showToast(formatUserError(data.message || data.error, "Upload failed. Please ensure file is an image under 10MB."), "error");
       }
     } catch (error) {
       logger.error("[profile-tab] Failed to upload avatar:", error);
       // Revert optimistic update — network error
       setProfile((prev) => (prev ? revertProfileImage(prev) : null));
-      showToast(error instanceof ApiClientError ? error.message : "Upload failed", "error");
+      showToast(formatUserError(error, "Upload failed. Please ensure file is an image under 10MB."), "error");
     } finally {
       setIsUploading(false);
       if (profileImageInputRef.current) profileImageInputRef.current.value = "";

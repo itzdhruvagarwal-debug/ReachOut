@@ -7,7 +7,7 @@ import { Prisma } from "@prisma/client";
 import { calculateTotalAmount } from "@/lib/razorpay";
 import { NotificationService } from "@/services/notification.service";
 import { createActivityLog } from "@/lib/audit";
-import { assertAccountCanTransact } from "@/lib/utils";
+import { assertAccountCanTransact, formatCurrency } from "@/lib/utils";
 
 const updateMessageSchema = z.object({
   status: z.enum(["ACCEPTED", "DECLINED"]),
@@ -227,7 +227,7 @@ async function executeOfferEscrowTransaction(params: EscrowTxParams) {
 
       if (brandWalletUpdate.count === 0) {
         throw new Error(
-          `Insufficient brand wallet balance or wallet is frozen (Required: ₹${(params.totalAmountToLock / 100).toLocaleString("en-IN")}). The brand must top up their wallet to fund this offer.`
+          `Insufficient brand wallet balance or wallet is frozen (Required: ${formatCurrency(params.totalAmountToLock)}). The brand must top up their wallet to fund this offer.`
         );
       }
 
@@ -482,18 +482,14 @@ export const PATCH = apiWrapper(async (req, { params }) => {
       {
         userId: message.senderId,
         title: "🎉 Custom Offer Accepted!",
-        message: `Your custom offer "${offerTitle}" (₹${(offerAmount / 100).toLocaleString(
-          "en-IN"
-        )}) has been accepted! Deal #${result.deal.id.slice(-6)} is now active.`,
+        message: `Your custom offer "${offerTitle}" (${formatCurrency(offerAmount)}) has been accepted! Deal #${result.deal.id.slice(-6)} is now active.`,
         type: "DEAL_UPDATE",
         data: { dealId: result.deal.id },
       },
       {
         userId: message.receiverId,
         title: "🤝 Deal Activated!",
-        message: `You accepted "${offerTitle}". Escrow funds of ₹${(
-          totalAmountToLock / 100
-        ).toLocaleString("en-IN")} are locked securely.`,
+        message: `You accepted "${offerTitle}". Escrow funds of ${formatCurrency(totalAmountToLock)} are locked securely.`,
         type: "DEAL_UPDATE",
         data: { dealId: result.deal.id },
       },

@@ -49,8 +49,8 @@ pathname?.startsWith("/admin");
 useEffect(() => {
 if (!mounted || !isSensitiveRoute || !session?.user) return;
 
-// --- Enterprise DOM Tamper Detection ---
-const watermarkId = "enterprise-security-watermark";
+  // DOM tamper detection
+  const watermarkId = "enterprise-security-watermark";
 
 let isUpdating = false;
 // MutationObserver detects if someone tries to delete the watermark from DOM

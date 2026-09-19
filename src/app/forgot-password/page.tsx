@@ -8,6 +8,7 @@ import { z } from "zod";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 
 export default function ForgotPasswordPage() {
 const [email, setEmail] = useState("");
@@ -45,11 +46,7 @@ setResetLink(data.resetLink);
 } catch (err: unknown) {
 logger.error("[forgot-password] reset request error:", err);
 setStatus("error");
-if (err instanceof ApiClientError) {
-setMessage(err.message || "Something went wrong");
-} else {
-setMessage("Network error. Please try again.");
-}
+setMessage(formatUserError(err, "Unable to process password reset request. Please check your email and try again."));
 }
 };
 

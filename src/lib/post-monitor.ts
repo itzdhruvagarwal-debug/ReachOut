@@ -21,8 +21,6 @@ import { applyProgressivePenalty } from "./penalty-system";
 import { NotificationService } from "@/services/notification.service";
 import { createActivityLog } from "./audit";
 
-// ==================== TYPES ====================
-
 interface PostStatusResult {
 dealId: string;
 isAlive: boolean;
@@ -38,8 +36,6 @@ clawbackPercentage: number;
 clawbackAmountPaise: number;
 reason: string;
 }
-
-// ==================== MONITORING SCHEDULE ====================
 
 /**
 * Determines if a deal should be checked today based on its monitoring day.
@@ -85,8 +81,6 @@ return { shouldCheck: false, day: 0 };
   };
 }
 
-// ==================== CLAWBACK CALCULATION ====================
-
 /**
 * Calculate clawback percentage based on when the post was removed.
 * Earlier removal = higher penalty.
@@ -107,8 +101,6 @@ if (daysSinceCompletion <= 21) return 25;
 if (daysSinceCompletion <= 30) return 15;
 return 0; // Past monitoring window
 }
-
-// ==================== CORE VERIFICATION ====================
 
 async function verifyPostStatus(
 dealId: string,
@@ -294,8 +286,6 @@ consecutiveMissingChecks: 0,
 return { dealId, isAlive: true, status: "ACTIVE", monitoringDay };
 }
 
-// ==================== FAILURE HANDLING + CLAWBACK ====================
-
 async function notifyPartiesAboutPostFailure(
 deal: {
 id: string;
@@ -423,8 +413,6 @@ dealId: deal.id,
 });
 }
 }
-
-// ==================== CLAWBACK EXECUTION ====================
 
 interface PerformClawbackTransactionConfig {
 tx: Prisma.TransactionClient;
@@ -729,8 +717,6 @@ return typeof type === "string" && type.toUpperCase().includes("STORY");
 
 return false;
 }
-
-// ==================== BATCH MONITORING (CRON) ====================
 
 /**
 * Run daily post monitoring for all deals in the 30-day window.

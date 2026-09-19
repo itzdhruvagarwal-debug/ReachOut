@@ -8,13 +8,29 @@ getIncludedRevisions,
 
 interface DealContractCardProps {
   readonly deal: DealDetail;
+  readonly isBrand?: boolean;
+  readonly isInfluencer?: boolean;
   readonly onOpenAddressModal?: () => void;
+  readonly onOpenDispatchModal?: () => void;
+  readonly onConfirmReceived?: () => void;
+  readonly isSubmitting?: boolean;
 }
 
-export function DealContractCard({ deal, onOpenAddressModal }: Readonly<DealContractCardProps>) {
+export function DealContractCard({
+  deal,
+  isBrand = false,
+  isInfluencer = false,
+  onOpenAddressModal,
+  onOpenDispatchModal,
+  onConfirmReceived,
+  isSubmitting = false,
+}: Readonly<DealContractCardProps>) {
   const contractTerms = parseContractTerms(deal.contractTerms);
   const terms = contractTerms;
   const requiresProduct = Boolean(deal.requiresProduct || terms?.requiresProduct);
+  const status = deal.productFulfillmentStatus || "NOT_REQUIRED";
+  const tracking = deal.dispatchTrackingNumber || deal.trackingNumber;
+  const carrier = deal.dispatchCarrier || deal.carrier;
 
   return (
     <Card className="card p-6">
@@ -86,22 +102,54 @@ export function DealContractCard({ deal, onOpenAddressModal }: Readonly<DealCont
       </div>
 
       {requiresProduct && (
-        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between flex-wrap gap-2">
-          <div className="text-sm">
-            <strong>Product Seeding:</strong>{" "}
-            <span className="text-secondary">
-              {deal.productFulfillmentStatus?.replaceAll("_", " ") || "ADDRESS PENDING"}
-            </span>
+        <div className="mt-4 pt-4 border-t border-border flex flex-col gap-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="text-sm">
+              <strong>Product Seeding:</strong>{" "}
+              <span className="font-semibold text-primary">
+                {status.replaceAll("_", " ")}
+              </span>
+              {tracking && (
+                <span className="ml-2 text-xs text-secondary">
+                  (Tracking: {tracking}{carrier ? ` via ${carrier}` : ""})
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {onOpenAddressModal && (
+                <button
+                  type="button"
+                  onClick={onOpenAddressModal}
+                  className="text-xs text-primary underline hover:opacity-80 font-medium cursor-pointer"
+                >
+                  📦 {deal.shippingAddress ? "View / Update Address" : "Provide Shipping Address"}
+                </button>
+              )}
+
+              {isBrand && status === "READY_TO_DISPATCH" && onOpenDispatchModal && (
+                <button
+                  type="button"
+                  onClick={onOpenDispatchModal}
+                  disabled={isSubmitting}
+                  className="text-xs bg-primary text-white px-2.5 py-1 rounded font-medium hover:bg-primary-dark transition-colors cursor-pointer"
+                >
+                  🚚 Confirm Product Dispatch
+                </button>
+              )}
+
+              {isInfluencer && status === "DISPATCHED" && onConfirmReceived && (
+                <button
+                  type="button"
+                  onClick={onConfirmReceived}
+                  disabled={isSubmitting}
+                  className="text-xs bg-emerald-600 text-white px-2.5 py-1 rounded font-medium hover:bg-emerald-700 transition-colors cursor-pointer"
+                >
+                  ✅ Confirm Product Received
+                </button>
+              )}
+            </div>
           </div>
-          {onOpenAddressModal && (
-            <button
-              type="button"
-              onClick={onOpenAddressModal}
-              className="text-xs text-primary underline hover:opacity-80 font-medium cursor-pointer"
-            >
-              📦 View / Provide Shipping Address
-            </button>
-          )}
         </div>
       )}
     </Card>

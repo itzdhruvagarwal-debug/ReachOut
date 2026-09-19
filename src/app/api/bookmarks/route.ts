@@ -1,20 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { NextResponse } from "next/server";
+import { apiWrapper } from "@/lib/api-wrapper";
 import { redis } from "@/lib/redis";
-import { logger } from "@/lib/logger";
 import { bookmarkRequestSchema } from "@/lib/schemas";
+import { AppError } from "@/lib/errors";
 
 // In-memory fallback set for testing/offline environments
 const memoryBookmarks = new Set<string>();
 
-export async function GET(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const GET = apiWrapper(
+  async (req) => {
+    const userId = req.session?.user?.id;
+    if (!userId) {
+      throw AppError.unauthorized();
     }
 
-    const userId = session.user.id;
     const redisKey = `user:${userId}:bookmarks`;
 
     try {
@@ -31,28 +30,24 @@ export async function GET(req: NextRequest) {
       .map((k) => k.split(":")[1]!);
 
     return NextResponse.json({ success: true, savedIds: userSaved });
-  } catch (err) {
-    logger.error("GET /api/bookmarks error:", err);
-    return NextResponse.json({ error: "Failed to fetch bookmarks" }, { status: 500 });
-  }
-}
+  },
+  { requireAuth: true }
+);
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export const POST = apiWrapper(
+  async (req) => {
+    const userId = req.session?.user?.id;
+    if (!userId) {
+      throw AppError.unauthorized();
     }
 
-    const body = await req.json();
-    const parsed = bookmarkRequestSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.issues[0]?.message || "Invalid payload" }, { status: 400 });
-    }
+    const body = (req.validBody ?? (await req.json())) as {
+      targetId: string;
+      targetType: string;
+      isSaved: boolean;
+    };
 
-    const { targetId, targetType, isSaved } = parsed.data;
-
-    const userId = session.user.id;
+    const { targetId, targetType, isSaved } = body;
     const redisKey = `user:${userId}:bookmarks`;
     const itemKey = `${userId}:${targetId}`;
 
@@ -80,8 +75,9 @@ export async function POST(req: NextRequest) {
       targetType,
       isSaved,
     });
-  } catch (err) {
-    logger.error("POST /api/bookmarks error:", err);
-    return NextResponse.json({ error: "Failed to toggle bookmark" }, { status: 500 });
+  },
+  {
+    requireAuth: true,
+    validate: { body: bookmarkRequestSchema },
   }
-}
+);

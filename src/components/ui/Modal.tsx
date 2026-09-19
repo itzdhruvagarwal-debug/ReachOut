@@ -3,21 +3,28 @@ import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
-interface ModalProps {
-  readonly open: boolean;
+export interface ModalProps {
+  readonly open?: boolean;
+  readonly isOpen?: boolean;
   readonly onClose: () => void;
-  readonly title?: string | undefined;
+  readonly title?: React.ReactNode;
   readonly maxWidth?: string | undefined;
+  readonly className?: string | undefined;
+  readonly bodyClassName?: string | undefined;
   readonly children: React.ReactNode;
 }
 
-export default function Modal({
+export function Modal({
   open,
+  isOpen,
   onClose,
   title,
   maxWidth = "480px",
+  className,
+  bodyClassName,
   children,
 }: ModalProps) {
+  const isVisible = Boolean(open ?? isOpen);
   const [mounted, setMounted] = useState(false);
   const uniqueId = React.useId().replace(/:/g, "");
   const modalClass = `modal-container-${uniqueId}`;
@@ -28,7 +35,7 @@ export default function Modal({
 
   // Listen for Escape key
   useEffect(() => {
-    if (!open) return;
+    if (!isVisible) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         onClose();
@@ -36,11 +43,11 @@ export default function Modal({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
+  }, [isVisible, onClose]);
 
   // Lock body scroll when open
   useEffect(() => {
-    if (open) {
+    if (isVisible) {
       document.body.classList.add("overflow-hidden");
     } else {
       document.body.classList.remove("overflow-hidden");
@@ -48,13 +55,13 @@ export default function Modal({
     return () => {
       document.body.classList.remove("overflow-hidden");
     };
-  }, [open]);
+  }, [isVisible]);
 
   if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence>
-      {open && (
+      {isVisible && (
         <div className="modal-overlay">
           {/* Backdrop blur overlay */}
           <motion.button
@@ -75,7 +82,7 @@ export default function Modal({
             }
           `}</style>
           <motion.div
-            className={`modal-container ${modalClass}`}
+            className={`modal-container ${modalClass} ${className || ""}`.trim()}
             role="dialog"
             aria-modal="true"
             aria-labelledby={title ? "modal-title-id" : undefined}
@@ -100,7 +107,7 @@ export default function Modal({
             )}
 
             {/* Body */}
-            <div className="modal-body">{children}</div>
+            <div className={`modal-body ${bodyClassName || ""}`.trim()}>{children}</div>
           </motion.div>
         </div>
       )}
@@ -108,3 +115,5 @@ export default function Modal({
     document.body
   );
 }
+
+export default Modal;

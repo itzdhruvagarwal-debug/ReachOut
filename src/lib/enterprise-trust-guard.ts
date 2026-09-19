@@ -8,8 +8,6 @@ import { TRUST_SCORE_REVIEW_THRESHOLD } from "./constants";
 * Advanced dynamic behavior tracking, AI fraud penalties, and financial gates.
 */
 
-// ==================== DYNAMIC BEHAVIOR LOGIC ====================
-
 interface ApplicationGateResult {
 allowed: boolean;
 reason?: string;
@@ -150,8 +148,6 @@ influencerProfile: user.influencerProfile,
 
 return { allowed: true };
 }
-
-// ==================== FINANCIAL IMPACT ENGINES ====================
 
 type WithdrawalSpeed = "INSTANT" | "24_HOURS" | "72_HOURS" | "MANUAL_REVIEW";
 

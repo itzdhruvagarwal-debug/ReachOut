@@ -5,6 +5,7 @@ import { useEffect, useRef } from "react";
 import type { Profile } from "./ProfileTab";
 import SocialPlatformCard from "./SocialPlatformCard";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 
 export interface SocialConnections {
   instagram: {
@@ -70,7 +71,7 @@ export default function SocialTab({
     } catch (error) {
       logger.error(`[social-tab] Failed to disconnect ${platformLabel}:`, error);
       showToast(
-        error instanceof ApiClientError ? error.message : `Failed to disconnect ${platformLabel}.`,
+        formatUserError(error, `Failed to disconnect ${platformLabel}. Please try again.`),
         "error",
       );
     }
@@ -132,7 +133,7 @@ export default function SocialTab({
       logger.error("[social-tab] Failed to verify social account:", error);
       if (isMounted.current) {
         showToast(
-          error instanceof ApiClientError ? error.message : "Failed to verify social account.",
+          formatUserError(error, "Failed to verify social account. Make sure the handle is public and correctly spelled."),
           "error",
         );
       }

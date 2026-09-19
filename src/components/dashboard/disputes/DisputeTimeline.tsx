@@ -2,6 +2,7 @@
 
 import { Card } from "@/components/ui";
 import { DisputeDetail } from "./DisputeHelpers";
+import { formatDateTime } from "@/lib/utils-client";
 
 interface DisputeTimelineProps {
 readonly dispute: DisputeDetail;
@@ -27,7 +28,7 @@ return (
 <div className="flex-1">
 <div className="text-sm font-semibold">Dispute Filed</div>
 <div className="text-xs text-secondary">
-{new Date(dispute.createdAt).toLocaleString()}
+{formatDateTime(dispute.createdAt)}
 </div>
 </div>
 </div>
@@ -64,7 +65,7 @@ return (
 <div className="flex-1">
 <div className="text-sm font-semibold">Resolved</div>
 <div className="text-xs text-secondary">
-{dispute.resolvedAt ? new Date(dispute.resolvedAt).toLocaleString() : "Recently"}
+{dispute.resolvedAt ? formatDateTime(dispute.resolvedAt) : "Recently"}
 </div>
 </div>
 </div>

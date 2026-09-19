@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireActiveAdmin } from "@/lib/admin-auth";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button } from "@/components/ui";
+import { formatCurrency, formatDate } from "@/lib/utils-client";
 
 import { Prisma, DisputeStatus } from "@prisma/client";
 
@@ -33,12 +34,9 @@ readonly showHistory: boolean;
 }) {
 const campaignTitle = dispute.deal?.campaign?.title || "Untitled Campaign";
 const userEmail = dispute.raisedBy?.email || "Unknown user";
-const createdDate = new Date(dispute.createdAt).toLocaleDateString();
+const createdDate = formatDate(dispute.createdAt);
 const badgeVariant = showHistory ? "success" : "danger";
-const formattedAmount = new Intl.NumberFormat("en-IN", {
-style: "currency",
-currency: "INR",
-}).format(Number(dispute.deal?.amount || 0) / 100);
+const formattedAmount = formatCurrency(dispute.deal?.amount);
 
 return (
 <div

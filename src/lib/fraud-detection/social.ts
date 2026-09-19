@@ -7,6 +7,7 @@ import { fetchInstagramPostDataDetailed, fetchYouTubePostDataDetailed, runVerifi
 import { findPostByUrl } from "../instagram";
 import { extractVideoId, getYouTubeVideo } from "../youtube";
 import { resolveFraudAction } from "./utils";
+import { formatNumber } from "../utils-client";
 
 export async function checkPostVerification(
 params: PostVerificationParams,
@@ -115,8 +116,6 @@ action,
 };
 }
 
-// ==================== HELPER FUNCTIONS ====================
-
 /**
 * Simple text similarity using Jaccard index
 */
@@ -134,9 +133,6 @@ export function calculateSimilarity(text1: string, text2: string): number {
 
 // VPN/Proxy check is now handled by the standalone ipinfo.ts module
 // See: src/lib/ipinfo.ts isVPNOrProxy()
-
-// ==================== GROWTH & METRICS CHECKS ====================
-
 
 export function checkGrowthFraud(params: GrowthCheckParams): FraudCheckResult {
 const flags: FraudFlag[] = [];
@@ -172,9 +168,6 @@ riskScore,
 action,
 };
 }
-
-// ==================== ANTI-CHEAT: FAKE POST DETECTION ====================
-
 
 /**
 * Flag posts that appear too quickly after deal acceptance likely pre-made or recycled content.
@@ -238,9 +231,6 @@ action,
 };
 }
 
-// ==================== ENGAGEMENT ANOMALY DETECTION ====================
-
-
 function checkLikeViewAnomaly(
 likes: number,
 views: number,
@@ -295,7 +285,7 @@ if (params.followers >= 10000 && engagementRate > 15) {
 flags.push({
 rule: "SUSPICIOUSLY_HIGH_ENGAGEMENT",
 severity: "HIGH",
-description: `Engagement rate ${engagementRate.toFixed(1)}% is unrealistically high for ${params.followers.toLocaleString()} followers`,
+description: `Engagement rate ${engagementRate.toFixed(1)}% is unrealistically high for ${formatNumber(params.followers)} followers`,
 });
 riskScore += 30;
 }
@@ -333,8 +323,6 @@ riskScore,
 action,
 };
 }
-
-// ==================== COMMENT QUALITY (BOT DETECTION) ====================
 
 /**
 * Analyze comment quality to detect bot-generated comments.
@@ -422,8 +410,6 @@ action,
 };
 }
 
-// ==================== ACCOUNT PRIVACY FLIP DETECTION ====================
-
 /**
 * Check if an influencer's account has been toggled to private after posting deal content.
 * This is a common tactic to hide fake engagement or remove content from public view.
@@ -487,8 +473,6 @@ action,
 };
 }
 
-// ==================== CONTENT UNIQUENESS CHECKS ====================
-
 export async function checkContentUniqueness(
 contentHash: string,
 currentDealId?: string,
@@ -541,6 +525,3 @@ riskScore,
 action,
 };
 }
-
-// ==================== BLACKLIST CHECKS ====================
-

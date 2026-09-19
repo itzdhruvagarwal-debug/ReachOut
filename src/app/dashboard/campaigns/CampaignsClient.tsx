@@ -10,10 +10,9 @@ import {
   campaignsListResponseSchema,
 } from "@/lib/schemas";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { formatCurrency, formatNumber, normalizeStringArray, normalizeDeliverables } from "@/lib/utils-client";
-import { Pagination } from "@/components/ui/pagination";
+import { formatCurrency, formatDate, formatNumber, normalizeStringArray, normalizeDeliverables } from "@/lib/utils-client";
 import EmptyState from "@/components/ui/EmptyState";
-import { Badge, Button, Input, Select, Skeleton } from "@/components/ui";
+import { Badge, Button, Input, Pagination, Select, Skeleton } from "@/components/ui";
 import { ALL_CATEGORIES } from "@/lib/categories";
 
 
@@ -197,7 +196,7 @@ function CampaignCard({ campaign }: { readonly campaign: Campaign }) {
 
       <div className="campaign-card-footer flex items-center justify-between gap-2.5">
         <span className="text-xs text-secondary">
-          Post by {new Date(campaign.postingDeadline).toLocaleDateString("en-IN")}
+          Post by {formatDate(campaign.postingDeadline)}
         </span>
         <Button
           href={`/dashboard/campaigns/${campaign.id}`}

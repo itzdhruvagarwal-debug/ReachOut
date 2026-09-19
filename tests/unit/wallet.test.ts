@@ -5,61 +5,174 @@ import { AppError } from "@/lib/errors";
 describe("Unit Tests: Wallet Debit, Credit & Double-Entry Ledger", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.restoreAllMocks();
+    process.env.ENCRYPTION_KEY = "a".repeat(64);
+    process.env.HMAC_KEY = "b".repeat(64);
   });
+
+  const createStatefulTx = (initialBalance = 50_000, initialFrozen = false) => {
+    const state = {
+      wallet: {
+        id: "wallet_123",
+        userId: "user_test_wallet",
+        balance: initialBalance,
+        isFrozen: initialFrozen,
+      },
+      transactions: [] as Array<{
+        id: string;
+        walletId: string;
+        type: string;
+        amount: number;
+        status: string;
+        razorpayPaymentId: string;
+      }>,
+      withdrawals: [] as Array<{
+        id: string;
+        walletId: string;
+        amount: number;
+        status: string;
+      }>,
+    };
+
+    let serializedLock = Promise.resolve();
+
+    const mockTx = {
+      state,
+      transaction: {
+        findUnique: vi.fn().mockImplementation(async ({ where }) => {
+          const found = state.transactions.find(
+            (t) => t.razorpayPaymentId === where.razorpayPaymentId
+          );
+          if (!found) return null;
+          return {
+            ...found,
+            wallet: { userId: state.wallet.userId },
+          };
+        }),
+        update: vi.fn().mockImplementation(async ({ where, data }) => {
+          const t = state.transactions.find((tx) => tx.id === where.id);
+          if (t) Object.assign(t, data);
+          return t;
+        }),
+        create: vi.fn().mockImplementation(async ({ data }) => {
+          const newTx = {
+            id: `tx_${Date.now()}_${Math.random()}`,
+            ...data,
+          };
+          state.transactions.push(newTx);
+          return newTx;
+        }),
+      },
+      wallet: {
+        updateMany: vi.fn().mockImplementation(async ({ where, data }) => {
+          return new Promise((resolve) => {
+            serializedLock = serializedLock.then(async () => {
+              await new Promise((r) => setTimeout(r, Math.random() * 5));
+              if (
+                state.wallet.userId === where.userId &&
+                state.wallet.balance >= where.balance.gte &&
+                !state.wallet.isFrozen
+              ) {
+                state.wallet.balance -= data.balance.decrement;
+                resolve({ count: 1 });
+              } else {
+                resolve({ count: 0 });
+              }
+            });
+          });
+        }),
+        findUnique: vi.fn().mockImplementation(async ({ where }) => {
+          if (state.wallet.userId === where.userId || state.wallet.id === where.id) {
+            return { ...state.wallet };
+          }
+          return null;
+        }),
+      },
+      withdrawal: {
+        create: vi.fn().mockImplementation(async ({ data }) => {
+          const newW = {
+            id: `wd_${Date.now()}_${Math.random()}`,
+            ...data,
+          };
+          state.withdrawals.push(newW);
+          return newW;
+        }),
+      },
+    };
+
+    return mockTx;
+  };
 
   // =========================================================================
   // 1. ATOMIC CONDITIONAL BALANCE DEDUCTION PATTERN
   // =========================================================================
   describe("Pillar 1 & 4: Atomic Conditional Balance Deduction Pattern", () => {
-    it("should simulate atomic conditional balance deduction when funds are sufficient and wallet is active", () => {
-      // Logic: UPDATE "Wallet" SET balance = balance - X WHERE id = ? AND balance >= X AND isFrozen = false
-      const wallet = { id: "wallet_123", balance: 50000, isFrozen: false };
-      const deductAmount = 20000;
+    it("should execute atomic conditional balance deduction via real PaymentService when funds are sufficient and wallet is active", async () => {
+      const mockTx = createStatefulTx(50_000, false);
+      const res = await PaymentService.executeWithdrawalDbTransaction(
+        mockTx as never,
+        "user_test_wallet",
+        {
+          amount: 20_000,
+          bankAccountName: "Tester",
+          bankAccountNumber: "1234567890",
+          ifscCode: "HDFC0001234",
+        },
+        "idem_wd_1",
+        "ALLOW",
+        0,
+        false
+      );
 
-      const canDeduct = wallet.balance >= deductAmount && !wallet.isFrozen;
-      expect(canDeduct).toBe(true);
-
-      if (canDeduct) {
-        wallet.balance -= deductAmount;
-      }
-
-      expect(wallet.balance).toBe(30000);
+      expect(res.w).toBeDefined();
+      expect(mockTx.state.wallet.balance).toBe(30_000);
+      expect(mockTx.state.transactions).toHaveLength(1);
     });
 
-    it("should reject balance deduction when funds are insufficient (count === 0)", () => {
-      const wallet = { id: "wallet_123", balance: 10000, isFrozen: false };
-      const deductAmount = 25000;
+    it("should reject balance deduction when funds are insufficient via real PaymentService (count === 0)", async () => {
+      const mockTx = createStatefulTx(10_000, false);
 
-      const canDeduct = wallet.balance >= deductAmount && !wallet.isFrozen;
-      expect(canDeduct).toBe(false);
+      await expect(
+        PaymentService.executeWithdrawalDbTransaction(
+          mockTx as never,
+          "user_test_wallet",
+          {
+            amount: 25_000,
+            bankAccountName: "Tester",
+            bankAccountNumber: "1234567890",
+            ifscCode: "HDFC0001234",
+          },
+          "idem_wd_insufficient",
+          "ALLOW",
+          0,
+          false
+        )
+      ).rejects.toThrow("INSUFFICIENT_FUNDS: Insufficient wallet balance for withdrawal");
 
-      const performUpdate = () => {
-        if (!canDeduct) {
-          throw AppError.badRequest("INSUFFICIENT_FUNDS: Insufficient funds in wallet");
-        }
-      };
-
-      expect(performUpdate).toThrow("INSUFFICIENT_FUNDS");
+      expect(mockTx.state.wallet.balance).toBe(10_000);
     });
 
-    it("should reject balance deduction in the same query when wallet is frozen even if balance is sufficient", () => {
-      // Integrated predicate: where: { balance: { gte: deductAmount }, isFrozen: false }
-      const wallet = { id: "wallet_123", balance: 100000, isFrozen: true };
-      const deductAmount = 10000;
+    it("should reject balance deduction in the same query when wallet is frozen even if balance is sufficient via real PaymentService", async () => {
+      const mockTx = createStatefulTx(100_000, true);
 
-      const canDeduct = wallet.balance >= deductAmount && !wallet.isFrozen;
-      expect(canDeduct).toBe(false);
+      await expect(
+        PaymentService.executeWithdrawalDbTransaction(
+          mockTx as never,
+          "user_test_wallet",
+          {
+            amount: 10_000,
+            bankAccountName: "Tester",
+            bankAccountNumber: "1234567890",
+            ifscCode: "HDFC0001234",
+          },
+          "idem_wd_frozen",
+          "ALLOW",
+          0,
+          false
+        )
+      ).rejects.toThrow("WALLET_FROZEN: Your wallet is currently frozen or locked");
 
-      const performUpdate = () => {
-        if (!canDeduct) {
-          if (wallet.isFrozen) {
-            throw AppError.forbidden("WALLET_FROZEN: Your wallet is currently frozen or locked");
-          }
-          throw AppError.badRequest("INSUFFICIENT_FUNDS: Insufficient funds in wallet");
-        }
-      };
-
-      expect(performUpdate).toThrow("WALLET_FROZEN");
+      expect(mockTx.state.wallet.balance).toBe(100_000);
     });
   });
 
@@ -67,29 +180,36 @@ describe("Unit Tests: Wallet Debit, Credit & Double-Entry Ledger", () => {
   // 2. CONCURRENCY RACE SIMULATION (DEFINITION OF DONE)
   // =========================================================================
   describe("Definition of Done: Concurrent Withdrawal Race Condition Simulation", () => {
-    it("should allow exactly 1 withdrawal to succeed and 1 to cleanly fail with INSUFFICIENT_FUNDS on parallel requests", async () => {
-      // Simulating real database row level mutex / atomic conditional decrement
-      let storedBalance = 100_000; // ₹1,000 in paise
-      const isFrozen = false;
+    it("should allow exactly 1 withdrawal to succeed and 1 to cleanly fail with INSUFFICIENT_FUNDS on parallel requests via real PaymentService", async () => {
+      const mockTx = createStatefulTx(100_000, false); // ₹1,000 in paise
       const withdrawalAmount = 80_000; // ₹800 each (Total ₹1,600 required)
-
-      // Thread-safe atomic decrement executor
-      const executeAtomicDecrement = async (_requestId: string) => {
-        // Atomic conditional check: WHERE balance >= amount AND isFrozen = false
-        if (storedBalance >= withdrawalAmount && !isFrozen) {
-          storedBalance -= withdrawalAmount;
-          return { success: true, remainingBalance: storedBalance };
-        }
-        if (isFrozen) {
-          throw AppError.forbidden("WALLET_FROZEN: Your wallet is currently frozen or locked");
-        }
-        throw AppError.badRequest("INSUFFICIENT_FUNDS: Insufficient wallet balance for withdrawal");
+      const withdrawalData = {
+        amount: withdrawalAmount,
+        bankAccountName: "Tester",
+        bankAccountNumber: "1234567890",
+        ifscCode: "HDFC0001234",
       };
 
-      // Dispatch 2 parallel withdrawal requests
+      // Dispatch 2 parallel withdrawal requests directly to real PaymentService
       const [res1, res2] = await Promise.allSettled([
-        executeAtomicDecrement("req_01"),
-        executeAtomicDecrement("req_02"),
+        PaymentService.executeWithdrawalDbTransaction(
+          mockTx as never,
+          "user_test_wallet",
+          withdrawalData,
+          "req_parallel_01",
+          "ALLOW",
+          0,
+          false
+        ),
+        PaymentService.executeWithdrawalDbTransaction(
+          mockTx as never,
+          "user_test_wallet",
+          withdrawalData,
+          "req_parallel_02",
+          "ALLOW",
+          0,
+          false
+        ),
       ]);
 
       const successes = [res1, res2].filter((r) => r.status === "fulfilled");
@@ -103,7 +223,9 @@ describe("Unit Tests: Wallet Debit, Credit & Double-Entry Ledger", () => {
       expect(rejectionReason.message).toContain("INSUFFICIENT_FUNDS");
 
       // Balance must be exactly ₹200 (20,000 paise). Zero double-debit!
-      expect(storedBalance).toBe(20_000);
+      expect(mockTx.state.wallet.balance).toBe(20_000);
+      expect(mockTx.state.withdrawals).toHaveLength(1);
+      expect(mockTx.state.transactions).toHaveLength(1);
     });
   });
 

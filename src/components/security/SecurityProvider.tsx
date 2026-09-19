@@ -193,11 +193,11 @@ callbackUrl: "/login?reason=session_expired",
 
 document.addEventListener("visibilitychange", handleVisibilityChange);
 
-// --- Enterprise Heartbeat: Periodic session check ---
+// Periodic session heartbeat check (every 5 mins)
 const heartbeatInterval = setInterval(
 handleVisibilityChange,
 5 * 60 * 1000,
-); // Every 5 mins
+);
 
 // Run once on mount when authenticated
 handleVisibilityChange();

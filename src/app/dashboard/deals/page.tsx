@@ -14,7 +14,7 @@ import {
 import Image from "next/image";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import { formatCurrency, normalizeDeliverables } from "@/lib/utils-client";
+import { formatCurrency, formatDate, normalizeDeliverables } from "@/lib/utils-client";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button } from "@/components/ui";
 
@@ -102,7 +102,7 @@ id: String(raw?.id || ""),
 status: String(raw?.status || "PENDING_SIGNATURE"),
 amount: Number(raw?.amount || 0),
 createdAt: raw?.createdAt
-? new Date(raw.createdAt).toLocaleDateString("en-IN")
+? formatDate(raw.createdAt)
 : "Not started",
 postingDeadline: raw?.postingDeadline || campaign?.postingDeadline || new Date().toISOString(),
 campaign: {
@@ -302,13 +302,10 @@ className="text-xs text-muted"
 Deadline
 </div>
 <div className="text-sm font-semibold">
-{new Date(deal.postingDeadline).toLocaleDateString(
-"en-IN",
-{
+{formatDate(deal.postingDeadline, "-", {
 day: "numeric",
 month: "short",
-},
-)}
+})}
 </div>
 </div>
 </div>
@@ -348,11 +345,7 @@ className="deal-expanded-grid"
 <div className="flex justify-between">
 <span className="text-muted">Post Deadline:</span>
 <span className="font-semibold text-primary-light">
-{new Date(deal.postingDeadline).toLocaleDateString("en-IN", {
-day: "numeric",
-month: "short",
-year: "numeric"
-})}
+{formatDate(deal.postingDeadline)}
 </span>
 </div>
 </div>

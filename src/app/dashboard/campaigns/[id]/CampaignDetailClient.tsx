@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { formatCurrency, formatDate } from "@/lib/utils-client";
-import { Button, Input, Textarea, Modal } from "@/components/ui";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/utils-client";
+import { Button, Input, Textarea, Modal, Skeleton } from "@/components/ui";
 import { ApplicationsList } from "@/components/dashboard/campaigns/details/ApplicationsList";
 import { useCampaignDetail } from "@/components/dashboard/campaigns/details/useCampaignDetail";
 
@@ -59,11 +59,23 @@ router,
 });
 
 if (loading) {
-return (
-<div className="flex justify-center p-12">
-<span className="loading w-32 h-32" />
-</div>
-);
+  return (
+    <div className="p-6 max-w-4xl mx-auto space-y-6" aria-label="Loading campaign details">
+      <div className="flex items-center gap-4">
+        <Skeleton width={64} height={64} borderRadius={12} />
+        <div className="space-y-2 flex-1">
+          <Skeleton height={24} width="40%" />
+          <Skeleton height={16} width="25%" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Skeleton height={80} borderRadius={8} />
+        <Skeleton height={80} borderRadius={8} />
+        <Skeleton height={80} borderRadius={8} />
+      </div>
+      <Skeleton height={140} borderRadius={12} />
+    </div>
+  );
 }
 
 if (error || !campaign) {
@@ -265,8 +277,8 @@ onAction={handleApplicationAction}
 <div>
 <span className="text-xs text-muted block uppercase tracking-wider">Target Followers</span>
 <strong className="text-sm font-semibold text-primary">
-{campaign.minFollowers.toLocaleString()}
-{campaign.maxFollowers ? ` - ${campaign.maxFollowers.toLocaleString()}` : "+"}
+{formatNumber(campaign.minFollowers)}
+{campaign.maxFollowers ? ` - ${formatNumber(campaign.maxFollowers)}` : "+"}
 </strong>
 </div>
 
@@ -411,7 +423,7 @@ Apply to Campaign
             />
             {recommendedPayout > 0 && (
               <span className="text-muted text-2xs mt-1 block">
-                Recommended for your stats: {(recommendedPayout / 100).toLocaleString()}
+                Recommended for your stats: {formatCurrency(recommendedPayout)}
               </span>
             )}
           </div>

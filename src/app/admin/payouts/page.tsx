@@ -3,9 +3,10 @@
 import { FormEvent, useCallback, useMemo, useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { formatCurrency } from "@/lib/utils-client";
+import { formatCurrency, formatDateTime } from "@/lib/utils-client";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError } from "@/lib/user-messages";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Textarea } from "@/components/ui";
 import { z } from "zod";
@@ -116,11 +117,7 @@ try {
   setDraft(null);
   await fetchWithdrawals();
 } catch (err) {
-  setActionError(
-    err instanceof ApiClientError
-      ? err.message
-      : (err instanceof Error ? err.message : "Failed to process payout")
-  );
+  setActionError(formatUserError(err, "Failed to process payout. Please try again."));
 } finally {
   setProcessing(null);
 }
@@ -234,7 +231,7 @@ Risk {withdrawal.riskScore}
 </div>
 </td>
 <td className="p-4 text-muted text-sm">
-{new Date(withdrawal.createdAt).toLocaleString("en-IN")}
+{formatDateTime(withdrawal.createdAt)}
 </td>
 <td className="p-4 text-right">
 {withdrawal.status === "PENDING" || withdrawal.status === "PENDING_REVIEW" || withdrawal.status === "PROCESSING" ? (

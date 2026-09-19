@@ -2,6 +2,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { Badge, Button } from "@/components/ui";
+import { formatCurrency, formatDate } from "@/lib/utils-client";
 
 import {
   type ReferralItem as Referral,
@@ -124,11 +125,7 @@ export default function ReferralList({ onShareClick }: ReferralListProps) {
                   </span>
                 </td>
                 <td className="hide-mobile p-4 text-secondary text-xs">
-                  {new Date(ref.joinedAt).toLocaleDateString("en-IN", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
+                  {formatDate(ref.joinedAt)}
                 </td>
                 <td className="p-4 text-center">
                   <span
@@ -140,9 +137,7 @@ export default function ReferralList({ onShareClick }: ReferralListProps) {
                   </span>
                 </td>
                 <td className="p-4 text-right font-extrabold text-emerald font-mono">
-                  {ref.earnings > 0
-                    ? `₹${(ref.earnings / 100).toLocaleString("en-IN")}`
-                    : "₹0"}
+                  {formatCurrency(ref.earnings)}
                 </td>
               </tr>
             ))}

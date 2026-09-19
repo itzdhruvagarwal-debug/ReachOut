@@ -3,11 +3,11 @@ import Image from "next/image";
 export type AvatarSize = "sm" | "md" | "lg" | "xl";
 
 export interface AvatarProps {
-readonly name?: string | null;
-readonly src?: string | null;
-readonly size?: AvatarSize;
-readonly className?: string;
-readonly "aria-hidden"?: boolean;
+  readonly name?: string | null | undefined;
+  readonly src?: string | null | undefined;
+  readonly size?: AvatarSize | undefined;
+  readonly className?: string | undefined;
+  readonly "aria-hidden"?: boolean | undefined;
 }
 
 const sizeClass: Record<AvatarSize, string> = {

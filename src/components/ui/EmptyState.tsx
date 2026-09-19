@@ -128,7 +128,7 @@ function getIconForTitle(title: string, description: string): React.ReactNode {
   );
 }
 
-export default function EmptyState({
+export function EmptyState({
   emoji,
   title,
   description,
@@ -185,3 +185,5 @@ export default function EmptyState({
     </div>
   );
 }
+
+export default EmptyState;

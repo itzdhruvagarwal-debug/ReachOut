@@ -250,9 +250,9 @@ function logSlowQueriesAndAudit(model: string, operation: string, duration: numb
     );
   }
 
-// --- 5. Enterprise Audit Trail (CDC simulation for sensitive financial models) ---
-if (
-model &&
+  // Enterprise audit trail for sensitive financial models
+  if (
+    model &&
 ["Wallet", "Deal", "Withdrawal", "BankAccount"].includes(model) &&
 ["create", "update", "delete", "upsert", "updateMany", "deleteMany"].includes(operation)
 ) {

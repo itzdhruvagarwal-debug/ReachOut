@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger-client";
 import { registerSchema } from "@/app/register/page";
 import { UserType, getDeviceFingerprint } from "./RegistrationHelpers";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError } from "@/lib/user-messages";
 
 export function useRegistration(
 initialType: UserType | null,
@@ -126,11 +127,7 @@ setEmailOtp(data.otp);
 setEmailOtpSent(true);
 startCooldown(setEmailCooldown, 60, "email");
 } catch (err: unknown) {
-if (err instanceof ApiClientError) {
-setEmailOtpError(err.message || "Failed to send OTP");
-} else {
-setEmailOtpError("Network error. Please try again.");
-}
+  setEmailOtpError(formatUserError(err, "Failed to send email OTP. Please try again."));
 } finally {
 setEmailOtpLoading(false);
 }
@@ -153,11 +150,7 @@ type: "registration",
 setEmailOtpVerified(true);
 setVerifiedEmail(formData.email);
 } catch (err: unknown) {
-if (err instanceof ApiClientError) {
-setEmailOtpError(err.message || "Invalid OTP");
-} else {
-setEmailOtpError("Network error. Please try again.");
-}
+  setEmailOtpError(formatUserError(err, "The email OTP is invalid or has expired. Please try again."));
 } finally {
 setEmailOtpLoading(false);
 }
@@ -180,11 +173,7 @@ setPhoneOtp(data.otp);
 setPhoneOtpSent(true);
 startCooldown(setPhoneCooldown, 60, "phone");
 } catch (err: unknown) {
-if (err instanceof ApiClientError) {
-setPhoneOtpError(err.message || "Failed to send OTP");
-} else {
-setPhoneOtpError("Network error. Please try again.");
-}
+  setPhoneOtpError(formatUserError(err, "Failed to send SMS OTP. Please check your phone number and try again."));
 } finally {
 setPhoneOtpLoading(false);
 }
@@ -207,11 +196,7 @@ type: "registration",
 setPhoneOtpVerified(true);
 setVerifiedPhone(formData.phone);
 } catch (err: unknown) {
-if (err instanceof ApiClientError) {
-setPhoneOtpError(err.message || "Invalid OTP");
-} else {
-setPhoneOtpError("Network error. Please try again.");
-}
+  setPhoneOtpError(formatUserError(err, "The phone OTP is invalid or has expired. Please try again."));
 } finally {
 setPhoneOtpLoading(false);
 }
@@ -284,16 +269,16 @@ router.push("/login?registered=true");
 } catch (err: unknown) {
 logger.error("[register] submission error:", err);
 if (err instanceof ApiClientError) {
-const raw = err.raw as { details?: { fieldErrors?: Record<string, string[]> }; error?: string } | null;
-if (raw?.details?.fieldErrors) {
-const firstField = Object.keys(raw.details.fieldErrors)[0];
-const firstError = firstField ? raw.details.fieldErrors[firstField]?.[0] : undefined;
-setError(firstError || err.message || "Registration failed");
+  const raw = err.raw as { details?: { fieldErrors?: Record<string, string[]> }; error?: string } | null;
+  if (raw?.details?.fieldErrors) {
+    const firstField = Object.keys(raw.details.fieldErrors)[0];
+    const firstError = firstField ? raw.details.fieldErrors[firstField]?.[0] : undefined;
+    setError(firstError ? formatUserError(firstError) : formatUserError(err, "Registration failed. Please check your details and try again."));
+  } else {
+    setError(formatUserError(err, "Registration failed. Please check your details and try again."));
+  }
 } else {
-setError(err.message || "Registration failed");
-}
-} else {
-setError("An error occurred. Please try again.");
+  setError(formatUserError(err, "An error occurred during registration. Please try again."));
 }
 } finally {
 setIsLoading(false);

@@ -106,24 +106,19 @@ export async function http<T = unknown>(
 
       const res = await fetch(url, fetchInit);
 
-      // ── 401 Unauthorized ────────────────────────────────────────────────
       if (res.status === 401) {
         if (!skipAuthRedirect && typeof window !== "undefined") {
-          // Fire-and-forget — component will unmount from redirect
           signOut({ callbackUrl: "/login" });
         }
         const { message, code, raw } = await parseErrorBody(res);
         throw new ApiClientError(message, 401, code, raw);
       }
 
-      // ── Non-ok responses ─────────────────────────────────────────────
       if (!res.ok) {
         const { message, code, raw } = await parseErrorBody(res);
         throw new ApiClientError(message, res.status, code, raw);
       }
 
-      // ── Success — parse response ───────────────────────────────────────
-      // Handle 204 No Content
       if (res.status === 204) return undefined as T;
 
       if (options.responseType === "blob") {
@@ -151,7 +146,7 @@ export async function http<T = unknown>(
 
       return json as T;
     } catch (err) {
-      // ── Don't retry on HTTP/schema errors — only on network failures ──
+      // Do not retry HTTP or schema validation errors
       if (err instanceof ApiClientError || err instanceof ZodError) {
         throw err;
       }
@@ -190,8 +185,6 @@ function serializeBody(data?: unknown): BodyInit | undefined {
   }
   return JSON.stringify(data);
 }
-
-// ── Convenience wrappers ──────────────────────────────────────────────────────
 
 export function get<T = unknown>(url: string, options?: HttpOptions): Promise<T> {
   return http<T>(url, { method: "GET", ...options });

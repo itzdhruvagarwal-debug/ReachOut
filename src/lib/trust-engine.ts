@@ -17,8 +17,7 @@ DRSResult,
 getDRSTierAndLimit,
 } from "./drs-score";
 import { getTrustRuleWeights } from "./trust-rules";
-
-// ==================== TRUST GATE (Deal Limit Enforcement) ====================
+import { formatCurrency } from "./utils-client";
 
 interface TrustGateResult {
 allowed: boolean;
@@ -81,7 +80,7 @@ allowed: false,
 maxDealAmount,
 currentTier: tier,
 currentScore: score,
-reason: `Deal amount ${(dealAmountPaise / 100).toLocaleString("en-IN")} exceeds your '${tier}' tier limit. Improve your DRS to unlock higher limits.`,
+reason: `Deal amount ${formatCurrency(dealAmountPaise)} exceeds your '${tier}' tier limit. Improve your DRS to unlock higher limits.`,
 };
 }
 
@@ -92,8 +91,6 @@ currentTier: tier,
 currentScore: score,
 };
 }
-
-// ==================== RECALCULATE & SAVE DRS ====================
 
 type TrustTrigger =
 | "DEAL_COMPLETED"
@@ -249,8 +246,6 @@ action: trigger,
 });
 }
 }
-
-// ==================== INFLUENCER DATA FETCHER ====================
 
 async function fetchInfluencerBasicStats(userId: string) {
 const profile = await prisma.influencerProfile.findUnique({
@@ -422,8 +417,6 @@ profileCompleteness: completeness,
   const weights = await getTrustRuleWeights();
   return calculateInfluencerDRS(factors, weights);
 }
-
-// ==================== BRAND DATA FETCHER ====================
 
 async function recalculateBrandDRSInternal(userId: string): Promise<DRSResult> {
 const brandProfile = await prisma.brandProfile.findUnique({

@@ -5,6 +5,7 @@ checkBrandApprovalTimeliness,
 checkPostingDeadline,
 determineTimelineVerdict,
 } from "../helpers";
+import { formatDateTime } from "@/lib/utils-client";
 
 // analyzeTimelineDispute, analyzeQualityDispute, analyzeContentDeletedDispute, analyzePaymentDispute, analyzeTermsViolationDispute
 export function analyzeTimelineDispute(
@@ -44,8 +45,6 @@ brandApprovedLate,
 findings
 );
 }
-
-// ==================== QUALITY DISPUTE ====================
 
 export function analyzeQualityDispute(
 dispute: FullDispute,
@@ -166,8 +165,6 @@ autoResolvable: false,
 };
 }
 
-// ==================== CONTENT DELETED DISPUTE ====================
-
 export function analyzeContentDeletedDispute(
 dispute: FullDispute,
 deal: FullDeal,
@@ -181,7 +178,7 @@ check: "Post was originally verified",
 result: wasVerified ? "PASS" : "FAIL",
 detail:
 wasVerified && deal.verifiedAt
-? `Verified at ${new Date(deal.verifiedAt).toLocaleString()}`
+? `Verified at ${formatDateTime(deal.verifiedAt)}`
 : "Post was never verified",
 });
 
@@ -284,8 +281,6 @@ autoResolvable: false,
 };
 }
 
-// ==================== PAYMENT DISPUTE ====================
-
 export function analyzePaymentDispute(
 dispute: FullDispute,
 deal: FullDeal,
@@ -341,8 +336,6 @@ detail: "Wallet escrow system secures funds prior to deal activation",
   };
 }
 
-// ==================== TERMS VIOLATION DISPUTE ====================
-
 export function analyzeTermsViolationDispute(
 dispute: FullDispute,
 deal: FullDeal,
@@ -393,6 +386,3 @@ suggestedAction:
 autoResolvable: false,
 };
 }
-
-// ==================== GENERIC / OTHER DISPUTE ====================
-

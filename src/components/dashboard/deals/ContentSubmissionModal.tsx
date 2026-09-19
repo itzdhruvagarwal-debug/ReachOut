@@ -20,9 +20,11 @@ import {
   Eye,
   AlertCircle,
 } from "lucide-react";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, Input, Textarea, Modal } from "@/components/ui";
+import { formatCurrency } from "@/lib/utils-client";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
+import { formatUserError } from "@/lib/user-messages";
 import {
   formatFileSize,
   uploadFileDirectly,
@@ -174,8 +176,6 @@ export function ContentSubmissionModal({
     });
   };
 
-  // ==================== UPLOAD HANDLERS ====================
-
   const handleStartUpload = async (type: string, file: File) => {
     // 1. Client-side fail-fast validation BEFORE network
     const validation = validateDeliverableFile(file);
@@ -237,7 +237,7 @@ export function ContentSubmissionModal({
           uploadError: "Upload cancelled.",
         }));
       } else {
-        const errorMsg = err instanceof Error ? err.message : "Failed to upload file to storage";
+        const errorMsg = formatUserError(err, "Failed to upload file to storage. Please try again.");
         updateItem(type, (item) => ({
           ...item,
           isUploading: false,
@@ -292,25 +292,31 @@ export function ContentSubmissionModal({
       setStep("success");
       if (onSuccess) onSuccess();
     } catch (err: unknown) {
-      setSubmitError(
-        err instanceof ApiClientError
-          ? err.message
-          : (err instanceof Error ? err.message : "An unexpected error occurred during submission")
-      );
+      setSubmitError(formatUserError(err, "Failed to submit content. Please try again."));
     } finally {
       setIsSubmitting(false);
     }
 
   };
 
-  if (!isOpen) return null;
+  const handleModalClose = () => {
+    if (hasActiveUploads) {
+      if (confirm("You have an active file upload. Closing will cancel the upload. Proceed?")) {
+        deliverableItems.forEach((item) => cancelUpload(item.type));
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Content Submission Workflow"
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+    <Modal
+      open={isOpen}
+      onClose={handleModalClose}
+      maxWidth="56rem"
+      className="p-0 overflow-hidden sm:max-w-4xl sm:max-h-[92vh] sm:rounded-2xl border-0 sm:border border-border bg-card shadow-2xl text-foreground"
+      bodyClassName="p-0 flex flex-col overflow-hidden max-h-[92vh]"
     >
       {/* Hidden file inputs */}
       <input
@@ -338,9 +344,6 @@ export function ContentSubmissionModal({
           }
         }}
       />
-
-      {/* Main Modal Container */}
-      <div className="relative w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-4xl bg-card border-0 sm:border border-border sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-foreground">
         
         {/* ==================== MODAL HEADER ==================== */}
         <header className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20">
@@ -393,16 +396,7 @@ export function ContentSubmissionModal({
 
             <button
               type="button"
-              onClick={() => {
-                if (hasActiveUploads) {
-                  if (confirm("You have an active file upload. Closing will cancel the upload. Proceed?")) {
-                    deliverableItems.forEach((item) => cancelUpload(item.type));
-                    onClose();
-                  }
-                } else {
-                  onClose();
-                }
-              }}
+              onClick={handleModalClose}
               className="p-1.5 text-secondary hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
               aria-label="Close modal"
             >
@@ -939,7 +933,7 @@ export function ContentSubmissionModal({
               <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 text-xs space-y-2">
                 <div className="flex items-center gap-2 font-bold text-primary">
                   <ShieldCheck className="w-4 h-4" />
-                  <span>Escrow Safe: ₹{(parseContractTerms(deal?.contractTerms)?.totalAmount || (deal?.amount ? Math.round(deal.amount / 100) : 0)).toLocaleString("en-IN")} Protected</span>
+                  <span>Escrow Safe: {formatCurrency(parseContractTerms(deal?.contractTerms)?.totalAmount ? parseContractTerms(deal?.contractTerms)!.totalAmount! * 100 : (deal?.amount ?? 0))} Protected</span>
                 </div>
                 <p className="text-secondary">
                   Brand payment is already locked in escrow. Once submitted, the brand has 72 hours to review and approve your work.
@@ -1180,7 +1174,6 @@ export function ContentSubmissionModal({
             </div>
           </footer>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

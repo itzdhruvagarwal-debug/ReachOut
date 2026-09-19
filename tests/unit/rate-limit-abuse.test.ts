@@ -15,6 +15,7 @@ import {
 } from "@/lib/blacklist";
 import { NextRequest } from "next/server";
 import { validateCsrfProtection } from "@/lib/csrf";
+import { checkWafPatterns } from "@/lib/waf";
 
 describe("Rate Limiting & Abuse Prevention Layer Hardening", () => {
   beforeAll(async () => {
@@ -159,55 +160,25 @@ describe("Rate Limiting & Abuse Prevention Layer Hardening", () => {
   });
 
   describe("Requirement 3: Edge WAF Pattern Matching", () => {
-    const wafPatterns = [
-      /\b(?:sqlmap|nikto|nmap|masscan|dirbuster|gobuster|wpscan|wp-scan|acunetix|nessus|qualys|zgrab)\b/i,
-      /\/wp-(?:admin|login\.php)\b/i,
-      /\/phpmyadmin\b/i,
-      /\.env\b/i,
-      /\.git\b/i,
-      /\.\.[/\\]/,
-      /%2e%2e/i,
-      /%252e/i,
-      /\/etc\/(?:passwd|shadow)/i,
-      /\b(?:boot\.ini|win\.ini)\b/i,
-      /\/proc\/self\//i,
-      /\bunion(?:\s|%20|\+)+(?:all(?:\s|%20|\+)+)?select\b/i,
-      /\b(?:sleep|pg_sleep)\s*\(/i,
-      /\bbenchmark\s*\(/i,
-      /\bwaitfor\s+delay\b/i,
-      /\bxp_cmdshell\b/i,
-      /\binformation_schema\b/i,
-      /\bor\s+1\s*=\s*1\b/i,
-      /'\s*or\s+'1'\s*=\s*'1/i,
-      /;\s*--/i,
-      /<script\b/i,
-      /\$\{jndi:/i,
-      /\b(?:eval|system|passthru|shell_exec|base64_decode)\s*\(/i,
-    ];
-
-    function matchesWaf(str: string) {
-      return wafPatterns.some((p) => p.test(str));
-    }
-
     it("should detect SQL injection patterns", () => {
-      expect(matchesWaf("/api/users?id=1 UNION SELECT 1,password FROM users--")).toBe(true);
-      expect(matchesWaf("/api/users?name=admin' OR 1=1--")).toBe(true);
-      expect(matchesWaf("/api/search?q=test'; WAITFOR DELAY '0:0:5'--")).toBe(true);
-      expect(matchesWaf("/api/search?q=1 AND SLEEP(5)")).toBe(true);
-      expect(matchesWaf("/api/data?table=information_schema.tables")).toBe(true);
+      expect(checkWafPatterns("/api/users?id=1 UNION SELECT 1,password FROM users--")).toBe(true);
+      expect(checkWafPatterns("/api/users?name=admin' OR 1=1--")).toBe(true);
+      expect(checkWafPatterns("/api/search?q=test'; WAITFOR DELAY '0:0:5'--")).toBe(true);
+      expect(checkWafPatterns("/api/search?q=1 AND SLEEP(5)")).toBe(true);
+      expect(checkWafPatterns("/api/data?table=information_schema.tables")).toBe(true);
     });
 
     it("should detect Path Traversal & Scanner probes", () => {
-      expect(matchesWaf("/api/files/../../etc/passwd")).toBe(true);
-      expect(matchesWaf("/api/download?file=%2e%2e%2fwin.ini")).toBe(true);
-      expect(matchesWaf("/proc/self/environ")).toBe(true);
-      expect(matchesWaf("/wp-login.php")).toBe(true);
-      expect(matchesWaf("/.env")).toBe(true);
-      expect(matchesWaf("/.git/config")).toBe(true);
+      expect(checkWafPatterns("/api/files/../../etc/passwd")).toBe(true);
+      expect(checkWafPatterns("/api/download?file=%2e%2e%2fwin.ini")).toBe(true);
+      expect(checkWafPatterns("/proc/self/environ")).toBe(true);
+      expect(checkWafPatterns("/wp-login.php")).toBe(true);
+      expect(checkWafPatterns("/.env")).toBe(true);
+      expect(checkWafPatterns("/.git/config")).toBe(true);
     });
 
     it("should allow clean normal requests", () => {
-      expect(matchesWaf("/api/creators?niche=technology&page=1&limit=20")).toBe(false);
+      expect(checkWafPatterns("/api/creators?niche=technology&page=1&limit=20")).toBe(false);
     });
   });
 

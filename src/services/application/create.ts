@@ -1,4 +1,5 @@
 import { assertAccountCanTransact } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils-client";
 import { TierError } from "@/services/campaign.service";
 import { addUserXp } from "@/lib/gamification-engine";
 import { checkChallengeProgress } from "@/lib/weekly-challenges";
@@ -82,10 +83,10 @@ function validateFollowerThresholds(
   }
 
   if (!hasHiddenSubscribers && maxRelevantFollowers < campaign.minFollowers) {
-    throw AppError.badRequest(`Minimum ${campaign.minFollowers.toLocaleString()} followers required`);
+    throw AppError.badRequest(`Minimum ${formatNumber(campaign.minFollowers)} followers required`);
   }
   if (!hasHiddenSubscribers && campaign.maxFollowers && maxRelevantFollowers > campaign.maxFollowers) {
-    throw AppError.badRequest(`Maximum ${campaign.maxFollowers.toLocaleString()} followers allowed`);
+    throw AppError.badRequest(`Maximum ${formatNumber(campaign.maxFollowers)} followers allowed`);
   }
 }
 

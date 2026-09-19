@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { logger } from "@/lib/logger-client";
 import { apiClient, ApiClientError } from "@/lib/api-client";
+import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
 import type { User } from "./ProfileTab";
 import { Button, Input } from "@/components/ui";
 import { passwordChangeSchema } from "@/lib/validations/auth";
@@ -123,7 +124,7 @@ try {
   }
 } catch (err) {
   logger.error("Password change error:", err);
-  setPasswordError(err instanceof ApiClientError ? err.message : "An error occurred");
+  setPasswordError(formatUserError(err, "Unable to update password. Please check your current password and try again."));
 } finally {
 setIsSaving(false);
 if (forgotPasswordState.active) {
@@ -157,7 +158,7 @@ try {
   }
 } catch (err) {
   logger.error("Forgot password OTP send error:", err);
-  setPasswordError(err instanceof ApiClientError ? err.message : "Network error. Please try again.");
+  setPasswordError(formatUserError(err, "Unable to send verification OTP. Please try again."));
   setForgotPasswordState({ active: false, step: 'method', method: null, otp: '' });
 } finally {
 setIsSaving(false);
@@ -343,8 +344,6 @@ className="w-full"
 </div>
 );
 }
-
-// ==================== SUBCOMPONENTS ====================
 
 interface ForgotPasswordSectionProps {
 readonly forgotPasswordState: {

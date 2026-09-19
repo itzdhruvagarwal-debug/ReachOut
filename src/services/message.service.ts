@@ -2,7 +2,7 @@ import { AppError } from "@/lib/errors";
 import prisma from "@/lib/db";
 import { Message, Prisma, DealStatus } from "@prisma/client";
 import { checkMessageForContacts, checkAttachmentForContacts } from "@/lib/contact-filter";
-import { ACTIVE_DEAL_STATUSES } from "@/lib/utils";
+import { ACTIVE_DEAL_STATUSES, formatCurrency } from "@/lib/utils";
 import { redis } from "@/lib/redis";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { stripHtml } from "@/lib/sanitize";
@@ -716,10 +716,10 @@ if (data.messageType === "OFFER") {
     }
     const { totalAmount: requiredTotal } = calculateTotalAmount(offerAmount);
     if (!sender.wallet || sender.wallet.balance < requiredTotal) {
-      const availableInr = sender.wallet ? (sender.wallet.balance / 100).toLocaleString("en-IN") : "0";
-      const requiredInr = (requiredTotal / 100).toLocaleString("en-IN");
+      const availableInr = formatCurrency(sender.wallet?.balance ?? 0);
+      const requiredInr = formatCurrency(requiredTotal);
       throw AppError.badRequest(
-        `Insufficient wallet balance to extend offer (Available: ₹${availableInr}, Estimated Required: ₹${requiredInr}). Please top up your wallet.`
+        `Insufficient wallet balance to extend offer (Available: ${availableInr}, Estimated Required: ${requiredInr}). Please top up your wallet.`
       );
     }
   }

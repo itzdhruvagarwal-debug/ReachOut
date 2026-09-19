@@ -11,29 +11,8 @@ import { AppError } from "@/lib/errors";
 import { claimIdempotencyKey, releaseIdempotencyKey, saveIdempotencyResponse, type IdempotencyCheckResult } from "@/lib/idempotency";
 import { env } from "@/env";
 
-const withdrawalSchema = z.object({
-  amount: z.preprocess(
-    Number,
-    z
-      .number()
-      .int()
-      .positive()
-      .min(
-        env.MIN_WITHDRAWAL_AMOUNT,
-        `Minimum withdrawal is INR ${env.MIN_WITHDRAWAL_AMOUNT / 100}`,
-      )
-      .max(50_000_000, "Maximum single withdrawal is INR 5,00,000"),
-  ),
-  /**
-   * bankAccountId is the ONLY accepted payment destination.
-   * Freeform bank details (bankAccountName, bankAccountNumber, ifscCode) are
-   * intentionally NOT accepted here — they were a money-laundering vector that
-   * allowed routing funds to any unverified third-party account.
-   * All accounts must first be saved via POST /api/wallet/bank-accounts and then
-   * verified via POST /api/wallet/bank-accounts/verify (Razorpay penny-drop).
-   */
-  bankAccountId: z.string().min(1, "bankAccountId is required — use a verified saved bank account"),
-});
+import { withdrawalSchema } from "@/lib/validations/payment";
+export { withdrawalSchema };
 
 function getWithdrawalIdempotencyKey(request: NextRequest, userId: string) {
 const headerKey = request.headers.get("Idempotency-Key")?.trim();

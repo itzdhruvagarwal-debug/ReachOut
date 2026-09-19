@@ -23,13 +23,9 @@ import { logger } from "./logger";
 import { randomUUID } from "node:crypto";
 import { sleep } from "./utils";
 
-// ==================== CONFIG ====================
-
 const SMS_MAX_RETRIES = 2;
 const BASE_RETRY_DELAY_MS = 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
-
-// ==================== HELPERS ====================
 
 async function performSmsPost(
 apiKey: string,
