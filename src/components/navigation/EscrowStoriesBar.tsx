@@ -160,7 +160,6 @@ export default function EscrowStoriesBar({
                       strokeDasharray={circumference}
                       strokeDashoffset={strokeDashoffset}
                       strokeLinecap="round"
-                      strokeDashoffset-anim="true"
                       className="transition-all duration-700 ease-out"
                       style={{
                         strokeDashoffset,
