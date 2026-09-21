@@ -94,9 +94,7 @@ export default function DesktopSidebar({
     >
       {/* Brand Header */}
       <div className="flex items-center justify-between px-3 mb-8">
-        <Link href="/dashboard" className="flex items-center gap-2 group focus:outline-none">
-          <Logo />
-        </Link>
+        <Logo href="/dashboard" />
         <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full border bg-muted text-muted-foreground">
           {isBrand ? "Brand" : "Creator"}
         </span>

@@ -2,13 +2,17 @@ import Link from "next/link";
 
 import Image from "next/image";
 
-export function Logo({ tabIndex }: Readonly<{ tabIndex?: number }> = {}) {
-  return (
-    <Link
-      href="/"
-      className="flex items-center gap-2.5 no-underline min-w-0 flex-1 overflow-hidden group"
-      tabIndex={tabIndex}
-    >
+export function Logo({
+  href = "/",
+  asLink = true,
+  tabIndex,
+}: Readonly<{
+  href?: string;
+  asLink?: boolean;
+  tabIndex?: number;
+}> = {}) {
+  const content = (
+    <>
       <div className="logo-mark p-1 flex items-center justify-center rounded-xl text-white flex-shrink-0 relative overflow-hidden bg-slate-900/60 border border-slate-700/50">
         {/* Official VyaparMedia Logo Mark */}
         <Image
@@ -32,6 +36,24 @@ export function Logo({ tabIndex }: Readonly<{ tabIndex?: number }> = {}) {
           Trusted Creator Commerce
         </span>
       </div>
+    </>
+  );
+
+  if (!asLink) {
+    return (
+      <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden group">
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 no-underline min-w-0 flex-1 overflow-hidden group"
+      tabIndex={tabIndex}
+    >
+      {content}
     </Link>
   );
 }
