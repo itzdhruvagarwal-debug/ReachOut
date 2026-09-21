@@ -1,72 +1,22 @@
 "use client";
 
-import Image from "next/image";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import useSWR from "swr";
-import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import { createSchemaFetcher } from "@/lib/fetcher";
 import {
   type DashboardCampaign as Campaign,
   type RawCampaignApiItem as RawCampaign,
   type CampaignsListResponse as CampaignsPayload,
   campaignsListResponseSchema,
 } from "@/lib/schemas";
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { formatCurrency, formatDate, formatNumber, normalizeStringArray, normalizeDeliverables } from "@/lib/utils-client";
+import { normalizeStringArray, normalizeDeliverables } from "@/lib/utils-client";
 import EmptyState from "@/components/ui/EmptyState";
-import { Badge, Button, Input, Pagination, Select, Skeleton } from "@/components/ui";
-import { ALL_CATEGORIES } from "@/lib/categories";
+import { Button } from "@/components/ui";
+import { CampaignDiscoveryCard } from "@/components/dashboard/campaigns/CampaignDiscoveryCard";
+import { CampaignFiltersBar } from "@/components/dashboard/campaigns/CampaignFiltersBar";
+import { ChevronLeft, ChevronRight, PlusCircle, Sparkles } from "lucide-react";
 
-
-
-const categories = ["All", ...ALL_CATEGORIES];
-
-const deliverableLabels: Record<string, string> = {
-INSTAGRAM_POST: "IG Post",
-INSTAGRAM_REEL: "IG Reel",
-INSTAGRAM_STORY: "IG Story",
-YOUTUBE_VIDEO: "YT Video",
-YOUTUBE_SHORT: "YT Short",
-};
-
-
-
-function CampaignCardSkeleton() {
-return (
-<div className="campaign-card-grid grid gap-4 grid-auto-280" aria-hidden="true">
-{Array.from({ length: 6 }).map((_, i) => (
-<div key={`skeleton-campaign-card-${i}`} className="card p-18px">
-<div className="flex items-center gap-3 mb-3">
-<Skeleton width={40} height={40} borderRadius={6} />
-<div className="flex-1">
-<Skeleton height={12} width={100} borderRadius={4} className="mb-1-5" />
-<Skeleton height={16} width={160} borderRadius={4} />
-</div>
-<Skeleton height={22} width={64} borderRadius={20} />
-</div>
-<Skeleton height={42} borderRadius={6} className="mb-3" />
-<div className="flex gap-1.5 mb-3">
-<Skeleton height={20} width={56} borderRadius={4} />
-<Skeleton height={20} width={64} borderRadius={4} />
-<Skeleton height={20} width={52} borderRadius={4} />
-</div>
-<div className="grid gap-2 mb-3 responsive-three-col">
-{[1, 2, 3].map((j) => (
-<div key={j}>
-<Skeleton height={10} width={36} borderRadius={3} className="mb-1" />
-<Skeleton height={14} width={52} borderRadius={3} />
-</div>
-))}
-</div>
-<div className="flex justify-between items-center">
-<Skeleton height={12} width={80} borderRadius={3} />
-<Skeleton height={34} width={96} borderRadius={6} />
-</div>
-</div>
-))}
-</div>
-);
-}
-
-function buildCampaignQueryParams(
+export function buildCampaignQueryParams(
   canCreateCampaign: boolean,
   selectedCategory: string,
   debouncedSearch: string,
@@ -110,21 +60,22 @@ function buildCampaignQueryParams(
   return queryParams.toString();
 }
 
-function mapRawCampaigns(rawCampaigns: RawCampaign[]): Campaign[] {
+export function mapRawCampaigns(rawCampaigns: RawCampaign[]): Campaign[] {
   return rawCampaigns.map((campaign: RawCampaign) => ({
-    id: campaign.id || '',
+    id: campaign.id || "",
     title: campaign.title || "Untitled Campaign",
     description: campaign.description || "",
-    createdAt: campaign.createdAt instanceof Date
-      ? campaign.createdAt.toISOString()
-      : (campaign.createdAt ?? new Date(0).toISOString()),
+    createdAt:
+      campaign.createdAt instanceof Date
+        ? campaign.createdAt.toISOString()
+        : campaign.createdAt ?? new Date(0).toISOString(),
     perInfluencerBudget: Number(campaign.perInfluencerBudget || 0),
     minFollowers: Number(campaign.minFollowers || 0),
     postingDeadline: campaign.postingDeadline || new Date(0).toISOString(),
     targetCategories: normalizeStringArray(campaign.targetCategories),
     totalApplications: Number(campaign.totalApplications || campaign._count?.applications || 0),
     brand: {
-      companyName: campaign.brand?.companyName || "Unknown Brand",
+      companyName: campaign.brand?.companyName || "Verified Brand",
       logo: campaign.brand?.logo || null,
       avgRating: Number(campaign.brand?.avgRating || campaign.brand?.averageRating || 0) / 100,
     },
@@ -134,84 +85,40 @@ function mapRawCampaigns(rawCampaigns: RawCampaign[]): Campaign[] {
   }));
 }
 
-function CampaignCard({ campaign }: { readonly campaign: Campaign }) {
+function CampaignGridSkeleton() {
   return (
-    <article key={campaign.id} className="card campaign-card p-18px">
-      <div className="campaign-card-brand-row">
-        <div className="campaign-card-logo relative overflow-hidden flex-shrink-0 rounded-xl flex items-center justify-center" aria-hidden={!campaign.brand.logo}>
-          {campaign.brand.logo ? (
-            <Image src={campaign.brand.logo} alt={campaign.brand.companyName} width={58} height={58} unoptimized className="object-cover rounded-xl w-full h-full" />
-          ) : (
-            campaign.brand.companyName.slice(0, 2).toUpperCase()
-          )}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="campaign-card-brand-name">
-            {campaign.brand.companyName}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse" aria-hidden="true">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-muted shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="w-24 h-3.5 bg-muted rounded" />
+              <div className="w-40 h-4 bg-muted rounded" />
+            </div>
+            <div className="w-16 h-6 bg-muted rounded-full" />
           </div>
-          <h3>{campaign.title}</h3>
-        </div>
-        <Badge variant="success" className="campaign-card-rate">
-          {formatCurrency(campaign.perInfluencerBudget)}
-        </Badge>
-      </div>
-
-      <p className="campaign-card-description text-secondary text-sm leading-normal campaign-desc-min-h-42">
-        {campaign.description}
-      </p>
-
-      <div className="campaign-card-tags flex flex-wrap gap-1.5 campaign-tags-margin">
-        {campaign.deliverables.slice(0, 2).map((item, index) => (
-          <Badge key={`${campaign.id}-del-${index}`} variant="primary">
-            {item.count}x {deliverableLabels[item.type] || item.type}
-          </Badge>
-        ))}
-        {campaign.targetCategories.slice(0, 2).map((category) => (
-          <Badge key={`${campaign.id}-${category}`} variant="ghost">
-            {category}
-          </Badge>
-        ))}
-      </div>
-
-      <div className="campaign-card-metrics grid gap-2 mb-3 grid-cols-3">
-        <div>
-          <div className="text-xs text-muted">Slots</div>
-          <div className="text-sm font-semibold">
-            {campaign.maxInfluencers !== null && campaign.maxInfluencers !== undefined
-              ? `${campaign.acceptedCount}/${campaign.maxInfluencers} filled`
-              : "Unlimited"}
+          <div className="h-10 bg-muted/60 rounded" />
+          <div className="flex gap-2">
+            <div className="w-16 h-5 bg-muted rounded" />
+            <div className="w-20 h-5 bg-muted rounded" />
+          </div>
+          <div className="h-16 bg-muted/40 rounded-xl" />
+          <div className="flex justify-between items-center pt-2">
+            <div className="w-24 h-4 bg-muted rounded" />
+            <div className="w-24 h-8 bg-muted rounded-xl" />
           </div>
         </div>
-        <div>
-          <div className="text-xs text-muted">Followers</div>
-          <div className="text-sm font-semibold">
-            {formatNumber(campaign.minFollowers)}+
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-muted">Applied</div>
-          <div className="text-sm font-semibold">{campaign.totalApplications}</div>
-        </div>
-      </div>
-
-      <div className="campaign-card-footer flex items-center justify-between gap-2.5">
-        <span className="text-xs text-secondary">
-          Post by {formatDate(campaign.postingDeadline)}
-        </span>
-        <Button
-          href={`/dashboard/campaigns/${campaign.id}`}
-          variant="primary"
-          size="sm"
-          aria-label={`View details for campaign: ${campaign.title}`}
-        >
-          View Details
-        </Button>
-      </div>
-    </article>
+      ))}
+    </div>
   );
 }
 
-export default function CampaignsClient({ user }: { readonly user: { readonly userType?: string } }) {
+export default function CampaignsClient({
+  user,
+}: {
+  readonly user: { readonly userType?: string };
+}) {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -238,10 +145,11 @@ export default function CampaignsClient({ user }: { readonly user: { readonly us
   );
 
   const campaignsFetcher = createSchemaFetcher(campaignsListResponseSchema);
-  const { data: payload, isLoading: loading, error: fetchErr } = useSWR<CampaignsPayload>(
-    `/api/campaigns?${queryString}`,
-    campaignsFetcher
-  );
+  const {
+    data: payload,
+    isLoading: loading,
+    error: fetchErr,
+  } = useSWR<CampaignsPayload>(`/api/campaigns?${queryString}`, campaignsFetcher);
 
   const { campaigns, totalPages } = useMemo(() => {
     const rawCampaigns: RawCampaign[] = payload?.data?.campaigns ?? payload?.campaigns ?? [];
@@ -252,130 +160,126 @@ export default function CampaignsClient({ user }: { readonly user: { readonly us
 
   const error = fetchErr ? "Unable to load campaigns right now." : null;
 
-  const filteredCampaigns = useMemo(() => {
-    return campaigns;
-  }, [campaigns]);
-
-  /** Stable handler avoids re-creating on every render */
   const handleCategoryChange = useCallback((category: string) => {
     setSelectedCategory(category);
     setPage(1);
   }, []);
 
-  const handleSortChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSortBy(e.target.value);
+  const handleSortChange = useCallback((sort: string) => {
+    setSortBy(sort);
     setPage(1);
   }, []);
 
-  let content;
-  if (loading) {
-    content = <CampaignCardSkeleton />;
-  } else if (error) {
-    content = (
-      <EmptyState
-        title="Error Loading Campaigns"
-        description={error}
+  return (
+    <div className="max-w-7xl mx-auto space-y-6 pb-12">
+      {/* Header */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+            {canCreateCampaign ? "My Campaigns" : "Explore Campaigns"}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+            {canCreateCampaign
+              ? "Manage your active campaigns, review influencer applications, and fund escrow milestones."
+              : "Discover verified brand collaborations matching your niche with guaranteed escrow payouts."}
+          </p>
+        </div>
+
+        {canCreateCampaign && (
+          <Button
+            href="/dashboard/campaigns/create"
+            variant="primary"
+            size="sm"
+            className="font-bold text-xs gap-1.5 shadow-sm self-start sm:self-center"
+          >
+            <PlusCircle className="w-4 h-4" /> Create Campaign
+          </Button>
+        )}
+      </header>
+
+      {/* Filter and Category Bar */}
+      <CampaignFiltersBar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={handleCategoryChange}
+        sortBy={sortBy}
+        setSortBy={handleSortChange}
       />
-    );
-  } else if (filteredCampaigns.length === 0) {
-    content = (
-      <EmptyState
-        title={canCreateCampaign ? "No Campaigns Yet" : "No Campaigns Found"}
-        description={
-          canCreateCampaign
-            ? "You haven't created any campaigns yet. Launch your first campaign to find creators."
-            : "Try broadening your search query or changing category and budget filters."
-        }
-        actionLabel={canCreateCampaign ? "Create Campaign" : undefined}
-        actionHref={canCreateCampaign ? "/dashboard/campaigns/create" : undefined}
-      />
-    );
-  } else {
-    content = (
-      <div className="campaign-card-grid grid gap-4 grid-auto-280">
-        {filteredCampaigns.map((campaign) => (
-          <CampaignCard key={campaign.id} campaign={campaign} />
-        ))}
-      </div>
-    );
-  }
 
-return (
-<div className="campaigns-page">
-<header className="dashboard-sub-header glass">
-<div className="flex flex-row justify-between items-center gap-4 w-full min-w-0">
-  <div className="min-w-0 flex-1">
-    <h2 className="text-lg font-extrabold">
-      {canCreateCampaign ? "My Campaigns" : "Explore Campaigns"}
-    </h2>
-    <p className="text-sm text-secondary leading-tight">
-      {canCreateCampaign
-        ? "Manage your campaigns and track influencer applications."
-        : "Apply to active campaigns matching your niche."}
-    </p>
-  </div>
-  {canCreateCampaign && (
-    <Button
-      href="/dashboard/campaigns/create"
-      variant="primary"
-      aria-label="Create a new campaign"
-      className="flex-shrink-0 whitespace-nowrap"
-    >
-      Create Campaign
-    </Button>
-  )}
-</div>
+      {/* Campaign Cards Grid */}
+      {loading && <CampaignGridSkeleton />}
 
-<div
-className="flex gap-3 flex-wrap mt-5 campaign-filters"
->
-<Input
-id="search-campaigns-input"
-type="text"
-placeholder="Search campaigns..."
-value={searchQuery}
-onChange={(e) => setSearchQuery(e.target.value)}
-className="campaign-search-field"
-aria-label="Search campaigns"
-fullWidth
-/>
+      {!loading && error && (
+        <EmptyState
+          title="Error Loading Campaigns"
+          description={error}
+          actionLabel="Try Again"
+          onActionClick={() => window.location.reload()}
+        />
+      )}
 
-<Select
-id="sort-campaigns-select"
-value={sortBy}
-onChange={handleSortChange}
-className="campaign-sort-field"
-aria-label="Sort campaigns"
-fullWidth
->
-<option value="newest">Newest</option>
-<option value="budget_high">Budget: High to Low</option>
-<option value="budget_low">Budget: Low to High</option>
-<option value="deadline">Deadline Soon</option>
-</Select>
-</div>
+      {!loading && !error && campaigns.length === 0 && (
+        <EmptyState
+          title={canCreateCampaign ? "No Campaigns Yet" : "No Campaigns Found"}
+          description={
+            canCreateCampaign
+              ? "You haven't launched any campaigns yet. Create your first campaign to connect with top-ranked creators."
+              : "No active campaigns match your search and category filter. Try clearing filters or exploring other niches."
+          }
+          actionLabel={canCreateCampaign ? "Create New Campaign" : "Reset Filters"}
+          actionHref={canCreateCampaign ? "/dashboard/campaigns/create" : undefined}
+          onActionClick={
+            !canCreateCampaign
+              ? () => {
+                  setSelectedCategory("All");
+                  setSearchQuery("");
+                }
+              : undefined
+          }
+        />
+      )}
 
-<div
-className="scrollable-tabs flex gap-2 mt-4 overflow-x-auto campaign-category-tabs"
->
-{categories.map((category) => (
-<Button
-key={category}
-variant={selectedCategory === category ? "primary" : "ghost"}
-size="sm"
-onClick={() => handleCategoryChange(category)}
-aria-pressed={selectedCategory === category}
-className="whitespace-nowrap"
->
-{category}
-</Button>
-))}
-</div>
-</header>
+      {!loading && !error && campaigns.length > 0 && (
+        <>
+          <section aria-label="Campaign opportunities" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {campaigns.map((campaign) => (
+              <CampaignDiscoveryCard
+                key={campaign.id}
+                campaign={campaign}
+                isBrand={canCreateCampaign}
+              />
+            ))}
+          </section>
 
-{content}
-
-<Pagination page={page} totalPages={totalPages} setPage={setPage} marginTop="32px" />
-</div>
-);
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <nav aria-label="Campaigns pagination" className="flex justify-center items-center gap-3 pt-6">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="text-xs font-semibold gap-1"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" /> Previous
+              </Button>
+              <span className="text-xs font-medium text-muted-foreground px-2">
+                Page <strong className="text-foreground">{page}</strong> of {totalPages}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="text-xs font-semibold gap-1"
+              >
+                Next <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+            </nav>
+          )}
+        </>
+      )}
+    </div>
+  );
 }

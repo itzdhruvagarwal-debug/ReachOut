@@ -1,402 +1,329 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import useSWR from "swr";
-import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import { createSchemaFetcher } from "@/lib/fetcher";
 import {
-  type DashboardInfluencer as Influencer,
   creatorsListResponseSchema,
   type CreatorsListResponse,
+  type RawInfluencerApiItem,
 } from "@/lib/schemas";
-import Link from "next/link";
-import Image from "next/image";
 import { useSession } from "next-auth/react";
-import { motion, AnimatePresence } from "framer-motion";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import EmptyState from "@/components/ui/EmptyState";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
+import CreatorDiscoveryCard from "@/components/discovery/CreatorDiscoveryCard";
 import DiscoveryCardSkeleton from "@/components/discovery/DiscoveryCardSkeleton";
-import { formatNumber } from "@/lib/utils-client";
-import { z } from "zod";
+import FilterBottomSheet from "@/components/discovery/FilterBottomSheet";
+import {
+  type CreatorDiscoveryItem,
+  type DiscoveryFilters,
+} from "@/components/discovery/types";
+import { Search, SlidersHorizontal, X, RotateCcw, Sparkles } from "lucide-react";
 
-const discoverFiltersSchema = z.object({
-search: z.string().max(100).optional(),
-category: z.string().max(50).optional(),
-platform: z.string().max(20).optional(),
-minFollowers: z.string().max(20).optional(),
-minEngagementRate: z.string().max(10).optional(),
-city: z.string().max(100).optional(),
-minRate: z.string().max(20).optional(),
-maxRate: z.string().max(20).optional(),
-});
-
-
-
-export default function DiscoverInfluencersPage() {
-const [search, setSearch] = useState("");
-const [category, setCategory] = useState("");
-const [minFollowers, setMinFollowers] = useState("");
-const [minEngagementRate, setMinEngagementRate] = useState("");
-const [minRate, setMinRate] = useState("");
-const [maxRate, setMaxRate] = useState("");
-const [city, setCity] = useState("");
-const [platform, setPlatform] = useState("");
-const { data: session } = useSession();
-
-const canDiscover = session?.user?.userType === "BRAND" || session?.user?.userType === "ADMIN";
-
-const validation = discoverFiltersSchema.safeParse({
-search: search || undefined,
-category: category || undefined,
-platform: platform || undefined,
-minFollowers: minFollowers || undefined,
-minEngagementRate: minEngagementRate || undefined,
-city: city || undefined,
-minRate: minRate || undefined,
-maxRate: maxRate || undefined,
-});
-
-const validData = validation.success ? validation.data : {};
-
-const queryParams = new URLSearchParams();
-if (validData.search) queryParams.append("search", validData.search);
-if (validData.category) queryParams.append("category", validData.category);
-if (validData.minFollowers) queryParams.append("minFollowers", validData.minFollowers);
-if (validData.minEngagementRate) queryParams.append("minEngagementRate", validData.minEngagementRate); // minEngagementRate mapping
-if (validData.minRate) queryParams.append("minRate", validData.minRate);
-if (validData.maxRate) queryParams.append("maxRate", validData.maxRate);
-if (validData.city) queryParams.append("city", validData.city);
-if (validData.platform) queryParams.append("platform", validData.platform);
-
-const creatorsFetcher = createSchemaFetcher(creatorsListResponseSchema);
-const { data: payload, isLoading: loading } = useSWR<CreatorsListResponse>(
-canDiscover ? `/api/influencers?${queryParams.toString()}` : null,
-creatorsFetcher
-);
-
-const influencers: Influencer[] = (payload?.influencers || payload?.data?.influencers || []).map((inf) => ({
-  id: inf.id || inf.userId || "",
-  displayName: inf.displayName || inf.name || "Creator",
-  bio: null,
-  avatar: inf.avatar || null,
-  city: inf.city || null,
-  instagramFollowers: inf.instagramFollowers ?? inf.followers ?? null,
-  youtubeSubscribers: inf.youtubeSubscribers ?? null,
-  categories: inf.categories || inf.category || "General",
-  totalCompletedDeals: inf.totalCompletedDeals ?? 0,
-  trustScore: inf.trustScore ?? 750,
-  userId: inf.userId || inf.id || "",
-  isFeatured: inf.isFeatured,
-}));
-
-const handleSearch = (e: React.FormEvent) => {
-e.preventDefault();
-};
-
-const categoriesList = [
-"fashion",
-"food",
-"tech",
-"travel",
-"fitness",
-"beauty",
-"gaming",
+const CATEGORY_CHIPS = [
+  "All",
+  "Tech & Gadgets",
+  "Fashion & Style",
+  "Beauty & Skincare",
+  "Fitness & Health",
+  "Food & Beverage",
+  "Travel & Hospitality",
+  "Gaming & Esports",
+  "Fintech & Crypto",
 ];
 
-if (!session) {
-return (
-<div className="flex items-center justify-center min-h-60vh">
-<div className="loading" />
-</div>
-);
+export function normalizeCreatorItem(inf: RawInfluencerApiItem): CreatorDiscoveryItem {
+  const followers =
+    inf.followersCount ?? inf.followers ?? inf.instagramFollowers ?? inf.youtubeSubscribers ?? 0;
+  const engagement =
+    typeof inf.engagementRate === "number"
+      ? inf.engagementRate
+      : typeof inf.instagramEngagementRate === "number"
+      ? Number((inf.instagramEngagementRate / 100).toFixed(2))
+      : 3.5;
+  const startingRate =
+    inf.startingRatePaise ?? (inf.minRate ? inf.minRate * 100 : 1500000);
+  const niche =
+    inf.niche ||
+    inf.category ||
+    (inf.categories ? inf.categories.split(",")[0]?.trim() : "Lifestyle") ||
+    "Lifestyle";
+  const name = inf.displayName || inf.name || inf.user?.name || "Creator";
+  const handle =
+    inf.handle || inf.instagramHandle || name.toLowerCase().replaceAll(/[^a-z0-9]/g, "_");
+
+  return {
+    id: inf.id || inf.userId || "",
+    name,
+    handle,
+    avatar: inf.avatar || inf.user?.image || null,
+    coverImage:
+      inf.coverImage || inf.topPostImages?.[0] || inf.portfolioImages?.[0] || null,
+    niche,
+    city: inf.city || inf.state || "India",
+    followers,
+    engagementRate: Number(engagement.toFixed(1)),
+    isKycVerified: Boolean(inf.isKycVerified ?? inf.user?.isKycVerified ?? true),
+    trustScore: inf.trustScore ?? inf.user?.trustScore ?? 750,
+    startingRatePaise: startingRate,
+    isSaved: Boolean(inf.isSaved),
+  };
 }
 
-if (
-session.user?.userType !== "BRAND" &&
-session.user?.userType !== "ADMIN"
-) {
-return (
-<DashboardShell user={session.user}>
-<div className="creator-access-card card text-center max-w-680">
-<h1 className="text-2xl font-extrabold mb-2">
-Brand access required
-</h1>
-<p className="text-secondary mb-5">
-Influencer discovery is available for brand accounts. Browse campaigns instead.
-</p>
-<Button href="/dashboard/campaigns" variant="primary">
-Browse Campaigns
-</Button>
-</div>
-</DashboardShell>
-);
-}
+export default function DiscoverInfluencersPage() {
+  const { data: session } = useSession();
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [filters, setFilters] = useState<DiscoveryFilters>({});
 
-return (
-<DashboardShell user={session.user}>
-<div className="creators-page mx-auto">
-<motion.div
-initial={{ opacity: 0, y: -20 }}
-animate={{ opacity: 1, y: 0 }}
-className="text-center mb-10"
->
-<h1 className="creators-title mb-3 font-extrabold tracking-normal text-5xl">
-Discover Top Creators
-</h1>
-<p className="text-secondary text-lg max-w-600 mx-auto">
-Find verified creators by category, reach, and trust score.
-</p>
-</motion.div>
+  const isBrandOrAdmin =
+    session?.user?.userType === "BRAND" || session?.user?.userType === "ADMIN";
 
-        <motion.form
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          onSubmit={handleSearch}
-          className="creator-filter-form mb-8"
-        >
-          <div className="filter-field filter-field-wide">
-            <Input
-              id="search-keywords-input"
-              type="text"
-              label="Search Keywords"
-              placeholder="Name, bio, or handle..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              fullWidth
-            />
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (search.trim()) params.set("search", search.trim());
+    if (selectedCategory && selectedCategory !== "All") {
+      params.set("category", selectedCategory);
+    } else if (filters.niche) {
+      params.set("category", filters.niche);
+    }
+    if (filters.city) params.set("city", filters.city);
+    if (typeof filters.minFollowers === "number") {
+      params.set("minFollowers", filters.minFollowers.toString());
+    }
+    if (typeof filters.minBudget === "number") {
+      params.set("minRate", Math.round(filters.minBudget / 100).toString());
+    }
+    if (typeof filters.maxBudget === "number") {
+      params.set("maxRate", Math.round(filters.maxBudget / 100).toString());
+    }
+    if (filters.sortBy) params.set("sortBy", filters.sortBy);
+    return params;
+  }, [search, selectedCategory, filters]);
+
+  const creatorsFetcher = createSchemaFetcher(creatorsListResponseSchema);
+  const { data: payload, isLoading: loading } = useSWR<CreatorsListResponse>(
+    isBrandOrAdmin ? `/api/influencers?${queryParams.toString()}` : null,
+    creatorsFetcher,
+    { revalidateOnFocus: false },
+  );
+
+  const rawInfluencers: RawInfluencerApiItem[] =
+    payload?.influencers || payload?.data?.influencers || [];
+  const creators = useMemo(
+    () => rawInfluencers.map(normalizeCreatorItem),
+    [rawInfluencers],
+  );
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedCategory !== "All") count++;
+    if (filters.city) count++;
+    if (filters.minFollowers) count++;
+    if (filters.minBudget || filters.maxBudget) count++;
+    if (filters.sortBy) count++;
+    return count;
+  }, [selectedCategory, filters]);
+
+  const handleClearAllFilters = useCallback(() => {
+    setSearch("");
+    setSelectedCategory("All");
+    setFilters({});
+  }, []);
+
+  if (!session) {
+    return (
+      <DashboardShell>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  if (!isBrandOrAdmin) {
+    return (
+      <DashboardShell user={session.user}>
+        <div className="max-w-lg mx-auto p-8 rounded-2xl bg-card border border-border text-center mt-12 shadow-sm">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+            <Sparkles className="w-6 h-6" />
           </div>
-          <div className="filter-field">
-            <Select
-              id="category-select"
-              label="Category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              fullWidth
-            >
-              <option value="">All Industries</option>
-              {categoriesList.map((c) => (
-                <option key={c} value={c}>
-                  {c.charAt(0).toUpperCase() + c.slice(1)}
-                </option>
-              ))}
-            </Select>
+          <h1 className="text-xl font-heading font-bold text-foreground mb-2">
+            Brand Access Required
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mb-6">
+            Influencer discovery and rate cards are reserved for verified brand accounts. Browse available campaigns instead.
+          </p>
+          <Button href="/dashboard/campaigns" variant="primary">
+            Browse Campaigns
+          </Button>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  return (
+    <DashboardShell user={session.user}>
+      <div className="max-w-7xl mx-auto space-y-6 pb-12">
+        {/* Header Banner */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
+              Discover Top Creators
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+              Find verified creators with audited engagement rates, KYC badges, and guaranteed escrow protection.
+            </p>
           </div>
-          <div className="filter-field">
-            <Select
-              id="platform-select"
-              label="Platform"
-              value={platform}
-              onChange={(e) => setPlatform(e.target.value)}
-              fullWidth
-            >
-              <option value="">All Platforms</option>
-              <option value="instagram">Instagram</option>
-              <option value="youtube">YouTube</option>
-            </Select>
-          </div>
-          <div className="filter-field">
-            <Select
-              id="min-followers-select"
-              label="Minimum Reach"
-              value={minFollowers}
-              onChange={(e) => setMinFollowers(e.target.value)}
-              fullWidth
-            >
-              <option value="">Any Reach</option>
-              <option value="1000">1k+ Subs/Followers</option>
-              <option value="10000">10k+ Subs/Followers</option>
-              <option value="100000">100k+ Subs/Followers</option>
-              <option value="1000000">1M+ Subs/Followers</option>
-            </Select>
-          </div>
-          <div className="filter-field">
-            <Select
-              id="min-engagement-select"
-              label="Min Engagement"
-              value={minEngagementRate}
-              onChange={(e) => setMinEngagementRate(e.target.value)}
-              fullWidth
-            >
-              <option value="">Any Rate</option>
-              <option value="1">1%+</option>
-              <option value="2">2%+</option>
-              <option value="3">3%+</option>
-              <option value="5">5%+</option>
-            </Select>
-          </div>
-          <div className="filter-field">
-            <Input
-              id="city-input"
-              type="text"
-              label="City"
-              placeholder="e.g. Mumbai"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              fullWidth
-            />
-          </div>
-          <div className="filter-field filter-field-small">
-            <Input
-              id="min-rate-input"
-              type="number"
-              label="Min Price (₹)"
-              placeholder="Min"
-              value={minRate}
-              onChange={(e) => setMinRate(e.target.value)}
-              fullWidth
-            />
-          </div>
-          <div className="filter-field filter-field-small">
-            <Input
-              id="max-rate-input"
-              type="number"
-              label="Max Price (₹)"
-              placeholder="Max"
-              value={maxRate}
-              onChange={(e) => setMaxRate(e.target.value)}
-              fullWidth
-            />
-          </div>
-          <div className="filter-submit flex items-end">
+
+          <div className="flex items-center gap-2">
             <Button
-              type="submit"
-              variant="primary"
-              className="creator-search-btn font-extrabold text-sm w-full"
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsFilterSheetOpen(true)}
+              className="gap-2 text-xs font-semibold"
             >
-              Search
+              <SlidersHorizontal className="w-4 h-4" />
+              <span>Filters</span>
+              {activeFilterCount > 0 && (
+                <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
             </Button>
           </div>
-        </motion.form>
-
-<AnimatePresence mode="wait">
-{(() => {
-if (loading) {
-return (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <DiscoveryCardSkeleton />
-    <DiscoveryCardSkeleton />
-    <DiscoveryCardSkeleton />
-  </div>
-);
-}
-if (influencers.length === 0) {
-return (
-<motion.div
-key="empty"
-initial={{ opacity: 0, y: 20 }}
-animate={{ opacity: 1, y: 0 }}
->
-<EmptyState
-emoji=""
-title="Zero Matches Found"
-description="Our scouts couldn't find anyone with those exact filters. Try broadening your criteria."
-/>
-</motion.div>
-);
-}
-return (
-<motion.div
-key="grid"
-className="grid-3"
-variants={{
-show: { transition: { staggerChildren: 0.1 } }
-}}
-initial="hidden"
-animate="show"
->
-{influencers.map((inf: Influencer) => (
-<motion.div
-key={inf.id}
-variants={{
-hidden: { opacity: 0, y: 20 },
-show: { opacity: 1, y: 0 }
-}}
-whileHover={{ y: -10, transition: { duration: 0.2 } }}
-className="creator-card flex flex-col h-full relative overflow-hidden rounded-lg p-8"
-data-featured={Boolean(inf.isFeatured)}
->
-{/* Subtle Background Accent */}
-<div className="creator-card-accent absolute rounded-md bg-gradient-primary pointer-events-none" />
-
-              <div className="flex gap-4 items-center mb-6">
-                <div className="creator-avatar relative flex items-center justify-center flex-shrink-0 rounded-2xl text-2xl font-extrabold bg-gradient-primary overflow-hidden shadow-md" style={{ width: 56, height: 56 }}>
-                  {inf.avatar ? (
-                    <Image
-                      src={inf.avatar}
-                      alt={inf.displayName || "Influencer Avatar"}
-                      fill
-                      unoptimized
-                      className="object-cover rounded-2xl"
-                    />
-                  ) : (
-                    inf.displayName?.[0] || "I"
-                  )}
-                </div>
-                <div>
-                  <h3 className="creator-card-title text-lg font-extrabold text-primary">
-                    {inf.displayName}
-                  </h3>
-                  <div className="flex items-center text-sm text-muted gap-1.5">
-                    <span>Location:</span>
-                    <span>{inf.city || "Global"}</span>
-                  </div>
-                </div>
-              </div>
-
-<div className="flex gap-2 flex-wrap mb-5">
-{inf.isFeatured && (
-<span className="creator-badge-featured font-extrabold inline-flex items-center gap-1 text-xs rounded-md text-amber uppercase px-2 py-1 bg-amber-15">
-Featured
-</span>
-)}
-                <span className="creator-badge-trust font-extrabold text-xs rounded-md text-emerald uppercase px-2 py-1">
-                  TRUST: {inf.trustScore ?? 100}%
-                </span>
-<span className="creator-badge-category font-extrabold text-xs rounded-md uppercase px-2 py-1">
-{inf.categories.split(',')[0]}
-</span>
-</div>
-
-<p className="text-sm text-secondary flex-1 mb-6 leading-1-6">
-{inf.bio || "High-impact creator focused on quality content delivery and authentic audience engagement."}
-</p>
-
-<div className="creator-stats grid gap-3 mb-6">
-<div className="text-center">
-<div className="text-muted font-bold mb-1 text-xs uppercase">Followers</div>
-          <div className="font-extrabold text-sm text-primary">{formatNumber(inf.instagramFollowers || 0)}</div>
         </div>
-        <div className="text-center">
-          <div className="text-muted font-bold mb-1 text-xs uppercase">Subs</div>
-          <div className="font-extrabold text-sm text-primary">{inf.youtubeSubscribers === -1 ? 'Hidden' : formatNumber(inf.youtubeSubscribers || 0)}</div>
-</div>
-<div className="text-center">
-<div className="text-muted font-bold mb-1 text-xs uppercase">Deals</div>
-<div className="font-extrabold text-sm text-primary">{inf.totalCompletedDeals || 0}</div>
-</div>
-</div>
 
-<div className="creator-actions flex gap-2.5">
-<Link
-href={`/dashboard/influencers/${inf.id}`}
-className="creator-secondary-link flex-1 text-center text-sm font-bold bg-secondary rounded-md no-underline"
->
-View Profile
-</Link>
-<Link
-href={`/dashboard/campaigns/create?invite=${inf.id}`}
-className="creator-primary-link flex-1 text-center text-sm font-bold rounded-md no-underline bg-gradient-primary"
->
-Invite
-</Link>
-</div>
-</motion.div>
-))}
-</motion.div>
-);
-})()}
-</AnimatePresence>
-</div>
-</DashboardShell>
-);
+        {/* Search Bar & Category Carousel */}
+        <div className="space-y-3">
+          {/* Live Search Input */}
+          <div className="relative w-full">
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Input
+              type="text"
+              placeholder="Search creators by name, handle, or city..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-10 pr-10 text-sm h-11 rounded-2xl"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                aria-label="Clear search input"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Instagram-Inspired Category Chips Carousel */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+            {CATEGORY_CHIPS.map((chip) => {
+              const isSelected = selectedCategory === chip;
+              return (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setSelectedCategory(chip)}
+                  className={`px-3.5 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                    isSelected
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-muted text-muted-foreground border-border hover:text-foreground hover:bg-muted/80"
+                  }`}
+                >
+                  {chip}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Active Filters Pill Bar */}
+        {activeFilterCount > 0 && (
+          <div className="flex items-center gap-2 flex-wrap text-xs pt-1">
+            <span className="text-muted-foreground font-medium">Active filters:</span>
+            {selectedCategory !== "All" && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold border border-primary/20">
+                {selectedCategory}
+                <button type="button" onClick={() => setSelectedCategory("All")} className="hover:opacity-75">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {filters.city && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold border border-border">
+                City: {filters.city}
+                <button type="button" onClick={() => setFilters((p) => ({ ...p, city: undefined }))} className="hover:opacity-75">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {filters.minFollowers && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold border border-border">
+                {filters.minFollowers >= 1000 ? `${filters.minFollowers / 1000}K+ Reach` : `${filters.minFollowers}+ Reach`}
+                <button type="button" onClick={() => setFilters((p) => ({ ...p, minFollowers: undefined }))} className="hover:opacity-75">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleClearAllFilters}
+              className="text-muted-foreground hover:text-foreground underline flex items-center gap-1 ml-1 cursor-pointer font-medium"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset All
+            </button>
+          </div>
+        )}
+
+        {/* Creator Showcase Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <DiscoveryCardSkeleton />
+            <DiscoveryCardSkeleton />
+            <DiscoveryCardSkeleton />
+          </div>
+        ) : creators.length === 0 ? (
+          <div className="py-12">
+            <EmptyState
+              emoji=""
+              title="Zero Matches Found"
+              description="No creators match your active search filters. Try broadening your criteria or resetting filters."
+              actionLabel="Clear All Filters"
+              onActionClick={handleClearAllFilters}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {creators.map((creator) => (
+              <CreatorDiscoveryCard
+                key={creator.id}
+                creator={creator}
+                showInviteButton={true}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Filter Bottom Sheet / Modal */}
+      <FilterBottomSheet
+        isOpen={isFilterSheetOpen}
+        onClose={() => setIsFilterSheetOpen(false)}
+        filters={filters}
+        onApplyFilters={(newFilters) => {
+          setFilters(newFilters);
+          if (newFilters.niche) {
+            setSelectedCategory(newFilters.niche);
+          }
+        }}
+        mode="creators"
+      />
+    </DashboardShell>
+  );
 }

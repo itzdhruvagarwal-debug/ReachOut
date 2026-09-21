@@ -9,6 +9,7 @@ import { AppError } from "@/lib/errors";
 
 import { logger } from "./logger";
 import { cleanUrl } from "./utils";
+import { SOCIAL_API_TIMEOUT_MS } from "@/constants";
 
 const GRAPH_API_BASE = "https://graph.instagram.com";
 const GRAPH_API_VERSION = "v18.0";
@@ -388,7 +389,7 @@ export async function checkIsInstagramPostPublic(permalink: string): Promise<boo
     if (!/^\/(p|reel|tv)\/[\w-]+/i.test(parsed.pathname)) return false;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    const timeoutId = setTimeout(() => controller.abort(), SOCIAL_API_TIMEOUT_MS);
 
     const res = await fetch(parsed.toString(), {
       method: "GET",

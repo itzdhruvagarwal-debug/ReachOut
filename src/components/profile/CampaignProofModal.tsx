@@ -65,8 +65,8 @@ export default function CampaignProofModal({
       maxWidth="32rem"
     >
       <div className="space-y-5">
-        {/* Media Banner */}
-        <div className="relative aspect-[16/9] w-full rounded-2xl bg-muted overflow-hidden">
+        {/* Media Banner / Cover Photo */}
+        <div className="relative aspect-[16/9] w-full rounded-2xl bg-muted overflow-hidden border border-border">
           {proof.coverImage ? (
             <Image
               src={proof.coverImage}
@@ -75,7 +75,7 @@ export default function CampaignProofModal({
               className="object-cover"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-escrow/10 via-card to-muted p-6 text-center">
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-escrow-muted via-card to-muted p-6 text-center">
               <Lock className="w-8 h-8 text-escrow mb-2" />
               <span className="text-sm font-bold text-foreground">Verified Escrow Deliverable</span>
             </div>
@@ -85,18 +85,18 @@ export default function CampaignProofModal({
           <div className="absolute top-3 left-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md bg-escrow-muted/95 text-escrow border-escrow-border shadow-md">
               <Lock className="w-3.5 h-3.5" />
-              <span>{formatCurrency(proof.amountPaise)} Escrow Released</span>
+              <span className="tabular-nums">{formatCurrency(proof.amountPaise)} Escrow Released</span>
             </span>
           </div>
         </div>
 
         {/* Campaign Brief & Title */}
-        <div>
+        <div className="space-y-2">
           <h3 id="proof-modal-title" className="text-base sm:text-lg font-bold text-foreground">
             {proof.title}
           </h3>
           {proof.outcomeMetric && (
-            <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>{proof.outcomeMetric}</span>
             </div>
@@ -105,7 +105,7 @@ export default function CampaignProofModal({
 
         {/* Deliverables Checklist */}
         {proof.deliverables && proof.deliverables.length > 0 && (
-          <div className="p-4 rounded-2xl bg-muted/50 border border-border/60">
+          <div className="p-4 rounded-2xl bg-muted/50 border border-border">
             <h5 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2.5 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" />
               <span>Verified Deliverables</span>

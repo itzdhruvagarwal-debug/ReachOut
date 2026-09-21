@@ -1,9 +1,8 @@
 "use client";
 
+import React, { useState } from "react";
 import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
-
-import React, { useState } from "react";
 import { Download, FileText, Calendar, Filter, CheckCircle2, AlertCircle, Printer } from "lucide-react";
 import { Button, Input, Modal } from "@/components/ui";
 
@@ -17,8 +16,6 @@ interface StatementExportModalProps {
 export function StatementExportModal({
   isOpen,
   onClose,
-  userType,
-  userName,
 }: StatementExportModalProps) {
   const [period, setPeriod] = useState<"30D" | "CURRENT_MONTH" | "90D" | "FY2526" | "CUSTOM">("CURRENT_MONTH");
   const [startDate, setStartDate] = useState("");
@@ -92,11 +89,11 @@ export function StatementExportModal({
         <FileText className="w-5 h-5" />
       </div>
       <div>
-        <h3 className="font-bold text-base text-foreground">
+        <h3 className="font-heading font-bold text-base text-foreground">
           Download Financial Statement
         </h3>
         <p className="text-xs text-muted-foreground font-normal">
-          Generate an official ledger statement for accounting & tax records.
+          Generate an official ledger statement for accounting &amp; tax records.
         </p>
       </div>
     </div>
@@ -128,10 +125,10 @@ export function StatementExportModal({
                 key={p.id}
                 type="button"
                 onClick={() => setPeriod(p.id as typeof period)}
-                className={`p-2.5 rounded-xl border font-semibold text-center transition-all ${
+                className={`p-2.5 rounded-xl border font-semibold text-center transition-all cursor-pointer ${
                   period === p.id
                     ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-secondary/20 hover:bg-secondary/50 text-secondary"
+                    : "border-border bg-muted/30 hover:bg-muted text-muted-foreground"
                 }`}
               >
                 {p.label}
@@ -142,9 +139,9 @@ export function StatementExportModal({
 
         {/* Custom Date Range Inputs */}
         {period === "CUSTOM" && (
-          <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-secondary/30 border border-border">
+          <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-muted/40 border border-border">
             <div>
-              <label className="text-[11px] font-semibold text-secondary mb-1 block" htmlFor="custom-start-date">
+              <label className="text-[11px] font-semibold text-muted-foreground mb-1 block" htmlFor="custom-start-date">
                 Start Date
               </label>
               <Input
@@ -156,7 +153,7 @@ export function StatementExportModal({
               />
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-secondary mb-1 block" htmlFor="custom-end-date">
+              <label className="text-[11px] font-semibold text-muted-foreground mb-1 block" htmlFor="custom-end-date">
                 End Date
               </label>
               <Input
@@ -186,10 +183,10 @@ export function StatementExportModal({
                 key={t.id}
                 type="button"
                 onClick={() => setTxnType(t.id as typeof txnType)}
-                className={`flex-1 p-2 rounded-lg border font-semibold text-center transition-all ${
+                className={`flex-1 p-2 rounded-xl border font-semibold text-center transition-all cursor-pointer ${
                   txnType === t.id
                     ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-secondary/20 hover:bg-secondary/50 text-secondary"
+                    : "border-border bg-muted/30 hover:bg-muted text-muted-foreground"
                 }`}
               >
                 {t.label}
@@ -199,19 +196,19 @@ export function StatementExportModal({
         </div>
 
         {/* Tax Compliance Note */}
-        <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-xs text-secondary space-y-1">
+        <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 text-xs text-muted-foreground space-y-1">
           <div className="font-semibold text-foreground flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Includes PAN &amp; TDS Section 194S Line Items</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-verified" />
+            <span>Includes PAN &amp; TDS Section 194-O / 194-S Line Items</span>
           </div>
-          <p className="text-[11px]">
+          <p className="text-[11px] leading-relaxed">
             Statements generated conform to Indian tax reporting guidelines and can be submitted for ITR/GST filing.
           </p>
         </div>
 
         {exportError && (
-          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <div className="p-3 rounded-xl bg-disputed-muted border border-disputed-border text-disputed text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{exportError}</span>
           </div>
         )}

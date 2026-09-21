@@ -23,21 +23,23 @@ import { transitionDealState } from "@/lib/deal-state-machine";
 import { randomUUID } from "node:crypto";
 import { recordPaymentFailure } from "@/lib/observability";
 
+import {
+  MIN_WALLET_TOPUP_PAISE,
+  MAX_WALLET_TOPUP_PAISE,
+} from "@/constants";
+
 export class PaymentService {
   static async createWalletTopUpOrder(
     userId: string,
     amountInPaise: number,
     idempotencyKey?: string,
   ) {
-    if (!Number.isInteger(amountInPaise) || amountInPaise < 100) {
-      throw AppError.badRequest("Minimum top-up amount is ₹1 (100 paise)");
+    if (!Number.isInteger(amountInPaise) || amountInPaise < MIN_WALLET_TOPUP_PAISE) {
+      throw AppError.badRequest(`Minimum top-up amount is ₹${MIN_WALLET_TOPUP_PAISE / 100} (${MIN_WALLET_TOPUP_PAISE} paise)`);
     }
 
-    // L9 FIX: Enforce a max single top-up of ₹10,00,000 (100,000,000 paise = 10 lakh).
-    // Without this, a single request can create an arbitrarily large Razorpay order.
-    const MAX_TOPUP_PAISE = 100_000_000; // 100 million paise = ₹10 lakh
-    if (amountInPaise > MAX_TOPUP_PAISE) {
-      throw AppError.badRequest("Top-up amount exceeds maximum allowed (₹10,00,000 per transaction)");
+    if (amountInPaise > MAX_WALLET_TOPUP_PAISE) {
+      throw AppError.badRequest(`Top-up amount exceeds maximum allowed (₹${(MAX_WALLET_TOPUP_PAISE / 100).toLocaleString("en-IN")} per transaction)`);
     }
 
     // L9 FIX: Blocked/suspended users must not be able to top up.

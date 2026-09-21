@@ -1,6 +1,16 @@
 import { NextRequest } from "next/server";
 import { apiWrapper, ApiResponse } from "@/lib/api-wrapper";
 import { Prisma } from "@prisma/client";
+import {
+  DEFAULT_CANCELLATION_FEE_AFTER_APPROVAL_PERCENT,
+  DEFAULT_CANCELLATION_FEE_AFTER_SUBMISSION_PERCENT,
+  DEFAULT_CANCELLATION_FEE_AFTER_POSTING_PERCENT,
+  DEFAULT_BRAND_LATE_APPROVAL_FEE_PERCENT,
+  DEFAULT_BRAND_PLATFORM_FEE_PERCENT,
+  DEFAULT_BRAND_REVIEW_PERIOD_HOURS,
+  DEFAULT_INCLUDED_REVISIONS,
+  DEFAULT_COST_PER_EXTRA_REVISION_PAISE,
+} from "@/constants";
 
 type DealContractData = Prisma.DealGetPayload<{
 include: {
@@ -171,9 +181,9 @@ return [
 function buildPolicyAndObligationCsvRows(terms: ContractTermsType): Record<string, string | number>[] {
 const cancellationFeeRows = terms.cancellationFee ? [
 { "Section": "", "Field": "Before Approval", "Value": `${terms.cancellationFee.beforeApproval || 0}% fee` },
-{ "Section": "", "Field": "After Approval", "Value": `${terms.cancellationFee.afterApproval || 30}% fee` },
-{ "Section": "", "Field": "After Submission", "Value": `${terms.cancellationFee.afterSubmission || 70}% fee` },
-{ "Section": "", "Field": "After Posting", "Value": `${terms.cancellationFee.afterPosting || 100}% fee` }
+{ "Section": "", "Field": "After Approval", "Value": `${terms.cancellationFee.afterApproval || DEFAULT_CANCELLATION_FEE_AFTER_APPROVAL_PERCENT}% fee` },
+{ "Section": "", "Field": "After Submission", "Value": `${terms.cancellationFee.afterSubmission || DEFAULT_CANCELLATION_FEE_AFTER_SUBMISSION_PERCENT}% fee` },
+{ "Section": "", "Field": "After Posting", "Value": `${terms.cancellationFee.afterPosting || DEFAULT_CANCELLATION_FEE_AFTER_POSTING_PERCENT}% fee` }
 ] : [];
 
 const usageRows = terms.contentUsage ? [
@@ -201,7 +211,7 @@ const brandObligationRows = Array.isArray(terms.brandObligations)
 return [
 { "Section": "CANCELLATION POLICY", "Field": "", "Value": "" },
 ...cancellationFeeRows,
-{ "Section": "", "Field": "Brand Late Approval Fee", "Value": `${terms.brandLateApprovalFee ?? 10}%` },
+{ "Section": "", "Field": "Brand Late Approval Fee", "Value": `${terms.brandLateApprovalFee ?? DEFAULT_BRAND_LATE_APPROVAL_FEE_PERCENT}%` },
 { "Section": "", "Field": "", "Value": "" },
 { "Section": "CONTENT USAGE RIGHTS", "Field": "", "Value": "" },
 ...usageRows,
@@ -288,7 +298,7 @@ const financialRows = [
 { "Section": "", "Field": "Creator Fee ()", "Value": paiseToRupees(terms.dealAmount || 0) },
 { "Section": "", "Field": "Platform Fee ()", "Value": paiseToRupees(terms.platformFee || 0) },
 { "Section": "", "Field": "Gateway Fee ()", "Value": paiseToRupees(terms.gatewayFee || 0) },
-{ "Section": "", "Field": "Platform Fee %", "Value": `${terms.platformFeePercent ?? 10}%` },
+{ "Section": "", "Field": "Platform Fee %", "Value": `${terms.platformFeePercent ?? DEFAULT_BRAND_PLATFORM_FEE_PERCENT}%` },
 { "Section": "", "Field": "Total Payable ()", "Value": paiseToRupees(terms.totalAmount || 0) },
 { "Section": "", "Field": "Influencer Payout ()", "Value": paiseToRupees(terms.influencerPayout || 0) },
 { "Section": "", "Field": "", "Value": "" }
@@ -299,15 +309,15 @@ const optionalRows = buildOptionalContractCsvRows(terms);
 const timelineRows = [
 { "Section": "TIMELINE", "Field": "", "Value": "" },
 { "Section": "", "Field": "Submission Deadline", "Value": terms.submissionDeadline ? format(new Date(terms.submissionDeadline), "dd/MM/yyyy") : "" },
-{ "Section": "", "Field": "Review Period (hours)", "Value": String(terms.reviewPeriodHours ?? 48) },
+{ "Section": "", "Field": "Review Period (hours)", "Value": String(terms.reviewPeriodHours ?? DEFAULT_BRAND_REVIEW_PERIOD_HOURS) },
 { "Section": "", "Field": "Posting Deadline", "Value": terms.postingDeadline ? format(new Date(terms.postingDeadline), "dd/MM/yyyy") : "" },
 { "Section": "", "Field": "", "Value": "" }
 ];
 
 const revisionRows = [
 { "Section": "REVISIONS", "Field": "", "Value": "" },
-{ "Section": "", "Field": "Included Revisions", "Value": String(terms.includedRevisions || 2) },
-{ "Section": "", "Field": "Cost Per Extra Revision ()", "Value": paiseToRupees(terms.costPerExtraRevision || 50000) },
+{ "Section": "", "Field": "Included Revisions", "Value": String(terms.includedRevisions || DEFAULT_INCLUDED_REVISIONS) },
+{ "Section": "", "Field": "Cost Per Extra Revision ()", "Value": paiseToRupees(terms.costPerExtraRevision || DEFAULT_COST_PER_EXTRA_REVISION_PAISE) },
 { "Section": "", "Field": "", "Value": "" }
 ];
 

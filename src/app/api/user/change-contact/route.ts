@@ -17,6 +17,7 @@ import { Prisma } from "@prisma/client";
 import { apiWrapper, ApiResponse } from "@/lib/api-wrapper";
 import { createActivityLog } from "@/lib/audit";
 import { AppError } from "@/lib/errors";
+import { CONTACT_UPDATE_OTP_EXPIRY_SECONDS } from "@/constants";
 
 const changeContactSchema = z.object({
 action: z.enum(['init', 'verify-current', 'send-new', 'confirm-new']),
@@ -36,7 +37,7 @@ if (user.email) {
 const emailOtp = generateOTP();
 const emailOtpHash = createHash("sha256").update(emailOtp).digest("hex");
 const currentEmailOtpKey = `contact_change_current_email_otp_${user.id}`;
-await redis.setex(currentEmailOtpKey, 600, emailOtpHash);
+await redis.setex(currentEmailOtpKey, CONTACT_UPDATE_OTP_EXPIRY_SECONDS, emailOtpHash);
 await sendVerificationEmail(user.email, emailOtp);
 }
 
@@ -108,7 +109,7 @@ return ApiResponse.error("Invalid OTP(s)");
 const authKey = `contact_change_auth_session_${user.id}`;
 const currentEmailOtpKey = `contact_change_current_email_otp_${user.id}`;
 
-await redis.setex(authKey, 600, "authorized");
+await redis.setex(authKey, CONTACT_UPDATE_OTP_EXPIRY_SECONDS, "authorized");
 await redis.del(currentEmailOtpKey);
 
 return ApiResponse.success(null, "Current contacts verified");
@@ -124,7 +125,7 @@ if (type === 'email') {
 const otp = generateOTP();
 const otpHash = createHash("sha256").update(otp).digest("hex");
 const newEmailOtpKey = `contact_change_new_email_otp_${userId}`;
-await redis.setex(newEmailOtpKey, 600, otpHash);
+await redis.setex(newEmailOtpKey, CONTACT_UPDATE_OTP_EXPIRY_SECONDS, otpHash);
 await sendVerificationEmail(newContact, otp);
 } else {
 const normalizedPhone = normalizeIndianPhone(newContact);

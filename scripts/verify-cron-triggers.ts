@@ -17,7 +17,7 @@ import { CRON_JOBS } from "./setup-qstash-crons";
 import { validateCronSecret } from "@/app/api/cron/guard";
 
 // Mock next/headers for node script execution
-let mockHeadersStore: Record<string, string> = {};
+const _mockHeadersStore: Record<string, string> = {};
 
 // We override headers module resolution or pass mock via request
 async function runLocalAudit() {

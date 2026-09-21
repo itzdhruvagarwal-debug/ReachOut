@@ -97,7 +97,7 @@ csv += csvRow("Report Type", "Influencer Income & TDS Ledger");
 csv += csvRow("Financial Year", `FY ${fy}`);
 csv += csvRow("Generated On", format(new Date(), "dd/MM/yyyy HH:mm") + " IST");
 csv += csvRow("Total Deals", deals.length);
-csv += csvRow("TDS Section", "Section 194-O (0.1% above Rs. 50L threshold)");
+csv += csvRow("TDS Section", "Section 194-O (0.1% above ₹5 Lakh statutory threshold)");
 csv += csvSep();
 
 // Influencer details
@@ -136,7 +136,7 @@ csv += csvSep();
 // TDS note
 csv += csvTitle("TDS INFORMATION");
 csv += csvRow("Applicable Section", "194-O (E-commerce operator payments)");
-csv += csvRow("TDS Rate", "0.1% on gross payments above Rs. 50 Lakh");
+csv += csvRow("TDS Rate", "0.1% on gross payments above ₹5 Lakh");
 csv += csvRow("Deducted By", "VYAPARMEDIA TECHNOLOGIES PRIVATE LIMITED");
 csv += csvRow("TAN of Deductor", "Contact support@VyaparMedia.in for TAN");
 csv += csvSep();
@@ -161,7 +161,7 @@ totalPlatformFeeRupees: paiseToRupees(totalPlatformFee),
 totalTDSRupees: paiseToRupees(totalTDS),
 totalNetRupees: paiseToRupees(totalNet),
 dealCount: deals.length,
-tdsSection: "194-O (0.1% above 50L threshold)",
+tdsSection: "194-O (0.1% above ₹5 Lakh threshold)",
 },
 monthWise: Array.from(monthMap.entries()).map(([month, data]) => ({
 month,

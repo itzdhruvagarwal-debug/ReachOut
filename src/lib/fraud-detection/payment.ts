@@ -3,7 +3,13 @@ import { logger } from "../logger";
 import { decrypt } from "../encryption";
 import { checkIsInstagramPostPublic, findPostByUrlDetailed } from "../instagram";
 import { extractVideoId, getFreshYouTubeAccessToken, getYouTubeVideoDetailed } from "../youtube";
-import { TRUST_SCORE_REVIEW_THRESHOLD } from "../constants";
+import {
+  TRUST_SCORE_REVIEW_THRESHOLD,
+  RAPID_FIRE_WITHDRAWAL_WINDOW_SECONDS,
+  RAPID_FIRE_WITHDRAWAL_MAX_COUNT,
+  NEW_ACCOUNT_AGE_DAYS_THRESHOLD,
+  NEW_ACCOUNT_LARGE_WITHDRAWAL_THRESHOLD_PAISE,
+} from "@/constants";
 import { FraudCheckResult, FraudFlag, PaymentCheckParams, VerifiedPostData, PostVerificationParams } from "./types";
 import {
 checkWithdrawalVelocityAndLimits,
@@ -38,15 +44,15 @@ export async function checkPaymentFraud(
     where: {
       wallet: { userId: params.userId },
       status: { notIn: ["FAILED", "REVERSED"] },
-      createdAt: { gte: new Date(Date.now() - 10 * 60 * 1000) },
+      createdAt: { gte: new Date(Date.now() - RAPID_FIRE_WITHDRAWAL_WINDOW_SECONDS * 1000) },
     },
   });
-  if (recent10mWithdrawals >= 2) {
+  if (recent10mWithdrawals >= RAPID_FIRE_WITHDRAWAL_MAX_COUNT) {
     const rapidFireWeight = ruleWeights["FRAUD_RAPID_FIRE_WITHDRAWAL"] ?? 40;
     flags.push({
       rule: "RAPID_FIRE_WITHDRAWAL",
       severity: "HIGH",
-      description: `${recent10mWithdrawals} withdrawal attempts detected in the last 10 minutes`,
+      description: `${recent10mWithdrawals} withdrawal attempts detected in the last ${RAPID_FIRE_WITHDRAWAL_WINDOW_SECONDS / 60} minutes`,
     });
     riskScore += rapidFireWeight;
   }
@@ -90,12 +96,12 @@ export async function checkPaymentFraud(
 
     if (user) {
       const accountAgeDays = Math.floor((Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-      if (accountAgeDays < 30 && params.amount > 2500000) {
+      if (accountAgeDays < NEW_ACCOUNT_AGE_DAYS_THRESHOLD && params.amount > NEW_ACCOUNT_LARGE_WITHDRAWAL_THRESHOLD_PAISE) {
         const newAccountWeight = ruleWeights["FRAUD_LARGE_WITHDRAWAL_NEW_ACCOUNT"] ?? 55;
         flags.push({
           rule: "LARGE_WITHDRAWAL_NEW_ACCOUNT",
           severity: "HIGH",
-          description: "Large withdrawal from account less than 30 days old",
+          description: `Large withdrawal from account less than ${NEW_ACCOUNT_AGE_DAYS_THRESHOLD} days old`,
         });
         riskScore += newAccountWeight;
       }
@@ -119,12 +125,12 @@ export async function checkPaymentFraud(
 
     if (user) {
       const accountAgeDays = Math.floor((Date.now() - user.createdAt.getTime()) / (1000 * 60 * 60 * 24));
-      if (accountAgeDays < 30 && params.amount > 2500000) {
+      if (accountAgeDays < NEW_ACCOUNT_AGE_DAYS_THRESHOLD && params.amount > NEW_ACCOUNT_LARGE_WITHDRAWAL_THRESHOLD_PAISE) {
         const newAccountWeight = ruleWeights["FRAUD_LARGE_WITHDRAWAL_NEW_ACCOUNT"] ?? 55;
         flags.push({
           rule: "LARGE_WITHDRAWAL_NEW_ACCOUNT",
           severity: "HIGH",
-          description: "Large withdrawal from account less than 30 days old",
+          description: `Large withdrawal from account less than ${NEW_ACCOUNT_AGE_DAYS_THRESHOLD} days old`,
         });
         riskScore += newAccountWeight;
       }

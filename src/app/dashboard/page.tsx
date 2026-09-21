@@ -4,191 +4,185 @@ import type { Session } from "next-auth";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import AdminAnalyticsView from "@/components/analytics/AdminAnalyticsView";
 import {
-getInfluencerAnalytics,
-getBrandAnalytics,
+  getInfluencerAnalytics,
+  getBrandAnalytics,
 } from "@/lib/analytics-engine";
 import { logger } from "@/lib/logger";
-import AnalyticsPageClient from "./analytics/AnalyticsPageClient";
 import { isAdmin as rbacIsAdmin, isBrand, isInfluencer } from "@/lib/rbac";
 import { Button } from "@/components/ui";
+import DashboardHomeClient from "@/components/dashboard/home/DashboardHomeClient";
+import prisma from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
-// Data fetching
-
 async function fetchDashboardData(userId: string, userType: string, fy?: string) {
-let influencerData = null;
-let brandData = null;
+  let influencerData = null;
+  let brandData = null;
 
-if (isInfluencer(userType)) {
-try {
-influencerData = await getInfluencerAnalytics(userId, fy);
-} catch (error) {
-logger.error("Influencer analytics fetch failed", error, { userId });
-}
-} else if (isBrand(userType)) {
-try {
-brandData = await getBrandAnalytics(userId, fy);
-} catch (error) {
-logger.error("Brand analytics fetch failed", error, { userId });
-}
-}
+  if (isInfluencer(userType)) {
+    try {
+      influencerData = await getInfluencerAnalytics(userId, fy);
+    } catch (error) {
+      logger.error("Influencer analytics fetch failed", error, { userId });
+    }
+  } else if (isBrand(userType)) {
+    try {
+      brandData = await getBrandAnalytics(userId, fy);
+    } catch (error) {
+      logger.error("Brand analytics fetch failed", error, { userId });
+    }
+  }
 
-return { influencerData, brandData };
+  return { influencerData, brandData };
 }
-
-// Sub-components (extracted to reduce DashboardPage cognitive complexity)
 
 function DashboardErrorFallback({ user }: Readonly<{ user: Session["user"] }>) {
-return (
-<DashboardShell user={user}>
-<div className="text-center rounded-xl max-w-600 dashboard-error-fallback">
-<div className="mb-5 text-3xl" aria-hidden="true">
-!
-</div>
-<h2
-className="gradient-text text-2xl mb-3 font-extrabold bg-gradient-rose-orange"
->
-Dashboard Interrupted
-</h2>
-<p
-className="text-secondary mb-8 text-sm leading-relaxed"
->
-The dashboard could not load the latest workspace data. Please
-refresh or try again after a moment.
-</p>
-<Button
-href="/dashboard"
-variant="danger"
-aria-label="Reload dashboard"
-className="dashboard-fallback-button"
->
-Reload Dashboard
-</Button>
-</div>
-</DashboardShell>
-);
+  return (
+    <DashboardShell user={user}>
+      <div className="text-center rounded-2xl max-w-lg mx-auto p-8 border border-disputed-border bg-card mt-12 shadow-sm">
+        <div className="mb-4 text-3xl" aria-hidden="true">
+          ⚠️
+        </div>
+        <h2 className="text-2xl mb-2 font-extrabold text-foreground">
+          Workspace Connection Interrupted
+        </h2>
+        <p className="text-muted-foreground mb-6 text-sm leading-relaxed">
+          The dashboard could not load the latest collaboration feed. Please refresh or try again.
+        </p>
+        <Button
+          href="/dashboard"
+          variant="danger"
+          aria-label="Reload dashboard"
+          className="w-full sm:w-auto"
+        >
+          Reload Dashboard
+        </Button>
+      </div>
+    </DashboardShell>
+  );
 }
 
 function DashboardEmptyState({ dataLoadFailed }: Readonly<{ dataLoadFailed: boolean }>) {
-return (
-<div className="text-center dashboard-empty-wrap">
-<div className="glass mx-auto dashboard-empty-card">
-<div
-className="mb-6 dashboard-empty-icon"
-aria-hidden="true"
->
-{dataLoadFailed ? "!" : "..."}
-</div>
-<h2
-className="gradient-text mb-4 text-3xl font-extrabold"
->
-{dataLoadFailed ? "Access Interrupted" : "Initializing Workspace"}
-</h2>
-<p
-className="text-secondary text-sm leading-relaxed mb-8"
->
-{dataLoadFailed
-? "We could not load your dashboard data. Please refresh or try again after a moment."
-: "We are fetching your latest campaign, engagement, and financial data."}
-</p>
-<Button
-href="/dashboard"
-variant="primary"
-size="lg"
-aria-label={
-dataLoadFailed
-? "Retry dashboard data load"
-: "Refresh dashboard data"
+  return (
+    <div className="text-center py-12">
+      <div className="max-w-md mx-auto p-8 rounded-2xl border border-border bg-card shadow-sm">
+        <div className="mb-4 text-3xl" aria-hidden="true">
+          {dataLoadFailed ? "⚠️" : "⚡"}
+        </div>
+        <h2 className="mb-2 text-2xl font-extrabold text-foreground">
+          {dataLoadFailed ? "Access Interrupted" : "Setting Up Workspace"}
+        </h2>
+        <p className="text-muted-foreground text-sm leading-relaxed mb-6">
+          {dataLoadFailed
+            ? "We could not load your dashboard feed. Please refresh or try again after a moment."
+            : "We are syncing your active campaigns, escrow balances, and collaboration milestones."}
+        </p>
+        <Button
+          href="/dashboard"
+          variant="primary"
+          size="md"
+          aria-label={dataLoadFailed ? "Retry dashboard data load" : "Refresh dashboard data"}
+        >
+          {dataLoadFailed ? "Retry" : "Refresh"}
+        </Button>
+      </div>
+    </div>
+  );
 }
-className="dashboard-empty-button"
->
-{dataLoadFailed ? "Retry" : "Refresh"}
-</Button>
-</div>
-</div>
-);
-}
-
-// Page
 
 export default async function DashboardPage({
-searchParams,
+  searchParams,
 }: {
-readonly searchParams: Promise<{ fy?: string }>;
+  readonly searchParams: Promise<{ fy?: string }>;
 }) {
-const session = await auth();
+  const session = await auth();
 
-if (!session?.user) {
-redirect("/login");
-}
+  if (!session?.user) {
+    redirect("/login");
+  }
 
-const resolvedSearchParams = await searchParams;
-const { userType, id: userId } = session.user;
-const isAdmin = rbacIsAdmin(userType);
-const fy = resolvedSearchParams?.fy;
+  const resolvedSearchParams = await searchParams;
+  const { userType, id: userId } = session.user;
+  const isAdmin = rbacIsAdmin(userType);
+  const fy = resolvedSearchParams?.fy;
 
-if (isAdmin) {
-redirect("/admin");
-}
+  if (isAdmin) {
+    redirect("/admin");
+  }
 
-let influencerData = null;
-let brandData = null;
-const adminData = null;
+  // Guard: Newly registered users must complete onboarding before entering the dashboard
+  let isCompleted = true;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        userType: true,
+        influencerProfile: { select: { city: true, categories: true } },
+        brandProfile: { select: { companyName: true, city: true } },
+      },
+    });
 
-try {
-const data = await fetchDashboardData(userId, userType, fy);
-influencerData = data.influencerData;
-brandData = data.brandData;
-} catch (error) {
-logger.error("Dashboard critical error", error, { userId, userType });
-return <DashboardErrorFallback user={session.user} />;
-}
+    const isInfluencerUser = user?.userType === "INFLUENCER";
+    isCompleted = isInfluencerUser
+      ? Boolean(user?.influencerProfile?.city && user?.influencerProfile?.categories && user?.influencerProfile?.categories !== "General")
+      : Boolean(user?.brandProfile?.companyName && user?.brandProfile?.city);
+  } catch (err) {
+    logger.error("Failed to verify user onboarding status", err, { userId });
+  }
 
-const dataLoadFailed = !adminData && !influencerData && !brandData;
+  if (!isCompleted) {
+    redirect("/onboarding");
+  }
 
-const renderDashboardContent = () => {
-if (isAdmin && adminData) {
-return (
-<div className="mx-auto dashboard-admin-content">
-<header className="mb-10">
-<h1
-className="gradient-text mb-2 text-3xl font-extrabold"
->
-Admin Ops Center
-</h1>
-<p className="text-secondary text-sm">
-Platform health, financial operations, and ecosystem monitoring.
-</p>
-</header>
-<AdminAnalyticsView data={adminData} />
-</div>
-);
-}
-if (isInfluencer(userType) && influencerData) {
-return (
-<AnalyticsPageClient
-userType="INFLUENCER"
-initialData={influencerData}
-currentFY={fy || undefined}
-/>
-);
-}
-if (isBrand(userType) && brandData) {
-return (
-<AnalyticsPageClient
-userType="BRAND"
-initialData={brandData}
-currentFY={fy || undefined}
-/>
-);
-}
-return <DashboardEmptyState dataLoadFailed={dataLoadFailed} />;
-};
+  let influencerData = null;
+  let brandData = null;
+  const adminData = null;
 
-return (
-<DashboardShell user={session.user}>
-{renderDashboardContent()}
-</DashboardShell>
-);
+  try {
+    const data = await fetchDashboardData(userId, userType, fy);
+    influencerData = data.influencerData;
+    brandData = data.brandData;
+  } catch (error) {
+    logger.error("Dashboard critical error", error, { userId, userType });
+    return <DashboardErrorFallback user={session.user} />;
+  }
+
+  const dataLoadFailed = !adminData && !influencerData && !brandData;
+
+  const renderDashboardContent = () => {
+    if (isAdmin && adminData) {
+      return (
+        <div className="mx-auto max-w-7xl">
+          <header className="mb-8">
+            <h1 className="mb-2 text-3xl font-extrabold text-foreground">
+              Admin Ops Center
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              Platform health, financial operations, and ecosystem monitoring.
+            </p>
+          </header>
+          <AdminAnalyticsView data={adminData} />
+        </div>
+      );
+    }
+
+    if ((isInfluencer(userType) && influencerData) || (isBrand(userType) && brandData)) {
+      return (
+        <DashboardHomeClient
+          user={session.user}
+          influencerData={influencerData}
+          brandData={brandData}
+          currentFY={fy || undefined}
+        />
+      );
+    }
+
+    return <DashboardEmptyState dataLoadFailed={dataLoadFailed} />;
+  };
+
+  return (
+    <DashboardShell user={session.user}>
+      {renderDashboardContent()}
+    </DashboardShell>
+  );
 }

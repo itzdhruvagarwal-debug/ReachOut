@@ -32,12 +32,16 @@ We avoid pure `#000000` and `#FFFFFF` to minimize eye fatigue and preserve photo
 | `border-border` | `#E8E8EC` (Subtle hair-line) | `#222634` (Deep hairline) | Dividers, card borders, table separators |
 | `border-input` | `#DFDFE5` | `#2A2F40` | Form input outlines |
 
-### 2.2 Brand Accent
+### 2.2 Brand & Functional Tokens
 
 | Token | Light Mode Value | Dark Mode Value | Usage |
 | :--- | :--- | :--- | :--- |
-| `bg-primary` / `text-primary` | `#2563EB` (Electric Royal Blue) | `#3B82F6` (Luminous Royal Blue) | Primary CTA buttons, active tab indicators, brand logo accent |
-| `text-primary-foreground` | `#FFFFFF` | `#FFFFFF` | Text inside primary buttons |
+| `bg-primary` / `text-primary` | `hsl(221, 83%, 53%)` (`#2563EB`) | `hsl(221, 90%, 64%)` (`#4D88FE`) | Primary CTA buttons, active tab indicators, brand logo accent |
+| `text-primary-foreground` | `#FFFFFF` | `#0B0D12` | Text inside primary buttons |
+| `bg-secondary` / `text-secondary` | `hsl(240, 5%, 94%)` (`#EFF0F3`) | `hsl(224, 20%, 16%)` (`#1F2330`) | Secondary action buttons, subtle container backgrounds |
+| `bg-accent` / `text-accent` | `hsl(240, 5%, 92%)` | `hsl(224, 20%, 18%)` | Hover states, interactive row highlights |
+| `bg-destructive` | `hsl(0, 84%, 60%)` | `hsl(0, 72%, 51%)` | Destructive actions, delete triggers, critical alerts |
+| `ring-ring` | `hsl(221, 83%, 53%)` | `hsl(221, 90%, 64%)` | Focus ring outline for keyboard accessibility |
 
 ---
 
@@ -93,14 +97,18 @@ Financial statuses require clear semantic distinction. Each trust token provides
 
 ## 3. Typography & Numeric Precision
 
-### 3.1 Font Family
-- **Sans**: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`
-- Optimized for Instagram-style rapid scanning of creators, bio handles, and deal requirements.
+### 3.1 Font Family Stacks (`tailwind.config.ts`)
+
+| Font Token | Font Stack | Usage |
+| :--- | :--- | :--- |
+| `font-sans` | `var(--font-inter)`, `var(--font-jakarta)`, `system-ui`, `sans-serif` | Body copy, table cells, form labels, metadata |
+| `font-heading` | `var(--font-outfit)`, `var(--font-jakarta)`, `system-ui`, `sans-serif` | Page titles, hero banners, section headings, card headers |
+| `font-mono` | `ui-monospace`, `SFMono-Regular`, `Menlo`, `Monaco`, `Consolas`, `monospace` | Transaction IDs, contract SHA-256 hashes, API keys, OTP codes |
 
 ### 3.2 Numeric Jitter Prevention (`tabular-nums`)
 For all financial values, wallet balances, escrow milestones, and counter animations:
 - Utility class: `.tabular-nums`
-- CSS rule: `font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1;`
+- CSS rule: `font-variant-numeric: tabular-nums; -moz-font-feature-settings: "tnum" 1, "zero" 1; -webkit-font-feature-settings: "tnum" 1, "zero" 1; font-feature-settings: "tnum" 1, "zero" 1;`
 - **Rule**: Never render a currency amount (`₹`) without `tabular-nums`.
 
 ```tsx
@@ -112,72 +120,154 @@ For all financial values, wallet balances, escrow milestones, and counter animat
 
 ---
 
-## 4. Spacing & Border Radius Scale
+## 4. Spacing, Border Radius & Elevation Scale
+
+### 4.1 Border Radius Scale
 
 Instagram's visual aesthetic is characterized by soft corners on surfaces and circular avatars:
 
-- **Avatars**: `rounded-full` (strictly circular)
-- **Cards & Dialogs**: `rounded-2xl` (`1rem` / `16px`)
-- **Buttons, Inputs & Badges**: `rounded-xl` (`0.75rem` / `12px`) or `rounded-lg` (`0.5rem` / `8px`)
-- **Pills**: `rounded-full` (`9999px`)
+| Tailwind Class | Computed Value | Use Case |
+| :--- | :--- | :--- |
+| `rounded-sm` | `calc(var(--radius) - 4px)` (8px) | Small tags, inline code pills |
+| `rounded-md` | `calc(var(--radius) - 2px)` (10px) | Form inputs, dropdown menus, tooltips |
+| `rounded-lg` | `var(--radius)` (12px) | Standard action buttons, small cards |
+| `rounded-xl` | `calc(var(--radius) + 4px)` (16px) | Feature cards, modal dialog containers |
+| `rounded-2xl` | `calc(var(--radius) + 8px)` (20px) | Discovery feed cards, hero mockups, profile headers |
+| `rounded-3xl` | `calc(var(--radius) + 16px)` (28px) | Bottom sheets, prominent promotional cards |
+| `rounded-full` | `9999px` | Circular user avatars, interactive pill toggles |
+
+### 4.2 Elevation & Drop Shadows
+
+| Shadow Token | Box Shadow Value | Usage |
+| :--- | :--- | :--- |
+| `shadow-card` | `0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)` | Feed items, deal cards in resting state |
+| `shadow-elevated` | `0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04)` | Hover states, active sticky header, floating triggers |
+| `shadow-dropdown` | `0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)` | Popover menus, modals, select dropdown options |
 
 ---
 
-## 5. Accessibility & Color-Blind Dual-Coding
+## 5. Accessibility Standards & Utilities
+
+### 5.1 Color-Blind Dual-Coding (WCAG 2.1 AA)
 
 Under WCAG 2.1 AA (Guideline 1.4.1 Use of Color):
 > *Color is not used as the only visual means of conveying information, indicating an action, prompting a response, or distinguishing a visual element.*
 
-### Pattern: Status Badge Component Specification
+Every status badge or financial indicator combines a semantic color token with an explicit textual label and a standard Lucide icon (`ShieldCheck`, `Lock`, `AlertTriangle`, `AlertCircle`).
 
-```tsx
-import { ShieldCheck, Lock, AlertTriangle, AlertCircle } from "lucide-react";
+### 5.2 Touch Target Sizing (`.touch-target-44`)
 
-interface StatusBadgeProps {
-  status: "verified" | "escrow" | "pending" | "disputed";
-  label: string;
-}
+To comply with **WCAG 2.5.5 Target Size** (Level AAA) and Apple Human Interface Guidelines:
+- Utility class: `.touch-target-44`
+- CSS rule:
+  ```css
+  .touch-target-44 {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  ```
+- Applied across all mobile navigation items (`MobileBottomBar`), icon buttons, pagination controls, and action triggers.
 
-export function StatusBadge({ status, label }: StatusBadgeProps) {
-  const configs = {
-    verified: {
-      icon: ShieldCheck,
-      container: "bg-verified-muted text-verified border-verified-border",
-    },
-    escrow: {
-      icon: Lock,
-      container: "bg-escrow-muted text-escrow border-escrow-border",
-    },
-    pending: {
-      icon: AlertTriangle,
-      container: "bg-pending-muted text-pending border-pending-border",
-    },
-    disputed: {
-      icon: AlertCircle,
-      container: "bg-disputed-muted text-disputed border-disputed-border",
-    },
-  };
+### 5.3 Universal Reduced-Motion Reset
 
-  const config = configs[status];
-  const Icon = config.icon;
-
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.container}`}
-      role="status"
-    >
-      <Icon className="w-3.5 h-3.5" aria-hidden="true" />
-      <span>{label}</span>
-    </span>
-  );
-}
-```
+For vestibular-sensitive users (`prefers-reduced-motion: reduce`):
+- All animations drop to instantaneous transition (`0.001ms !important`) with `scroll-behavior: auto !important`.
+- Guarantees zero motion sickness while maintaining full UI functionality.
 
 ---
 
-## 6. Component Architecture (Base UI Primitive)
+## 6. UI Component Taxonomy & Organization
 
-VyaparMedia uses **Base UI** (`@base-ui/react`) primitives with Tailwind styling instead of Radix UI:
-- Package: `@base-ui/react` (v1.8.0)
-- Configured in `components.json` with style `"default"`, rsc: `true`, tailwind css variables: `true`.
-- Allows headless accessibility with full CSS variable theming.
+The UI rebuild established a strict feature-folder and primitive hierarchy:
+
+### 6.1 Base UI Headless Primitives (`src/components/ui/`)
+All primitive components consume `@base-ui/react` (v1.8.0) and export via `@/components/ui`:
+- **`Button.tsx`**: Multi-variant (primary, secondary, outline, ghost, destructive, link) with loading spinner and 44pt tap target support.
+- **`Modal.tsx`**: Accessible dialog primitive with background blur, focus trap, Escape key handling, and ARIA labels.
+- **`Input.tsx` & `Textarea.tsx`**: Standardized form inputs with focus rings and error states.
+- **`Select.tsx`**: Keyboard-navigable accessible select dropdown with custom scrollbars and popover positioning.
+- **`Toast.tsx`**: Toast notifications wired into `src/lib/user-messages.ts` with auto-dismiss timers.
+- **`EmptyState.tsx`**: Informative zero-data states with contextual illustrations, actionable CTA buttons, and polite guidance.
+- **`Skeleton.tsx`**: Shimmer placeholders matching exact card geometries to eliminate layout shift during data fetching.
+- **`ConfirmationBadge.tsx`**: Dual-coded status confirmation pill for verified transactions and security actions.
+- **`Pagination.tsx` & `Spinner.tsx`**: Standard list navigation and non-blocking loading spinners.
+
+### 6.2 Discovery Feed Components (`src/components/discovery/`)
+- **`DiscoveryFeed.tsx`**: High-performance composite search feed supporting creators and campaigns with tab switching.
+- **`CampaignDiscoveryCard.tsx`**: Brand budget, deliverables, category tags, deadline badge, and one-click apply modal.
+- **`CreatorDiscoveryCard.tsx`**: Circular avatar, verified badge, DRS rating score, social follower counters, and rate slabs.
+- **`FilterBottomSheet.tsx`**: Mobile-optimized slide-up drawer for filtering by category, platform, budget range, and minimum DRS score.
+- **`PullToRefresh.tsx`**: Mobile touch pull-down gesture to trigger feed refresh.
+
+### 6.3 Dynamic Profile Components (`src/components/profile/`)
+- **`InfluencerProfileClient.tsx`**: Public creator portfolio page featuring social statistics, platform breakdown, rate cards, and direct offer trigger.
+- **`CampaignProofModal.tsx`**: Modal showcasing verified historical campaign deliverables and proof-of-work media.
+
+### 6.4 Responsive Navigation Shell (`src/components/navigation/`)
+- **`DesktopSidebar.tsx`**: Left navigation drawer with role-based links (Influencer, Brand, Admin), collapsible sections, and wallet balance preview.
+- **`MobileBottomBar.tsx`**: Fixed bottom navigation bar with 44pt touch targets, active tab indicators, and unread notification counter.
+- **`EscrowStoriesBar.tsx`**: Instagram-style horizontal story strip highlighting platform activity, successful deals, and top creators.
+- **`RoleGuard.tsx`**: Client-side navigational role protection ensuring users only access permitted dashboard views.
+
+### 6.5 Registration & Onboarding Components (`src/components/register/`)
+- **`OtpFields.tsx`**: 6-digit individual auto-focusing numeric OTP inputs with clipboard paste support.
+- **`Step2RegistrationForm.tsx`**: Role selection, password confirmation, and referral code ingestion.
+- **`useRegistration.ts`**: Multi-step client-side state machine handling validation, error sanitization, and countdown timers.
+
+### 6.6 Dedicated Help Center & FAQ Components (`src/components/help/`)
+- **`HelpCenterClient.tsx`**: Interactive knowledge base client with:
+  - 12 categorized FAQs across `GETTING_STARTED`, `PAYMENTS_ESCROW`, `DISPUTES_REVISIONS`, and `KYC_SECURITY`.
+  - Zero-latency real-time client-side search query filtering via `filterFaqs` helper.
+  - Category pill filter tabs with dedicated Lucide iconography (`Sparkles`, `Lock`, `AlertCircle`, `ShieldCheck`).
+  - Accessible expandable accordion items with chevron indicators and badge tags.
+  - Support escalation card linking directly to `/dashboard/support`.
+
+### 6.7 Dashboard Command Center Components (`src/components/dashboard/home/`)
+- **`DashboardHomeClient.tsx`**: Central role-differentiated dashboard workspace controller.
+- **`ActionRequiredBanner.tsx`**: High-urgency contextual action cards alerting users to signature requirements, pending milestone reviews, revision requests, or KYC steps.
+- **`ActiveDealsFeed.tsx`**: Real-time collaboration feed displaying counterparty brand/creator, deliverable badges, milestone timeline status, and instant action triggers.
+
+### 6.8 Campaign Creation Wizard (`src/components/dashboard/campaigns/create/`)
+- **`CreateCampaignClient.tsx`**: 3-step progressive disclosure wizard following Upwork "Post a Job" pattern.
+- **`CampaignSummarySidebar.tsx`**: Sticky desktop preview sidebar with real-time creator payout pool, 5% platform fee, 18% GST calculation, and bold `tabular-nums` escrow lock total.
+- **`DeliverablesList.tsx`**: Deliverable selector featuring platform accent badges (Instagram pink, YouTube red), quantity counters, and recommended price helper tags.
+- **`ProductSeedingCard.tsx`**: Logistics management card for physical product gifting with retail value tracking.
+
+### 6.9 Deal Lifecycle & Execution (`src/components/dashboard/deals/`)
+- **`DealProgressStepper.tsx`**: Visual multi-state milestone stepper rendering active, completed, and pending contract milestones.
+- **`DealActionsBar.tsx`**: Contextual bottom action toolbar with dual-coded state buttons (Submit Content, Request Revision, Release Escrow, Open Dispute).
+
+---
+
+## 7. Advanced UI & Interaction Patterns
+
+### 7.1 Dynamic Reliability Score (DRS) Radial Gauge
+- **Component**: Circular SVG radial progress ring embedded in `InfluencerProfileClient.tsx`.
+- **Geometry**: SVG viewport `160x160`, coordinate radius `r=68`, circumference `2 * π * 68 ≈ 427.26`.
+- **Stroke Dashoffset**: `circumference - (score / 900) * circumference`.
+- **Tier Styling**:
+  - `800–900`: Elite Tier (`text-verified` / Emerald gradient stroke).
+  - `650–799`: Trusted Tier (`text-escrow` / Sapphire stroke).
+  - `500–649`: Established Tier (`text-pending` / Amber stroke).
+  - `<500`: Building / Probation Tier (`text-disputed` / Crimson stroke).
+
+### 7.2 Instagram-Style 3-Column Square Portfolio Grid
+- **Geometry**: `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4`.
+- **Aspect Ratio**: Strict `aspect-square` containers with `object-cover` media.
+- **Hover Micro-interaction**: Instant dark overlay (`bg-background/80 opacity-0 group-hover:opacity-100 transition-opacity`) revealing reach metrics, engagement rate (ER%), and verified escrow payout in `tabular-nums`.
+
+### 7.3 Multi-Step Stepper & Progress Bar
+- **Progress Line**: `h-1.5 w-full bg-muted rounded-full overflow-hidden`.
+- **Step Pills**: Dual-state step indicators pairing numerical badges with step titles:
+  - Active: `border-primary bg-primary/10 text-primary`.
+  - Completed: `border-verified bg-verified/10 text-verified` with `Check` icon.
+  - Upcoming: `border-border bg-card text-muted-foreground`.
+
+### 7.4 Branded 404 Glow Container
+- **Container**: `border border-pending/30 bg-card/60 backdrop-blur-xl shadow-2xl rounded-3xl p-8 sm:p-12`.
+- **Status Indicator**: Luminous badge with `AlertTriangle` and amber glow accentuating platform recovery.
+
+

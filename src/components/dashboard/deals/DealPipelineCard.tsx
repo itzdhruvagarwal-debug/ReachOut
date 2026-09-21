@@ -1,0 +1,324 @@
+"use client";
+
+import React from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { type Deal } from "@/lib/schemas";
+import { formatCurrency, formatDate } from "@/lib/utils-client";
+import {
+  Clock,
+  Layers,
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
+  ShieldCheck,
+  AlertCircle,
+  MessageSquare,
+  ArrowRight,
+  ChevronDown,
+  ChevronUp,
+  Lock,
+  Calendar,
+  Package,
+} from "lucide-react";
+import { Button, Badge } from "@/components/ui";
+
+interface DealPipelineCardProps {
+  deal: Deal;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  isInfluencer: boolean;
+}
+
+export function getDealStatusInfo(status: string): {
+  label: string;
+  tone: "warning" | "success" | "cyan" | "danger" | "muted";
+  icon: React.ReactNode;
+} {
+  switch (status.toUpperCase()) {
+    case "PENDING_SIGNATURE":
+      return { label: "Awaiting Signature", tone: "warning", icon: <Clock className="w-3 h-3" /> };
+    case "ACTIVE":
+      return { label: "Active", tone: "cyan", icon: <Layers className="w-3 h-3" /> };
+    case "PAYMENT_HELD":
+      return { label: "Payment Secured", tone: "success", icon: <Lock className="w-3 h-3" /> };
+    case "CONTENT_SUBMITTED":
+      return { label: "Awaiting Review", tone: "warning", icon: <Clock className="w-3 h-3" /> };
+    case "REVISION_REQUESTED":
+      return { label: "Revision Needed", tone: "danger", icon: <AlertTriangle className="w-3 h-3" /> };
+    case "CONTENT_APPROVED":
+      return { label: "Ready to Post", tone: "success", icon: <CheckCircle2 className="w-3 h-3" /> };
+    case "POSTED":
+      return { label: "Post Submitted", tone: "cyan", icon: <ExternalLink className="w-3 h-3" /> };
+    case "VERIFICATION_PENDING":
+      return { label: "Verifying", tone: "warning", icon: <Clock className="w-3 h-3" /> };
+    case "VERIFIED":
+    case "COMPLETED":
+      return { label: "Completed", tone: "success", icon: <ShieldCheck className="w-3 h-3" /> };
+    case "DISPUTED":
+      return { label: "Disputed", tone: "danger", icon: <AlertCircle className="w-3 h-3" /> };
+    case "CANCELLED":
+      return { label: "Cancelled", tone: "muted", icon: <Clock className="w-3 h-3" /> };
+    default:
+      return { label: status.replaceAll("_", " "), tone: "muted", icon: <Clock className="w-3 h-3" /> };
+  }
+}
+
+function getBadgeVariant(tone: string): "primary" | "success" | "danger" | "warning" | "ghost" {
+  switch (tone) {
+    case "warning":
+      return "warning";
+    case "success":
+      return "success";
+    case "danger":
+      return "danger";
+    case "cyan":
+      return "primary";
+    default:
+      return "ghost";
+  }
+}
+
+function getDeliverableLabel(type: string): string {
+  switch (type.toUpperCase()) {
+    case "INSTAGRAM_REEL":
+      return "IG Reel";
+    case "INSTAGRAM_STORY":
+      return "IG Story";
+    case "INSTAGRAM_POST":
+      return "IG Post";
+    case "YOUTUBE_VIDEO":
+      return "YT Video";
+    case "YOUTUBE_SHORT":
+      return "YT Short";
+    case "TWITTER_POST":
+      return "X Post";
+    case "LINKEDIN_POST":
+      return "LinkedIn";
+    default:
+      return type.replaceAll("_", " ");
+  }
+}
+
+export function DealPipelineCard({
+  deal,
+  isSelected,
+  onToggleSelect,
+  isInfluencer,
+}: Readonly<DealPipelineCardProps>) {
+  const statusInfo = getDealStatusInfo(deal.status);
+  const isBrand = !isInfluencer;
+
+  const canSubmitContent =
+    isInfluencer && ["ACTIVE", "PAYMENT_HELD", "REVISION_REQUESTED"].includes(deal.status);
+
+  return (
+    <article
+      className={`rounded-2xl border transition-all bg-card overflow-hidden ${
+        isSelected ? "border-primary shadow-md" : "border-border hover:border-border/80 shadow-sm"
+      }`}
+    >
+      {/* Primary Clickable Header Row */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggleSelect}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleSelect();
+          }
+        }}
+        className="p-4 sm:p-5 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        aria-expanded={isSelected}
+        aria-label={`Deal for ${deal.campaign.title}`}
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          {/* Left: Brand/Counterparty Avatar & Metadata */}
+          <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
+            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted border border-border shrink-0 flex items-center justify-center text-foreground font-bold text-base">
+              {deal.brand?.logo ? (
+                <Image
+                  src={deal.brand.logo}
+                  alt={deal.brand.companyName}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <span>{deal.brand?.companyName?.[0]?.toUpperCase() || "B"}</span>
+              )}
+            </div>
+
+            <div className="space-y-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-sm sm:text-base font-bold text-foreground truncate">
+                  {deal.campaign?.title || "Campaign Collaboration"}
+                </h3>
+                <Badge variant={getBadgeVariant(statusInfo.tone)} className="gap-1 text-[11px]">
+                  {statusInfo.icon}
+                  {statusInfo.label}
+                </Badge>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                <span className="font-semibold text-foreground/90">
+                  {deal.brand?.companyName || "Brand Partner"}
+                </span>
+                <span>•</span>
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Due {formatDate(deal.postingDeadline, "-", { day: "numeric", month: "short" })}
+                </span>
+              </div>
+
+              {/* Deliverable Tags */}
+              {deal.deliverables && deal.deliverables.length > 0 && (
+                <div className="flex items-center gap-1.5 pt-1 flex-wrap">
+                  {deal.deliverables.map((d, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-md bg-muted text-muted-foreground"
+                    >
+                      {getDeliverableLabel(d.type)} ×{d.count}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Escrow Amount & Quick Actions */}
+          <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-border">
+            <div className="text-left md:text-right">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-escrow flex items-center md:justify-end gap-1">
+                <Lock className="w-3 h-3" /> Escrow Locked
+              </div>
+              <div className="text-lg sm:text-xl font-extrabold font-mono tabular-nums text-foreground">
+                {formatCurrency(deal.amount)}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/messages?deal=${deal.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center justify-center h-9 w-9 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label={`Message about ${deal.campaign.title}`}
+              >
+                <MessageSquare className="w-4 h-4" />
+              </Link>
+              <Link
+                href={`/dashboard/deals/${deal.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                Deal Room
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-foreground p-1"
+                aria-label={isSelected ? "Collapse deal details" : "Expand deal details"}
+              >
+                {isSelected ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Expandable Deal Timeline & Actions Drawer */}
+      {isSelected && (
+        <div className="border-t border-border bg-muted/30 p-4 sm:p-5 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Timeline */}
+            <div className="rounded-xl border border-border bg-card p-3.5 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                <Calendar className="w-3.5 h-3.5 text-primary" /> Deal Timeline
+              </div>
+              <div className="text-xs space-y-1 text-muted-foreground">
+                <div className="flex justify-between">
+                  <span>Started:</span>
+                  <span className="font-semibold text-foreground">{deal.createdAt}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Post Deadline:</span>
+                  <span className="font-semibold text-primary">
+                    {formatDate(deal.postingDeadline)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Deliverables Breakdown */}
+            <div className="rounded-xl border border-border bg-card p-3.5 space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                <Package className="w-3.5 h-3.5 text-primary" /> Deliverables Breakdown
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {deal.deliverables.map((d, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg bg-muted text-foreground border border-border/60"
+                  >
+                    {getDeliverableLabel(d.type)} <span className="text-muted-foreground ml-1">×{d.count}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Contextual Action CTAs */}
+          <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border">
+            <div className="flex items-center gap-2">
+              <Button
+                href={`/dashboard/messages?deal=${deal.id}`}
+                variant="secondary"
+                size="sm"
+                className="text-xs font-semibold gap-1"
+              >
+                <MessageSquare className="w-3.5 h-3.5" /> Message Partner
+              </Button>
+              <Button
+                href={`/dashboard/deals/${deal.id}`}
+                variant="ghost"
+                size="sm"
+                className="text-xs font-semibold"
+              >
+                Full Agreement →
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {deal.status === "PENDING_SIGNATURE" && (
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                  ✍️ Sign Contract
+                </Button>
+              )}
+              {canSubmitContent && (
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                  📤 Submit Content
+                </Button>
+              )}
+              {isInfluencer && deal.status === "CONTENT_APPROVED" && (
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                  🔗 Submit Post URL
+                </Button>
+              )}
+              {isBrand && deal.status === "CONTENT_SUBMITTED" && (
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                  👀 Review Content
+                </Button>
+              )}
+              {isBrand && ["POSTED", "VERIFIED", "VERIFICATION_PENDING"].includes(deal.status) && (
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                  💰 Release Payment
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}

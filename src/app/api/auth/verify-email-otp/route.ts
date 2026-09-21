@@ -12,8 +12,12 @@ import prisma from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { env } from "@/env";
 import { apiWrapper } from "@/lib/api-wrapper";
+import {
+  AUTH_OTP_EXPIRY_SECONDS,
+  OTP_RESEND_COOLDOWN_SECONDS,
+} from "@/constants";
 
-const OTP_TTL = 600; // 10 minutes
+const OTP_TTL = AUTH_OTP_EXPIRY_SECONDS;
 
 // PUT: Send Email OTP
 export const PUT = apiWrapper(async function PUT(request: NextRequest) {
@@ -68,10 +72,10 @@ return NextResponse.json(
 
 const key = `email-otp:${type}:${email.toLowerCase().trim()}`;
 
-// Rate limit: Only allow new OTP after 60 seconds
+// Rate limit: Only allow new OTP after cooldown
 const ttl = await redis.ttl(key);
-if (ttl > OTP_TTL - 60) {
-const waitTime = ttl - (OTP_TTL - 60);
+if (ttl > OTP_TTL - OTP_RESEND_COOLDOWN_SECONDS) {
+const waitTime = ttl - (OTP_TTL - OTP_RESEND_COOLDOWN_SECONDS);
 return NextResponse.json(
 { error: `Please wait ${waitTime} seconds before requesting a new OTP` },
 { status: 429 },
@@ -227,7 +231,7 @@ return NextResponse.json(
     const normalizedEmail = email.toLowerCase().trim();
     await redis.setex(
       `email-otp-verified:${normalizedEmail}`,
-      15 * 60,
+      AUTH_OTP_EXPIRY_SECONDS,
       "1",
     );
 

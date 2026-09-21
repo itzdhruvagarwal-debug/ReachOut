@@ -6,6 +6,7 @@
 
 import { redis } from "./redis";
 import { logger } from "./logger";
+import { IPINFO_TIMEOUT_MS } from "@/constants";
 
 const CACHE_PREFIX = "ipinfo:";
 const CACHE_TTL_SECONDS = 3600; // 1 hour
@@ -48,7 +49,7 @@ logger.debug("[IPInfo] Redis read failure; failing over to live check", { error:
 try {
 const url = `https://freeipapi.com/api/json/${encodeURIComponent(ip)}`;
 const controller = new AbortController();
-const timeout = setTimeout(() => controller.abort(), 3000); // 3s timeout
+const timeout = setTimeout(() => controller.abort(), IPINFO_TIMEOUT_MS);
 
 let data: IpDetails;
 try {

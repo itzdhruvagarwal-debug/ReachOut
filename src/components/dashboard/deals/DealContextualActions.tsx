@@ -10,8 +10,6 @@ import {
   AlertCircle,
   XCircle,
   MessageSquare,
-  ShieldCheck,
-  HelpCircle,
   ExternalLink,
 } from "lucide-react";
 import { DealDetail, getFlatDeliverablesList, ContentUrlEntry } from "./DealDetailHelpers";
@@ -64,15 +62,14 @@ export function DealContextualActions({
   const counterpartySigned = isBrand ? influencerSigned : brandSigned;
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 mb-6 shadow-sm">
+    <div className="bg-card border border-border rounded-2xl p-5 mb-6 shadow-sm">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        {/* Status Hint or Action Description */}
+        {/* Contextual Action Description */}
         <div className="flex-1">
-          <span className="text-xs font-bold uppercase tracking-wider text-secondary">
+          <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Next Action
           </span>
           <div className="mt-1">
-            {/* Context Messages based strictly on role */}
             {dealStatus === "PENDING_SIGNATURE" && (
               <p className="text-sm font-semibold text-foreground">
                 {userHasSigned
@@ -90,14 +87,14 @@ export function DealContextualActions({
             )}
 
             {isInfluencer && dealStatus === "REVISION_REQUESTED" && (
-              <p className="text-sm font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-pending flex items-center gap-1.5">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 Brand requested revisions. Check deliverable notes and upload revised drafts.
               </p>
             )}
 
             {isInfluencer && dealStatus === "CONTENT_SUBMITTED" && (
-              <p className="text-sm font-semibold text-blue-600 dark:text-blue-400">
+              <p className="text-sm font-semibold text-primary">
                 Drafts submitted! Brand is currently evaluating your deliverables.
               </p>
             )}
@@ -127,7 +124,7 @@ export function DealContextualActions({
             )}
 
             {isBrand && dealStatus === "REVISION_REQUESTED" && (
-              <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+              <p className="text-sm font-semibold text-pending">
                 Revision requested. Waiting for Creator to submit revised draft content.
               </p>
             )}
@@ -145,14 +142,14 @@ export function DealContextualActions({
             )}
 
             {dealStatus === "COMPLETED" && (
-              <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-verified flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 shrink-0" />
                 Deal completed and payment settled successfully.
               </p>
             )}
 
             {dealStatus === "DISPUTED" && (
-              <p className="text-sm font-semibold text-rose flex items-center gap-1.5">
+              <p className="text-sm font-semibold text-disputed flex items-center gap-1.5">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 Deal is in mediation. Normal actions are paused pending VyaparMedia review.
               </p>
@@ -160,9 +157,8 @@ export function DealContextualActions({
           </div>
         </div>
 
-        {/* Strictly Contextual Action Buttons */}
+        {/* Action CTAs */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* 1. CONTRACT SIGNING (Both roles can sign, but only if they haven't already signed) */}
           {dealStatus === "PENDING_SIGNATURE" && !userHasSigned && (
             <Button
               variant="primary"
@@ -175,7 +171,6 @@ export function DealContextualActions({
             </Button>
           )}
 
-          {/* Influencer-Only: Reject Invite */}
           {dealStatus === "PENDING_SIGNATURE" && isInfluencer && !userHasSigned && (
             <Button
               variant="danger"
@@ -186,7 +181,6 @@ export function DealContextualActions({
             </Button>
           )}
 
-          {/* 2. INFLUENCER: SUBMIT CONTENT DRAFT */}
           {isInfluencer && ["ACTIVE", "PAYMENT_HELD", "REVISION_REQUESTED"].includes(dealStatus) && (
             <Button
               variant="primary"
@@ -213,7 +207,6 @@ export function DealContextualActions({
             </Button>
           )}
 
-          {/* 3. INFLUENCER: SUBMIT LIVE POST URL */}
           {isInfluencer && dealStatus === "CONTENT_APPROVED" && (
             <Button
               variant="primary"
@@ -226,7 +219,6 @@ export function DealContextualActions({
             </Button>
           )}
 
-          {/* 4. BRAND: REVIEW CONTENT DRAFT */}
           {isBrand && dealStatus === "CONTENT_SUBMITTED" && (
             <Button
               variant="primary"
@@ -254,7 +246,6 @@ export function DealContextualActions({
             </Button>
           )}
 
-          {/* 5. BRAND: RELEASE ESCROW PAYMENT */}
           {isBrand && ["POSTED", "VERIFICATION_PENDING", "VERIFIED"].includes(dealStatus) && (
             <Button
               variant="primary"
@@ -269,14 +260,13 @@ export function DealContextualActions({
                 handleAction("complete_deal");
               }}
               disabled={isSubmitting}
-              className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="gap-1.5 bg-verified text-primary-foreground hover:opacity-90"
             >
               <DollarSign className="w-4 h-4" />
               Release Escrow Payment
             </Button>
           )}
 
-          {/* BRAND-ONLY CANCEL DEAL (Allowed only before work is verified/completed) */}
           {isBrand && !["COMPLETED", "CANCELLED", "DISPUTED"].includes(dealStatus) && (
             <Button
               variant="danger"
@@ -290,7 +280,6 @@ export function DealContextualActions({
             </Button>
           )}
 
-          {/* Chat Link (Available to both) */}
           <Button
             href={`/dashboard/messages?deal=${dealId}`}
             variant="secondary"

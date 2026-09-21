@@ -3,32 +3,49 @@
 import { logger } from "@/lib/logger-client";
 import { useEffect } from "react";
 import { Button } from "@/components/ui";
+import { AlertCircle, RefreshCw } from "lucide-react";
 
 export default function DealsError({
-error,
-reset,
+  error,
+  reset,
 }: Readonly<{ error: Error & { digest?: string }; reset: () => void }>) {
-useEffect(() => {
-logger.error("Deals page error:", error);
-}, [error]);
+  useEffect(() => {
+    logger.error("Deals page error:", error);
+  }, [error]);
 
-return (
-<div
-role="alert"
-aria-live="assertive"
-className="flex flex-col items-center justify-center gap-5 text-primary flex-1 min-h-60vh"
->
-<svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-8 h-8 text-rose mb-2" aria-hidden="true"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
-<h2 className="text-xl font-extrabold">Deals failed to load</h2>
-<p className="text-secondary text-sm text-center max-w-380">
-Your deals could not be fetched. Please try again.
-</p>
-{error.digest && (
-<code className="text-xs text-muted font-mono">Ref: {error.digest}</code>
-)}
-<Button variant="primary" aria-label="Retry loading deals" onClick={() => reset()}>
-Try again
-</Button>
-</div>
-);
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="flex flex-col items-center justify-center gap-4 text-center max-w-md mx-auto p-8 rounded-2xl border border-disputed-border bg-card mt-12 shadow-sm"
+    >
+      <div className="w-12 h-12 rounded-2xl bg-disputed-muted flex items-center justify-center text-disputed">
+        <AlertCircle className="w-6 h-6" />
+      </div>
+      <div>
+        <h2 className="text-xl font-extrabold text-foreground">
+          Collaborations Failed to Load
+        </h2>
+        <p className="text-muted-foreground text-xs sm:text-sm mt-1">
+          We could not load your active collaborations. Please refresh or try again in a moment.
+        </p>
+      </div>
+
+      {error.digest && (
+        <code className="text-xs text-muted-foreground font-mono bg-muted px-2 py-1 rounded">
+          Ref: {error.digest}
+        </code>
+      )}
+
+      <Button
+        variant="primary"
+        size="sm"
+        aria-label="Retry loading deals"
+        onClick={() => reset()}
+        className="font-bold text-xs gap-1.5 shadow-sm mt-2"
+      >
+        <RefreshCw className="w-3.5 h-3.5" /> Try Again
+      </Button>
+    </div>
+  );
 }

@@ -88,7 +88,7 @@ className="font-normal text-muted"
 <div
 className={`text-xs ${login.success ? "text-secondary" : "text-rose"}`}
 >
-{formatDateTime(login.time || login.lastActive || Date.now())}{" "}
+{login.time || login.lastActive ? formatDateTime(login.time || login.lastActive) : "Just now"}{" "}
 {login.success ? "" : "(Failed Attempt)"}
 </div>
 </div>

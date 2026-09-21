@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Shield, ChevronDown, ChevronUp, ExternalLink, IndianRupee } from "lucide-react";
+import { Shield, ChevronDown, ChevronUp, ExternalLink, Lock } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils-client";
 
 export interface DealContextData {
@@ -19,12 +19,11 @@ export interface DealContextMiniCardProps {
   deal: DealContextData | null;
 }
 
-export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
+export function DealContextMiniCard({ deal }: Readonly<DealContextMiniCardProps>) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!deal) return null;
 
-  const isCompleted = deal.status === "COMPLETED";
   const isDisputed = deal.status === "DISPUTED";
   const isEscrowLocked = [
     "PAYMENT_HELD",
@@ -37,15 +36,15 @@ export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
   ].includes(deal.status);
 
   return (
-    <div className="border-b border-border/80 bg-muted/40 transition-all">
+    <aside aria-label="Pinned escrow deal summary" className="border-b border-border bg-card/80 transition-all">
       {/* Compact Pinned Header Bar */}
-      <div className="flex items-center justify-between px-4 py-2 text-xs">
+      <div className="flex items-center justify-between px-4 py-2.5 text-xs">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-500/15 text-blue-600 dark:text-blue-400 font-bold shrink-0">
-            <Shield className="w-3 h-3" />
+          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-escrow-muted text-escrow border border-escrow-border font-bold shrink-0">
+            <Lock className="w-3 h-3" />
             <span>Escrow Protected</span>
           </div>
-          <span className="font-semibold text-foreground truncate max-w-[140px] sm:max-w-xs">
+          <span className="font-bold text-foreground truncate max-w-[140px] sm:max-w-xs">
             {deal.title}
           </span>
           <span className="font-extrabold text-foreground tabular-nums font-mono shrink-0">
@@ -56,16 +55,16 @@ export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
         <div className="flex items-center gap-2 shrink-0">
           <Link
             href={`/dashboard/deals/${deal.id}`}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
           >
-            <span>View Deal</span>
+            <span>Deal Room</span>
             <ExternalLink className="w-3 h-3" />
           </Link>
           <button
             type="button"
             onClick={() => setIsExpanded((prev) => !prev)}
             aria-label={isExpanded ? "Collapse deal details" : "Expand deal details"}
-            className="p-1 text-secondary hover:text-foreground rounded hover:bg-muted cursor-pointer"
+            className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
           >
             {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
@@ -74,15 +73,15 @@ export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
 
       {/* Expanded Details Drawer */}
       {isExpanded && (
-        <div className="px-4 pb-3 pt-1 text-xs grid grid-cols-2 sm:grid-cols-3 gap-2 border-t border-border/40 animate-fade-in bg-card/60">
+        <div className="px-4 pb-3.5 pt-1.5 text-xs grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-border bg-muted/30">
           <div>
-            <span className="text-secondary block text-[11px]">Deal Status</span>
+            <span className="text-muted-foreground block text-[11px]">Deal Status</span>
             <span className="font-bold text-foreground capitalize">
-              {deal.status.toLowerCase().replace(/_/g, " ")}
+              {deal.status.toLowerCase().replaceAll("_", " ")}
             </span>
           </div>
           <div>
-            <span className="text-secondary block text-[11px]">Escrow State</span>
+            <span className="text-muted-foreground block text-[11px]">Escrow State</span>
             <span className="font-bold text-foreground">
               {isDisputed
                 ? "Frozen in Dispute"
@@ -93,7 +92,7 @@ export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
           </div>
           {deal.submissionDeadline && (
             <div>
-              <span className="text-secondary block text-[11px]">Deadline</span>
+              <span className="text-muted-foreground block text-[11px]">Deadline</span>
               <span className="font-bold text-foreground">
                 {formatDate(deal.submissionDeadline, "-", {
                   day: "numeric",
@@ -104,6 +103,6 @@ export function DealContextMiniCard({ deal }: DealContextMiniCardProps) {
           )}
         </div>
       )}
-    </div>
+    </aside>
   );
 }

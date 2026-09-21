@@ -1,92 +1,107 @@
 "use client";
 
+import React from "react";
 import { Card, Input, Textarea } from "@/components/ui";
 import { CampaignFormData } from "./CampaignCreateHelpers";
+import { Package, Truck, Sparkles } from "lucide-react";
 
 interface ProductSeedingCardProps {
-readonly formData: CampaignFormData;
-readonly setFormData: React.Dispatch<React.SetStateAction<CampaignFormData>>;
+  readonly formData: CampaignFormData;
+  readonly setFormData: React.Dispatch<React.SetStateAction<CampaignFormData>>;
 }
 
 export function ProductSeedingCard({
-formData,
-setFormData,
+  formData,
+  setFormData,
 }: ProductSeedingCardProps) {
-return (
-<Card
-className="mb-4 p-5 bg-tertiary border-dashed"
->
-<div
-className={`flex items-center justify-between ${formData.requiresProduct ? "mb-4" : "mb-0"}`}
->
-<div>
-<h3
-className="text-base font-semibold text-primary"
->
-Product Seeding (Barter / Logistics)
-</h3>
-<p
-className="text-secondary text-sm mt-1"
->
-Do you need to ship a physical product to the influencer?
-</p>
-</div>
-<label className="switch" aria-label="Requires physical product seeding">
-<input
-type="checkbox"
-checked={formData.requiresProduct}
-onChange={(e) =>
-setFormData({ ...formData, requiresProduct: e.target.checked })
-}
-/>
-<span className="slider round"></span>
-<span className="sr-only">Requires physical product seeding</span>
-</label>
-</div>
+  return (
+    <Card className="p-5 rounded-2xl border border-border bg-card shadow-xs space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
+            <Package className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-foreground">
+              Product Seeding & Physical Gifting
+            </h4>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Do you need to ship physical merchandise or review units to influencers?
+            </p>
+          </div>
+        </div>
 
-{formData.requiresProduct && (
-<div className="mt-4">
-<div className="grid-2 gap-4 mb-3">
-<Input
-label="Product Name"
-id="product-name"
-type="text"
-value={formData.productName}
-onChange={(e) =>
-setFormData({ ...formData, productName: e.target.value })
-}
-required={formData.requiresProduct}
-placeholder="e.g. Glowing Skin Serum 50ml"
-fullWidth
-/>
-<Input
-label="Product Value (Rs)"
-id="product-value"
-type="number"
-value={formData.productValue}
-onChange={(e) =>
-setFormData({
-...formData,
-productValue: Number.parseInt(e.target.value, 10) || 0,
-})
-}
-min={0}
-placeholder="e.g. 1500"
-fullWidth
-/>
-</div>
-<Textarea
-label="Logistics / Shipping Instructions"
-id="product-description"
-value={formData.productDescription}
-onChange={(e) =>
-setFormData({ ...formData, productDescription: e.target.value })
-}
-placeholder="Provide any details about the product and shipping timelines..."
-fullWidth
-/>
-</div>
-)}
-</Card>
-);
+        {/* Clean Toggle Switch */}
+        <label
+          htmlFor="product-seeding-toggle"
+          className="relative inline-flex items-center cursor-pointer shrink-0"
+        >
+          <input
+            id="product-seeding-toggle"
+            type="checkbox"
+            checked={formData.requiresProduct}
+            onChange={(e) =>
+              setFormData({ ...formData, requiresProduct: e.target.checked })
+            }
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          <span className="sr-only">Requires physical product seeding</span>
+        </label>
+      </div>
+
+      {formData.requiresProduct && (
+        <div className="pt-4 border-t border-border space-y-4 animate-in fade-in-50 duration-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Product Name"
+              id="product-name"
+              type="text"
+              value={formData.productName}
+              onChange={(e) =>
+                setFormData({ ...formData, productName: e.target.value })
+              }
+              required={formData.requiresProduct}
+              placeholder="e.g. Glowing Skin Vitamin C Serum (50ml)"
+              fullWidth
+            />
+            <Input
+              label="Product Retail Value (₹)"
+              id="product-value"
+              type="number"
+              value={formData.productValue || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  productValue: Number.parseInt(e.target.value, 10) || 0,
+                })
+              }
+              min={0}
+              placeholder="e.g. 1499"
+              fullWidth
+            />
+          </div>
+
+          <Textarea
+            label="Logistics & Shipping Instructions"
+            id="product-description"
+            value={formData.productDescription}
+            onChange={(e) =>
+              setFormData({ ...formData, productDescription: e.target.value })
+            }
+            placeholder="Specify dispatch timeline, whether creators keep the product, or delivery address requirements..."
+            fullWidth
+            rows={2}
+          />
+
+          <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/60 text-xs text-muted-foreground border border-border">
+            <Truck className="w-4 h-4 text-primary shrink-0" />
+            <span>
+              Creators will provide their shipping address confidentially in their deal room once hired.
+            </span>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
 }

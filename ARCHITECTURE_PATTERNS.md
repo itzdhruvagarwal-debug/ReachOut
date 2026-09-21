@@ -59,17 +59,111 @@ vyaparmedia/
 
 ---
 
-## 2. Component Organization & Feature-Folder Pattern
+## 2. Component Organization & UI Architecture Pattern
 
-### Rules:
-1. **Feature-Folder Scoping**:
-   - Components specific to a functional area **MUST** reside within that feature's folder under `src/components/dashboard/<feature>/` (e.g., `deals/`, `wallet/`, `messages/`, `campaigns/`, `disputes/`, `settings/`, `challenges/`, `referrals/`).
-   - Feature folders group related modals, timeline items, helpers, and sub-views together.
-2. **UI Primitives Barrels**:
-   - Primitives reside in `src/components/ui/` (e.g., `Button.tsx`, `Modal.tsx`, `Toast.tsx`, `Input.tsx`, `Card.tsx`, `Pagination.tsx`).
-   - `src/components/ui/index.ts` is the single source of truth for UI primitives. All consumers should import primitives via `@/components/ui`.
-3. **No Monolithic Dashboard Files**:
-   - Next.js route entrypoints (`page.tsx`) should act as thin controllers or composition shells that pull in modular feature components.
+### 2.1 Directory Taxonomy & Feature-Folder Scoping
+The UI codebase strictly isolates components by scope, domain, and lifecycle:
+
+```text
+src/components/
+├── ui/                     # Universal Base UI primitives (Button, Modal, Input, Toast, Select, etc.)
+│   └── index.ts            # Single barrel export for all primitives (@/components/ui)
+├── navigation/             # App shell navigation & responsive frames
+│   ├── DesktopSidebar.tsx  # Desktop fixed navigation drawer with role-based links
+│   ├── MobileBottomBar.tsx # Mobile fixed bottom navigation with 44pt tap targets & safe-area insets
+│   ├── EscrowStoriesBar.tsx# Instagram-style horizontal story strip for deal updates & highlights
+│   └── RoleGuard.tsx       # Route access guard by authenticated role
+├── discovery/              # Creator & Campaign discovery feed architecture
+│   ├── DiscoveryFeed.tsx   # High-concurrency searchable & filterable feed
+│   ├── CampaignDiscoveryCard.tsx # Campaign presentation card with quick-apply
+│   ├── CreatorDiscoveryCard.tsx  # Influencer showcase card with DRS badge & metrics
+│   ├── FilterBottomSheet.tsx     # Mobile-optimized slide-up filter sheet
+│   └── PullToRefresh.tsx         # Mobile touch pull-to-refresh handler
+├── profile/                # Creator portfolio & brand profile components
+│   ├── InfluencerProfileClient.tsx # Interactive profile with rate cards & direct offer CTA
+│   └── CampaignProofModal.tsx      # Modal displaying verified past deliverables
+├── help/                   # Knowledge base & FAQ help center
+│   └── HelpCenterClient.tsx# Interactive categorized FAQ search & ticket escalation
+├── register/               # Multi-step onboarding & registration components
+│   ├── OtpFields.tsx       # 6-digit individual numeric input with auto-advance & paste
+│   ├── Step2RegistrationForm.tsx # Role selection & password confirmation
+│   └── useRegistration.ts  # Client state machine with timer & sanitization
+├── landing/                # Public marketing landing page components
+│   ├── HeroProductMockup.tsx # Live platform preview mockup
+│   └── LandingHelpers.tsx    # FAQ accordions, trust badges, feature callouts
+├── dashboard/              # User dashboard feature modules
+│   ├── home/               # Dashboard home client, action banners, & active feed
+│   │   ├── DashboardHomeClient.tsx
+│   │   ├── ActionRequiredBanner.tsx
+│   │   └── ActiveDealsFeed.tsx
+│   ├── deals/              # Deal list, contracts, milestones, dispute modal, steppers
+│   │   └── DealProgressStepper.tsx
+│   ├── wallet/             # Escrow ledger, bank accounts, withdrawal flow
+│   ├── campaigns/          # Campaign creation wizard, applicant review
+│   │   └── create/         # CreateCampaignClient, CampaignSummarySidebar, DeliverablesList
+│   ├── messages/           # Deal-linked real-time chat & leak-protected messaging
+│   ├── disputes/           # Evidence upload & arbitration timeline
+│   ├── analytics/          # Reach, GMV, and conversion performance charts
+│   └── settings/           # Profile settings, 2FA management, confirmation badges
+├── admin/                  # Admin portal control panels & arbitration tools
+├── analytics/              # Reusable Recharts wrapper components
+├── notifications/          # Notification drawer & Web Push triggers
+└── security/               # 2FA QR code modal & session revocations
+```
+
+### 2.2 Base UI Headless Primitives (`@base-ui/react`)
+- VyaparMedia standardizes on `@base-ui/react` (v1.8.0) primitives styled exclusively with Tailwind CSS variables.
+- **Barrel Import Rule**: All consumers **MUST** import primitives through `@/components/ui`:
+  ```tsx
+  import { Button, Modal, Card, Input, Toast, Select, EmptyState, Skeleton } from "@/components/ui";
+  ```
+- Primitives must never contain hardcoded domain business logic. They remain purely presentational, accessible (ARIA compliant, keyboard navigable), and theme-aware.
+
+### 2.3 Responsive Navigation Shell Pattern
+The application adapts seamlessly between desktop and mobile viewport constraints:
+1. **Desktop Viewport (`md:` and above)**:
+   - Renders `DesktopSidebar` on the left axis with role-differentiated menu groups (`INFLUENCER`, `BRAND`, `ADMIN`).
+   - Displays real-time escrow wallet balances, collapsible section items, and quick action shortcuts.
+2. **Mobile Viewport (below `md:`)**:
+   - Renders `MobileBottomBar` pinned to the bottom of the screen.
+   - Enforces **44pt minimum touch targets** (`.touch-target-44`) for all interactive icons and tabs.
+   - Includes `padding-bottom: env(safe-area-inset-bottom)` to accommodate device home bars.
+   - Pushes page content up via `pb-20 md:pb-0` to eliminate visual and tap interference.
+3. **Escrow Stories Bar (`EscrowStoriesBar`)**:
+   - Renders an Instagram-inspired horizontal scrollable story bar across feeds.
+   - Showcases live platform escrow settlements, verified creator highlights, and system announcements.
+
+### 2.4 Client vs. Server Component Boundaries
+- **Server Component Page Shells (`page.tsx`)**: App Router route entrypoints must remain lightweight composability shells or Server Components that fetch initial data and validate sessions.
+- **Interactive Feature Components (`"use client"`)**: Client boundaries must be pushed down to the leaf nodes or feature containers that manage state, form inputs, animations, or browser events.
+- **No Monolithic Dashboard Files**: Page controllers must never exceed 250 lines; all complex UI logic must be decomposed into feature folders (`components/dashboard/<feature>/`).
+
+### 2.5 Dual-Coded Accessibility & Numeric Precision
+- **Dual-Coding**: Every status indicator or trust badge must pair a semantic color token (`verified`, `escrow`, `pending`, `disputed`) with a visible text label and Lucide icon. Never communicate status through color alone.
+- **Tabular Numbers (`.tabular-nums`)**: All monetary figures, wallet counters, and percentage metrics must apply `.tabular-nums` (`font-variant-numeric: tabular-nums`) to prevent horizontal layout shift during counter animations.
+
+### 2.6 Multi-Step Form Wizard Pattern (Kofluence / Upwork "Post a Job")
+Complex multi-phase interactions (`src/app/onboarding/page.tsx`, `CreateCampaignClient.tsx`) must follow the progressive disclosure wizard pattern:
+1. **Client State Machine**: An active step pointer (`currentStep: 1 | 2 | 3 | 4`) with explicit validation guards preventing forward advancement on incomplete data.
+2. **Visual Stepper & Progress Bar**: Top-anchored visual stepper rendering completed checkmarks (`Check`, `bg-verified`), active ring indicator (`border-primary`), and upcoming muted steps.
+3. **Sticky Summary Sidebar (Desktop)**: On desktop viewports, pair input forms with a sticky right sidebar (`CampaignSummarySidebar.tsx`) calculating real-time escrow deposits, platform fees (5%), and GST (18%) in bold `tabular-nums`.
+
+### 2.7 Public-Facing PII Sanitization Boundary Pattern
+Publicly accessible dynamic routes (`src/app/creator/[username]/page.tsx`) must strictly isolate sensitive private data:
+1. **Server-Side Sanitization**: The Server Component invokes a dedicated formatter (`formatCreatorProfileData` in `src/lib/creator-profile.ts`) that extracts and validates only public marketing attributes.
+2. **Strict Omission Policy**: Phone numbers, personal email addresses, PAN, GST, bank account numbers, residential addresses, and internal user flags are strictly stripped prior to serializing props to client components.
+
+### 2.8 Server-Side Route Guard & Onboarding Completeness Pattern
+To prevent orphan user journeys or incomplete profile access:
+1. **Signup Funneling**: User registration immediately sets `callbackUrl=/onboarding` upon redirecting to `/login`.
+2. **Dashboard Server Guard**: The root `src/app/dashboard/page.tsx` performs an atomic profile completeness check (verifying non-default categories, city, and required company/influencer attributes). If incomplete, it issues an immediate `redirect("/onboarding")`, ensuring new users cannot access dashboard features until completing onboarding.
+
+### 2.9 Zero-Latency Categorized Search & Knowledge Base Pattern
+Standalone help surfaces (`src/components/help/HelpCenterClient.tsx`) follow a high-concurrency client search pattern:
+1. **Pure Filter Function (`filterFaqs`)**: Filter logic is decoupled into a pure, exported function tested independently via Vitest.
+2. **Memoized Multi-Filter**: Uses React `useMemo` to filter across category pills (`GETTING_STARTED`, `PAYMENTS_ESCROW`, `DISPUTES_REVISIONS`, `KYC_SECURITY`) and real-time query substrings matching question, answer, and badge text simultaneously.
+3. **Escalation Fallback**: Always pairs self-service documentation with an explicit escalation card linking directly to `/dashboard/support`.
+
 
 ---
 

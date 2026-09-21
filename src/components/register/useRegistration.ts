@@ -265,7 +265,7 @@ phoneOtpVerified: true,
 deviceFingerprint,
 });
 
-router.push("/login?registered=true");
+router.push("/login?registered=true&callbackUrl=/onboarding");
 } catch (err: unknown) {
 logger.error("[register] submission error:", err);
 if (err instanceof ApiClientError) {

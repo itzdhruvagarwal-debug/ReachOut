@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Modal, Button, Input, Select, Textarea } from "@/components/ui";
@@ -10,6 +10,22 @@ import { formatCurrency, formatDateTime } from "@/lib/utils-client";
 import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
 import { DealContextMiniCard } from "./DealContextMiniCard";
 import { ContactLeakWarningBanner } from "./ContactLeakWarningBanner";
+import {
+  ChevronLeft,
+  Shield,
+  ShieldAlert,
+  Flag,
+  Ban,
+  Unlock,
+  Paperclip,
+  Handshake,
+  Send,
+  Download,
+  FileText,
+  AlertTriangle,
+  Check,
+  CheckCheck,
+} from "lucide-react";
 
 interface ChatPanelProps {
   readonly state: ReturnType<typeof useMessages>;
@@ -31,33 +47,21 @@ function ChatHeader({ state }: Readonly<ChatPanelProps>) {
   const isBrand = selectedChat.userType?.toUpperCase() === "BRAND";
 
   return (
-    <div className="border-b border-card flex items-center justify-between gap-3 px-5 py-3.5 backdrop-blur-md bg-secondary/80 z-10">
+    <div className="border-b border-border flex items-center justify-between gap-3 px-4 sm:px-6 py-3 bg-card shrink-0">
       <div className="flex items-center gap-3 min-w-0">
         {/* Mobile Back Button */}
-        <Button
-          variant="ghost"
+        <button
+          type="button"
           onClick={() => setSelectedConversation(null)}
           aria-label="Back to conversations list"
-          className="chat-back-btn show-mobile p-1.5 min-w-0 hover:bg-tertiary rounded-lg"
+          className="sm:hidden p-1.5 -ml-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
         >
-          <svg
-            width={20}
-            height={20}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </Button>
+          <ChevronLeft className="w-5 h-5" />
+        </button>
 
-        {/* User Avatar with status pulse */}
-        <div className="relative flex-shrink-0">
-          <div className="conversation-avatar">
+        {/* User Avatar with status */}
+        <div className="relative shrink-0">
+          <div className="relative w-10 h-10 rounded-full overflow-hidden bg-muted border border-border flex items-center justify-center text-foreground font-bold text-sm">
             {selectedChat.avatar ? (
               <Image
                 src={selectedChat.avatar}
@@ -70,48 +74,48 @@ function ChatHeader({ state }: Readonly<ChatPanelProps>) {
               (selectedChat.name || "U").charAt(0).toUpperCase()
             )}
           </div>
-          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-card shadow-sm" />
+          <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-verified rounded-full border-2 border-card" />
         </div>
 
         {/* User Info & Role */}
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-base text-white truncate max-w-180">
+            <span className="font-bold text-sm sm:text-base text-foreground truncate max-w-[160px] sm:max-w-xs">
               {selectedChat.name}
             </span>
             <span
-              className="conversation-role-badge"
-              data-role={isBrand ? "BRAND" : "CREATOR"}
+              className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
+                isBrand ? "bg-primary/10 text-primary" : "bg-verified-muted text-verified"
+              }`}
             >
               {isBrand ? "Brand" : "Creator"}
             </span>
           </div>
-          <div className="text-xs text-secondary flex items-center gap-1.5">
+          <div className="text-xs text-muted-foreground flex items-center gap-1.5">
             {isPeerTyping ? (
-              <span className="text-blue-400 font-semibold italic flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" />
+              <span className="text-primary font-semibold italic flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
                 <span>Typing...</span>
               </span>
             ) : (
-              <span>Verified Workspace Member</span>
+              <span className="flex items-center gap-1">
+                <Shield className="w-3 h-3 text-verified" /> Verified Workspace Member
+              </span>
             )}
           </div>
         </div>
       </div>
 
       {/* Header Actions */}
-      <div className="flex gap-2 items-center flex-shrink-0">
+      <div className="flex gap-1.5 items-center shrink-0">
         <Button
           variant="secondary"
           size="sm"
           onClick={() => setIsReportModalOpen(true)}
           aria-label={`Report ${selectedChat?.name ?? "this user"}`}
-          className="text-xs px-2.5 py-1.5 flex items-center gap-1.5 border-card hover:bg-tertiary"
+          className="text-xs px-2.5 py-1.5 flex items-center gap-1 border border-border"
         >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-            <line x1="4" y1="22" x2="4" y2="15" />
-          </svg>
+          <Flag className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Report</span>
         </Button>
 
@@ -119,17 +123,18 @@ function ChatHeader({ state }: Readonly<ChatPanelProps>) {
           variant={isChatUserBlocked ? "secondary" : "ghost"}
           size="sm"
           onClick={isChatUserBlocked ? handleUnblockUser : handleBlockUser}
-          aria-label={isChatUserBlocked ? `Unblock ${selectedChat?.name ?? "user"}` : `Block ${selectedChat?.name ?? "user"}`}
-          className={`text-xs px-2.5 py-1.5 flex items-center gap-1.5 ${
+          aria-label={
             isChatUserBlocked
-              ? "text-emerald border-emerald/30 bg-emerald-500/10 hover:bg-emerald-500/20"
-              : "text-muted hover:text-rose hover:bg-rose-subtle"
+              ? `Unblock ${selectedChat?.name ?? "user"}`
+              : `Block ${selectedChat?.name ?? "user"}`
+          }
+          className={`text-xs px-2.5 py-1.5 flex items-center gap-1 ${
+            isChatUserBlocked
+              ? "text-verified border border-verified-border bg-verified-muted"
+              : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
           }`}
         >
-          <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-          </svg>
+          {isChatUserBlocked ? <Unlock className="w-3.5 h-3.5" /> : <Ban className="w-3.5 h-3.5" />}
           <span className="hidden sm:inline">{isChatUserBlocked ? "Unblock" : "Block"}</span>
         </Button>
       </div>
@@ -138,23 +143,16 @@ function ChatHeader({ state }: Readonly<ChatPanelProps>) {
 }
 
 function MessageList({ state }: Readonly<ChatPanelProps>) {
-  const { messages, isPeerTyping, loadingMessages, messagesEndRef } = state;
+  const { messages, isPeerTyping, loadingMessages, messagesEndRef, scrollContainerRef } = state;
 
-  const renderBlockedMessage = (msg: Message) => (
-    <div className="flex flex-col gap-2 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl">
-      <div
-        className="flex items-center gap-1.5 text-xs font-bold text-rose"
-        data-me={msg.isMe}
-      >
-        <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          <line x1="12" y1="8" x2="12" y2="12" />
-          <line x1="12" y1="16" x2="12.01" y2="16" />
-        </svg>
+  const renderBlockedMessage = () => (
+    <div className="flex flex-col gap-1.5 p-3 bg-disputed-muted border border-disputed-border text-disputed rounded-2xl max-w-sm">
+      <div className="flex items-center gap-1.5 text-xs font-bold text-disputed">
+        <ShieldAlert className="w-4 h-4" />
         Message Content Filtered
       </div>
-      <p className="text-xs text-muted select-none italic">
-        Sharing personal contact details (phone, email, WhatsApp) prior to deal signing is blocked for safety.
+      <p className="text-xs text-foreground/80 italic">
+        Sharing personal contact details (phone, email, WhatsApp, UPI) prior to deal signing is blocked for escrow safety.
       </p>
     </div>
   );
@@ -163,21 +161,17 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
     const fileName = String(msg.metadata?.fileName || "Shared File");
     const fileType = String(msg.metadata?.fileType || "");
     const isImg =
-      fileType.startsWith("image/") ||
-      /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl || "");
+      fileType.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp)$/i.test(msg.fileUrl || "");
 
     return (
-      <div className="flex flex-col gap-2 min-w-200">
-        <div className="flex items-center gap-2 font-bold text-xs">
-          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
+      <div className="flex flex-col gap-2 min-w-[200px]">
+        <div className="flex items-center gap-1.5 font-bold text-xs">
+          <FileText className="w-4 h-4" />
           Attachment
         </div>
 
-        {isImg && msg.fileUrl ? (
-          <div className="relative w-full max-w-280 h-44 rounded-lg overflow-hidden bg-black/40 border border-white/10 mb-1 shadow-sm group">
+        {isImg && msg.fileUrl && (
+          <div className="relative w-full max-w-[280px] h-44 rounded-xl overflow-hidden bg-muted border border-border shadow-sm group">
             <Image
               src={msg.fileUrl}
               alt={fileName}
@@ -187,26 +181,18 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
               unoptimized={!/\.(jpg|jpeg|png|webp|gif)$/i.test(msg.fileUrl)}
             />
           </div>
-        ) : null}
+        )}
 
         {msg.fileUrl && (
-          <a
-            href={msg.fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full block"
-          >
+          <a href={msg.fileUrl} target="_blank" rel="noopener noreferrer" className="w-full block">
             <Button
               variant="secondary"
               size="sm"
-              className="w-full flex items-center justify-center gap-2 text-xs py-1.5 border-card bg-secondary/80 hover:bg-secondary cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 text-xs py-1.5 font-semibold"
             >
-              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              Download {fileName.slice(0, 18)}{fileName.length > 18 ? "..." : ""}
+              <Download className="w-3.5 h-3.5" />
+              Download {fileName.slice(0, 16)}
+              {fileName.length > 16 ? "..." : ""}
             </Button>
           </a>
         )}
@@ -221,53 +207,65 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
     const isAccepted = offer.status === "ACCEPTED";
     const isDeclined = offer.status === "DECLINED";
 
-    let statusClass = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+    let statusBadge = (
+      <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-pending-muted text-pending border border-pending-border">
+        Pending
+      </span>
+    );
     if (isAccepted) {
-      statusClass = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+      statusBadge = (
+        <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-verified-muted text-verified border border-verified-border">
+          Accepted
+        </span>
+      );
     } else if (isDeclined) {
-      statusClass = "bg-rose-500/20 text-rose-400 border-rose-500/30";
+      statusBadge = (
+        <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-disputed-muted text-disputed border border-disputed-border">
+          Declined
+        </span>
+      );
     }
 
     return (
-      <div className="offer-card flex flex-col gap-3 p-4 rounded-xl bg-card border border-card text-left max-w-360 shadow-lg">
-        <div className="flex items-center justify-between border-b border-card pb-2.5">
+      <div className="flex flex-col gap-3 p-4 rounded-2xl bg-card border border-border text-left max-w-sm shadow-md">
+        <div className="flex items-center justify-between border-b border-border pb-2.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-base" aria-hidden="true">🤝</span>
-            <span className="font-extrabold text-sm gradient-text">Custom Proposal</span>
+            <Handshake className="w-4 h-4 text-primary" />
+            <span className="font-extrabold text-sm text-foreground">Custom Proposal</span>
           </div>
-          <span className={`text-3xs uppercase font-extrabold px-2 py-0.5 rounded-full border ${statusClass}`}>
-            {offer.status || "PENDING"}
-          </span>
+          {statusBadge}
         </div>
 
         <div>
-          <div className="text-sm font-bold text-primary mb-1">{offer.title || "Custom Deal Offer"}</div>
-          <div className="text-xs text-secondary leading-relaxed line-clamp-3">
+          <div className="text-sm font-bold text-foreground mb-1">
+            {offer.title || "Custom Deal Offer"}
+          </div>
+          <div className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
             {offer.description || "Direct collaboration proposal with platform escrow protection."}
           </div>
         </div>
 
-        {offer.deliverables ? (
-          <div className="text-xs bg-secondary/60 p-2.5 rounded-lg border border-white/5">
-            <span className="text-muted font-bold block mb-1">Deliverables:</span>
-            <span className="text-primary">{String(offer.deliverables)}</span>
+        {offer.deliverables && (
+          <div className="text-xs bg-muted/60 p-2.5 rounded-xl border border-border/50">
+            <span className="text-muted-foreground font-bold block mb-0.5">Deliverables:</span>
+            <span className="text-foreground">{String(offer.deliverables)}</span>
           </div>
-        ) : null}
+        )}
 
-        <div className="flex justify-between items-center bg-secondary p-3 rounded-lg border border-white/5">
-          <span className="text-xs text-secondary">Proposed Rate:</span>
-          <strong className="text-base font-extrabold text-emerald">
+        <div className="flex justify-between items-center bg-muted/40 p-2.5 rounded-xl border border-border/50">
+          <span className="text-xs text-muted-foreground">Proposed Rate:</span>
+          <strong className="text-base font-extrabold font-mono tabular-nums text-foreground">
             {formatCurrency(amount)}
           </strong>
         </div>
 
-        {isPending && !msg.isMe ? (
+        {isPending && !msg.isMe && (
           <div className="flex gap-2 mt-1 w-full">
             <Button
               variant="primary"
               size="sm"
               onClick={() => state.handleUpdateOfferStatus?.(msg.id, "ACCEPTED")}
-              className="flex-1 text-xs py-2 cursor-pointer font-bold"
+              className="flex-1 text-xs py-2 font-bold"
             >
               ✓ Accept Offer
             </Button>
@@ -275,14 +273,14 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
               variant="secondary"
               size="sm"
               onClick={() => state.handleUpdateOfferStatus?.(msg.id, "DECLINED")}
-              className="flex-1 text-xs py-2 cursor-pointer text-muted hover:text-rose"
+              className="flex-1 text-xs py-2 text-destructive hover:bg-destructive/10"
             >
               ✕ Decline
             </Button>
           </div>
-        ) : null}
+        )}
 
-        {isAccepted && (offer.dealId || msg.metadata?.dealId) ? (
+        {isAccepted && (offer.dealId || msg.metadata?.dealId) && (
           <Link
             href={`/dashboard/deals/${String(offer.dealId || msg.metadata?.dealId)}`}
             className="w-full block mt-1"
@@ -290,34 +288,20 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
             <Button
               variant="secondary"
               size="sm"
-              className="w-full flex items-center justify-center gap-1.5 text-xs py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 font-bold cursor-pointer"
+              className="w-full flex items-center justify-center gap-1.5 text-xs py-2 bg-verified-muted text-verified border border-verified-border font-bold"
             >
-              <svg
-                width={14}
-                height={14}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
-              <span>View Active Deal & Deliverables</span>
+              <Shield className="w-3.5 h-3.5" />
+              <span>View Deal Room</span>
             </Button>
           </Link>
-        ) : null}
+        )}
       </div>
     );
   };
 
   const renderMessageContent = (msg: Message) => {
     if (msg.isBlocked) {
-      return renderBlockedMessage(msg);
+      return renderBlockedMessage();
     }
 
     if (msg.messageType === "FILE" && msg.fileUrl) {
@@ -333,27 +317,30 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
 
   return (
     <div
-      ref={state.scrollContainerRef}
+      ref={scrollContainerRef}
       aria-label="Chat messages"
       aria-live="polite"
       aria-relevant="additions"
-      className="flex-1 p-5 sm:p-6 flex flex-col gap-3.5 bg-primary overflow-y-auto"
+      className="flex-1 p-4 sm:p-6 flex flex-col gap-3 bg-muted/20 overflow-y-auto"
     >
+      {/* Pinned Deal Context Mini Card if active */}
+      {state.dealDetails && <DealContextMiniCard deal={state.dealDetails} />}
+
       {loadingMessages && (
-        <div className="text-center p-8 flex flex-col items-center gap-2">
-          <span className="loading w-8 h-8" />
-          <span className="text-xs text-muted">Loading messages...</span>
+        <div className="text-center p-8 flex flex-col items-center gap-2 my-auto">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs text-muted-foreground">Loading messages...</span>
         </div>
       )}
 
       {!loadingMessages && messages.length === 0 && (
-        <div className="my-auto text-center text-muted p-8 flex flex-col items-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center text-2xl border border-white/5">
+        <div className="my-auto text-center text-muted-foreground p-8 flex flex-col items-center gap-2.5">
+          <div className="w-12 h-12 rounded-2xl bg-card border border-border flex items-center justify-center text-2xl shadow-sm">
             💬
           </div>
-          <div className="font-bold text-sm text-primary">No messages in this chat yet</div>
-          <p className="text-xs text-secondary max-w-280">
-            Start the conversation, propose deal terms, or discuss deliverables.
+          <div className="font-bold text-sm text-foreground">No messages in this chat yet</div>
+          <p className="text-xs text-muted-foreground max-w-xs">
+            Start the conversation, discuss campaign deliverables, or propose custom milestone terms.
           </p>
         </div>
       )}
@@ -362,57 +349,48 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
         messages.length > 0 &&
         messages.map((msg: Message, index: number) => {
           const prevMsg = index > 0 ? messages[index - 1] : null;
-          const currDate = msg.rawCreatedAt
-            ? new Date(msg.rawCreatedAt).toDateString()
-            : "";
-          const prevDate = prevMsg?.rawCreatedAt
-            ? new Date(prevMsg.rawCreatedAt).toDateString()
-            : "";
+          const currDate = msg.rawCreatedAt ? new Date(msg.rawCreatedAt).toDateString() : "";
+          const prevDate = prevMsg?.rawCreatedAt ? new Date(prevMsg.rawCreatedAt).toDateString() : "";
           const showDateDivider = !prevMsg || (currDate && prevDate && currDate !== prevDate);
           const dateLabel = formatMessageDateDivider(msg.rawCreatedAt || msg.createdAt);
 
           return (
             <React.Fragment key={msg.id}>
               {showDateDivider && dateLabel && (
-                <div className="chat-date-separator flex items-center justify-center my-3 select-none">
-                  <div className="chat-date-pill px-3 py-1 text-2xs font-bold rounded-full bg-tertiary border border-card text-secondary shadow-sm">
-                    <span>{dateLabel}</span>
-                  </div>
+                <div className="flex items-center justify-center my-3 select-none">
+                  <span className="px-3 py-1 text-[10px] font-bold rounded-full bg-card border border-border text-muted-foreground shadow-sm">
+                    {dateLabel}
+                  </span>
                 </div>
               )}
-              <div
-                className={`flex ${msg.isMe ? "justify-end" : "justify-start"} animate-fade-in`}
-              >
+              <div className={`flex ${msg.isMe ? "justify-end" : "justify-start"} animate-fadeIn`}>
                 <div
-                  className={`chat-bubble rounded-2xl px-4 py-2.5 max-w-[85%] sm:max-w-[75%] shadow-sm transition-all ${
+                  className={`rounded-2xl px-4 py-2.5 max-w-[85%] sm:max-w-[75%] shadow-sm transition-all ${
                     msg.isMe
-                      ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-br-xs"
-                      : "bg-secondary text-primary border border-card rounded-bl-xs"
+                      ? "bg-primary text-primary-foreground rounded-br-xs"
+                      : "bg-card text-foreground border border-border rounded-bl-xs"
                   }`}
                   data-me={msg.isMe}
                   data-blocked={msg.isBlocked}
                 >
                   {renderMessageContent(msg)}
                   <div
-                    className={`mt-1.5 flex items-center justify-end gap-1.5 text-3xs font-medium ${
-                      msg.isMe ? "text-white/75" : "text-muted"
+                    className={`mt-1 flex items-center justify-end gap-1.5 text-[10px] font-medium ${
+                      msg.isMe ? "text-primary-foreground/75" : "text-muted-foreground"
                     }`}
                     title={
-                      msg.rawCreatedAt
-                        ? formatDateTime(msg.rawCreatedAt)
-                        : msg.createdAt
+                      msg.rawCreatedAt ? formatDateTime(msg.rawCreatedAt) : msg.createdAt
                     }
                   >
-                    {msg.status === "sending" && (
-                      <span className="text-[10px] text-white/60 italic mr-1">Sending...</span>
-                    )}
+                    {msg.status === "sending" && <span className="italic mr-1">Sending...</span>}
                     <span>{msg.createdAt}</span>
                     {msg.isMe && msg.status !== "failed" && (
-                      <span
-                        aria-hidden="true"
-                        className={msg.isRead ? "text-cyan-300 font-bold" : "text-white/60"}
-                      >
-                        {msg.isRead ? "✓✓" : "✓"}
+                      <span aria-hidden="true" className="font-bold">
+                        {msg.isRead ? (
+                          <CheckCheck className="w-3 h-3 text-cyan-200 inline" />
+                        ) : (
+                          <Check className="w-3 h-3 inline" />
+                        )}
                       </span>
                     )}
                   </div>
@@ -420,7 +398,7 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
                     <button
                       type="button"
                       onClick={() => state.handleRetryMessage(msg.id)}
-                      className="block w-full text-right text-[10px] text-rose-300 hover:text-white underline cursor-pointer mt-1 font-semibold"
+                      className="block w-full text-right text-[10px] text-destructive hover:underline cursor-pointer mt-1 font-semibold"
                     >
                       ⚠️ Failed to send. Tap to retry
                     </button>
@@ -431,13 +409,13 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
           );
         })}
 
-      {/* Typing indicator */}
+      {/* Typing indicator bubble */}
       {isPeerTyping && (
-        <div className="flex justify-start animate-fade-in">
-          <div className="flex items-center gap-1.5 bg-secondary text-secondary text-xs rounded-2xl border border-card px-4 py-3 shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" />
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:0.2s]" />
-            <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:0.4s]" />
+        <div className="flex justify-start">
+          <div className="flex items-center gap-1.5 bg-card text-muted-foreground text-xs rounded-2xl border border-border px-3.5 py-2.5 shadow-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:0.4s]" />
           </div>
         </div>
       )}
@@ -454,23 +432,22 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
     handleInputChange,
     handleSend,
     showToast,
-    publishTyping,
     handleSendFile,
     handleSendOffer,
     hasActiveDeal,
   } = state;
 
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [isUploading, setIsUploading] = React.useState(false);
-  const [isOfferModalOpen, setIsOfferModalOpen] = React.useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
 
-  // Offer fields
-  const [offerTitle, setOfferTitle] = React.useState("");
-  const [offerAmount, setOfferAmount] = React.useState("");
-  const [offerDescription, setOfferDescription] = React.useState("");
-  const [offerDeliverables, setOfferDeliverables] = React.useState("");
-  const [offerContentDeadline, setOfferContentDeadline] = React.useState("");
-  const [offerPostingDeadline, setOfferPostingDeadline] = React.useState("");
+  // Offer modal fields
+  const [offerTitle, setOfferTitle] = useState("");
+  const [offerAmount, setOfferAmount] = useState("");
+  const [offerDescription, setOfferDescription] = useState("");
+  const [offerDeliverables, setOfferDeliverables] = useState("");
+  const [offerContentDeadline, setOfferContentDeadline] = useState("");
+  const [offerPostingDeadline, setOfferPostingDeadline] = useState("");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -517,7 +494,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
     try {
       await handleSendOffer?.({
         title: offerTitle,
-        amount: Math.round(amountVal * 100), // convert to paise
+        amount: Math.round(amountVal * 100),
         description: offerDescription,
         deliverables: offerDeliverables,
         contentDeadline: offerContentDeadline,
@@ -536,301 +513,170 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
     }
   };
 
-  const renderInputAreaContent = () => {
-    if (isChatUserBlocked) {
-      return (
-        <div className="chat-blocked-banner font-bold text-xs text-rose px-4 py-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-center">
-          🚫 Messaging is disabled because a block relationship exists with this account.
-        </div>
-      );
-    }
-    if (!hasActiveDeal) {
-      return (
-        <div className="chat-blocked-banner font-semibold text-xs text-amber-400 px-4 py-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center flex items-center justify-center gap-2">
-          <span>🔒 Messaging is enabled once an application or campaign deal is initiated.</span>
-        </div>
-      );
-    }
+  if (isChatUserBlocked) {
     return (
-      <div className="flex flex-col w-full">
-        {/* Contact Leak Warning Banner */}
-        <ContactLeakWarningBanner leakResult={state.contactLeakResult} />
-
-        {/* Upload Progress Indicator */}
-        {state.uploadProgress !== null && (
-          <div className="mb-2 p-2.5 rounded-xl bg-card border border-border/80 shadow-sm animate-fade-in">
-            <div className="flex justify-between text-xs font-semibold mb-1 text-foreground">
-              <span>Uploading attachment...</span>
-              <span className="font-mono">{state.uploadProgress}%</span>
-            </div>
-            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-              <div
-                className="h-full bg-primary transition-all duration-150 rounded-full"
-                style={{ width: `${state.uploadProgress}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        <div
-          className={`flex gap-2 items-center bg-secondary p-1.5 rounded-xl border shadow-sm transition-colors ${
-            state.contactLeakResult.hasLeak
-              ? "border-amber-500/50 ring-2 ring-amber-500/20"
-              : "border-card"
-          }`}
-        >
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-            id="chat-file-upload-input"
-            aria-label="Attach image or document"
-          />
-
-          {/* Attach File Button */}
-          <Button
-            variant="ghost"
-            title="Attach Image or Document"
-            aria-label="Share a file"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="p-2 text-muted hover:text-primary hover:bg-tertiary rounded-lg cursor-pointer"
-          >
-            {isUploading ? (
-              <span className="loading w-4 h-4" />
-            ) : (
-              <svg
-                width={18}
-                height={18}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-              </svg>
-            )}
-          </Button>
-
-          {/* Create Proposal Button */}
-          <Button
-            variant="ghost"
-            title="Send Custom Deal Proposal"
-            aria-label="Create a proposal"
-            onClick={() => setIsOfferModalOpen(true)}
-            className="p-2 text-muted hover:text-blue-400 hover:bg-tertiary rounded-lg cursor-pointer"
-          >
-            <svg
-              width={18}
-              height={18}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-              <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-              <path d="M10 9H8" />
-              <path d="M16 13H8" />
-              <path d="M16 17H8" />
-            </svg>
-          </Button>
-
-          {/* Main Message Input */}
-          <Input
-            type="text"
-            id="chat-message-input"
-            aria-label="Type your message"
-            placeholder="Type a message... (Press Enter to send)"
-            value={newMessage}
-            onChange={(e) => handleInputChange(e.target.value)}
-            onBlur={() => publishTyping(false)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-            className="flex-1 bg-transparent border-0 focus:ring-0 text-sm placeholder:text-muted py-2 px-2"
-          />
-
-          {/* Send Button */}
-          <Button
-            variant="primary"
-            aria-label="Send message"
-            onClick={handleSend}
-            disabled={!newMessage.trim()}
-            className="px-4 py-2 text-xs font-bold rounded-lg flex items-center gap-1.5 shadow-sm"
-          >
-            <span>Send</span>
-            <svg
-              width={14}
-              height={14}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
-          </Button>
+      <div className="p-4 border-t border-border bg-card">
+        <div className="font-bold text-xs text-destructive px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-xl text-center">
+          🚫 Messaging is disabled because a block relationship exists with this account.
         </div>
       </div>
     );
-  };
+  }
 
-  return (
-    <div
-      className="chat-input-area border-t border-card p-4 bg-secondary/80 backdrop-blur-md"
-      data-blocked={isChatUserBlocked || !hasActiveDeal}
-    >
-      {renderInputAreaContent()}
-
-      {/* Direct Custom Offer Creation Modal */}
-      <Modal
-        open={isOfferModalOpen}
-        onClose={() => setIsOfferModalOpen(false)}
-        title="Propose Custom Deal Offer"
-        maxWidth="500px"
-      >
-        <form onSubmit={handleCreateOfferSubmit} className="flex flex-col gap-3.5">
-          <Input
-            label="Offer Title"
-            id="offer-title-input"
-            placeholder="e.g. 1 Instagram Reel + 2 Stories"
-            value={offerTitle}
-            onChange={(e) => setOfferTitle(e.target.value)}
-            fullWidth
-            required
-          />
-
-          <Input
-            label="Proposed Rate (₹ INR)"
-            id="offer-amount-input"
-            type="number"
-            placeholder="e.g. 15000"
-            value={offerAmount}
-            onChange={(e) => setOfferAmount(e.target.value)}
-            fullWidth
-            required
-          />
-
-          <Textarea
-            label="Description / Scope of Work"
-            id="offer-description-input"
-            placeholder="Detail expectations, product usage, tag requirements..."
-            value={offerDescription}
-            onChange={(e) => setOfferDescription(e.target.value)}
-            rows={3}
-            fullWidth
-          />
-
-          <Input
-            label="Deliverables Checklist"
-            id="offer-deliverables-input"
-            placeholder="e.g. 1x 60s Reel, 2x Stories with swipe link"
-            value={offerDeliverables}
-            onChange={(e) => setOfferDeliverables(e.target.value)}
-            fullWidth
-          />
-
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Draft Deadline"
-              id="offer-draft-deadline-input"
-              type="date"
-              value={offerContentDeadline}
-              onChange={(e) => setOfferContentDeadline(e.target.value)}
-              fullWidth
-            />
-            <Input
-              label="Posting Deadline"
-              id="offer-posting-deadline-input"
-              type="date"
-              value={offerPostingDeadline}
-              onChange={(e) => setOfferPostingDeadline(e.target.value)}
-              fullWidth
-            />
-          </div>
-
-          <div className="flex justify-end gap-2.5 pt-2 border-t border-card">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setIsOfferModalOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary">
-              Send Proposal
-            </Button>
-          </div>
-        </form>
-      </Modal>
-    </div>
-  );
-}
-
-export function ChatPanel({ state }: Readonly<ChatPanelProps>) {
-  const { selectedConversation, selectedChat, dealDetails } = state;
-
-  return (
-    <div
-      className={`flex-1 flex flex-col ${
-        !selectedConversation ? "hide-mobile" : ""
-      }`}
-    >
-      {selectedChat ? (
-        <>
-          <ChatHeader state={state} />
-          <DealContextMiniCard deal={dealDetails} />
-          <MessageList state={state} />
-          <ChatInputArea state={state} />
-        </>
-      ) : (
-        <div className="flex-1 flex items-center justify-center flex-col gap-5 p-8 text-center bg-primary">
-          <div className="w-18 h-18 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-3xl shadow-lg">
-            💬
-          </div>
-          <div className="max-w-400">
-            <h2 className="text-xl font-black text-primary mb-2">
-              VyaparMedia Workspace Messages
-            </h2>
-            <p className="text-sm text-secondary leading-relaxed mb-6">
-              Coordinate campaign briefs, submit content drafts, share deliverables, and send custom proposals in a secure environment.
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
-              <div className="p-3 bg-secondary rounded-xl border border-card">
-                <div className="text-base mb-1">🔒</div>
-                <div className="text-xs font-bold text-primary mb-0.5">Protected</div>
-                <div className="text-3xs text-muted">Escrow funded milestones</div>
-              </div>
-              <div className="p-3 bg-secondary rounded-xl border border-card">
-                <div className="text-base mb-1">⚡</div>
-                <div className="text-xs font-bold text-primary mb-0.5">Instant Offers</div>
-                <div className="text-3xs text-muted">Direct in-chat agreements</div>
-              </div>
-              <div className="p-3 bg-secondary rounded-xl border border-card">
-                <div className="text-base mb-1">📁</div>
-                <div className="text-xs font-bold text-primary mb-0.5">Media Share</div>
-                <div className="text-3xs text-muted">High-res deliverable reviews</div>
-              </div>
-            </div>
-          </div>
+  if (!hasActiveDeal) {
+    return (
+      <div className="p-4 border-t border-border bg-card">
+        <div className="font-semibold text-xs text-pending px-4 py-3 bg-pending-muted border border-pending-border rounded-xl text-center flex items-center justify-center gap-2">
+          <span>🔒 Messaging is enabled once an application or campaign deal is initiated.</span>
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="border-t border-border p-3.5 sm:p-4 bg-card shrink-0">
+      {/* Contact Leak Detection Real-Time Warning */}
+      <ContactLeakWarningBanner leakResult={state.contactLeakResult} />
+
+      <form onSubmit={handleSend} className="flex items-center gap-2">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*,application/pdf"
+          onChange={handleFileChange}
+          className="hidden"
+          id="chat-file-upload"
+          disabled={isUploading}
+        />
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+          aria-label="Attach file or image"
+        >
+          <Paperclip className="w-4 h-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setIsOfferModalOpen(true)}
+          className="p-2.5 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+          aria-label="Create Custom Offer"
+          title="Create Custom Offer"
+        >
+          <Handshake className="w-4 h-4" />
+        </button>
+
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => handleInputChange(e.target.value)}
+          placeholder="Type a message... (Enter to send)"
+          className="flex-1 py-2.5 px-4 rounded-xl border border-input bg-muted/30 text-foreground placeholder:text-muted-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+          aria-label="Type message"
+        />
+
+        <Button
+          type="submit"
+          variant="primary"
+          size="sm"
+          disabled={!newMessage.trim()}
+          className="p-2.5 h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+          aria-label="Send message"
+        >
+          <Send className="w-4 h-4" />
+        </Button>
+      </form>
+
+      {/* Custom Offer Creation Modal */}
+      {isOfferModalOpen && (
+        <Modal
+          isOpen={isOfferModalOpen}
+          onClose={() => setIsOfferModalOpen(false)}
+          title="Create Custom Collaboration Proposal"
+        >
+          <form onSubmit={handleCreateOfferSubmit} className="space-y-4 pt-2">
+            <Input
+              id="offer-title"
+              label="Proposal Title"
+              value={offerTitle}
+              onChange={(e) => setOfferTitle(e.target.value)}
+              placeholder="e.g. Festive Campaign Reel + 2 Stories"
+              required
+              fullWidth
+            />
+
+            <Input
+              id="offer-amount"
+              label="Proposed Amount (₹ INR)"
+              type="number"
+              value={offerAmount}
+              onChange={(e) => setOfferAmount(e.target.value)}
+              placeholder="e.g. 25000"
+              required
+              fullWidth
+            />
+
+            <Textarea
+              id="offer-description"
+              label="Scope & Details"
+              value={offerDescription}
+              onChange={(e) => setOfferDescription(e.target.value)}
+              placeholder="Detail the scope of work, content tone, and requirements..."
+              fullWidth
+            />
+
+            <Input
+              id="offer-deliverables"
+              label="Deliverables Summary"
+              value={offerDeliverables}
+              onChange={(e) => setOfferDeliverables(e.target.value)}
+              placeholder="e.g. 1 Reel (60s), 2 Stories with link stickers"
+              fullWidth
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Input
+                id="offer-draft-deadline"
+                label="Draft Submission Due"
+                type="date"
+                value={offerContentDeadline}
+                onChange={(e) => setOfferContentDeadline(e.target.value)}
+                fullWidth
+              />
+              <Input
+                id="offer-post-deadline"
+                label="Live Posting Due"
+                type="date"
+                value={offerPostingDeadline}
+                onChange={(e) => setOfferPostingDeadline(e.target.value)}
+                fullWidth
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsOfferModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm" className="font-bold">
+                Send Proposal
+              </Button>
+            </div>
+          </form>
+        </Modal>
       )}
     </div>
   );
 }
 
-interface ReportUserModalProps {
-  readonly state: ReturnType<typeof useMessages>;
-}
-
-export function ReportUserModal({ state }: Readonly<ReportUserModalProps>) {
+export function ReportUserModal({ state }: Readonly<ChatPanelProps>) {
   const {
     isReportModalOpen,
     setIsReportModalOpen,
@@ -838,66 +684,87 @@ export function ReportUserModal({ state }: Readonly<ReportUserModalProps>) {
     setReportReason,
     reportDescription,
     setReportDescription,
-    submittingReport,
-    handleReportUserSubmit,
+    handleReportSubmit,
+    selectedChat,
   } = state;
 
   return (
     <Modal
-      open={isReportModalOpen}
-      onClose={() => {
-        setIsReportModalOpen(false);
-        setReportReason("");
-        setReportDescription("");
-      }}
-      title="Report User"
-      maxWidth="450px"
+      isOpen={isReportModalOpen}
+      onClose={() => setIsReportModalOpen(false)}
+      title={`Report ${selectedChat?.name || "User"}`}
     >
-      <form onSubmit={handleReportUserSubmit}>
+      <form onSubmit={handleReportSubmit} className="space-y-4 pt-2">
         <Select
-          label="Reason"
-          id="report-reason-select"
+          id="report-reason"
+          label="Reason for Report"
           value={reportReason}
           onChange={(e) => setReportReason(e.target.value)}
-          className="mb-4"
-          fullWidth
           required
+          fullWidth
         >
-          <option value="">Select a reason...</option>
-          <option value="SPAM">Spam or advertising</option>
-          <option value="HARASSMENT">Harassment or abusive language</option>
-          <option value="FRAUD">Fraudulent activity or scam</option>
-          <option value="INAPPROPRIATE">Inappropriate content or profile</option>
-          <option value="OFF_PLATFORM_PAYMENT">Asking for off-platform payment</option>
-          <option value="OTHER">Other reason</option>
+          <option value="SPAM">Spam or Unsolicited Commercial Messaging</option>
+          <option value="CONTACT_LEAK">Attempting Off-Platform Payment or Contact Leak</option>
+          <option value="HARASSMENT">Harassment or Inappropriate Behavior</option>
+          <option value="FRAUD">Fraudulent Offer or Fake Deliverables</option>
+          <option value="OTHER">Other Terms Violation</option>
         </Select>
+
         <Textarea
-          label="Details (optional)"
-          id="report-details-textarea"
+          id="report-details"
+          label="Additional Details (Optional)"
           value={reportDescription}
           onChange={(e) => setReportDescription(e.target.value)}
-          placeholder="Provide additional details to help our moderation team understand..."
-          rows={4}
-          className="mb-4"
+          placeholder="Please provide specific context to help our Trust & Safety team investigate..."
           fullWidth
         />
-        <div className="flex justify-end gap-3 pt-2">
+
+        <div className="flex justify-end gap-2 pt-3 border-t border-border">
           <Button
             type="button"
             variant="secondary"
-            onClick={() => {
-              setIsReportModalOpen(false);
-              setReportReason("");
-              setReportDescription("");
-            }}
+            size="sm"
+            onClick={() => setIsReportModalOpen(false)}
           >
             Cancel
           </Button>
-          <Button type="submit" variant="primary" disabled={submittingReport}>
-            {submittingReport ? "Submitting..." : "Submit Report"}
+          <Button type="submit" variant="danger" size="sm" className="font-bold">
+            Submit Report
           </Button>
         </div>
       </form>
     </Modal>
+  );
+}
+
+export function ChatPanel({ state }: Readonly<ChatPanelProps>) {
+  const { selectedConversation } = state;
+
+  if (!selectedConversation) {
+    return (
+      <main
+        aria-label="Select a conversation"
+        className="hidden sm:flex flex-1 flex-col items-center justify-center p-8 bg-card text-center text-muted-foreground"
+      >
+        <div className="w-16 h-16 rounded-2xl bg-muted/50 border border-border flex items-center justify-center text-3xl mb-3 shadow-sm">
+          💬
+        </div>
+        <h3 className="text-base font-bold text-foreground">Your Messages & Proposals</h3>
+        <p className="text-xs text-muted-foreground max-w-sm mt-1">
+          Select a chat from the sidebar to discuss campaign deliverables, review draft content, and track escrow-backed proposals.
+        </p>
+      </main>
+    );
+  }
+
+  return (
+    <main
+      aria-label="Active conversation"
+      className="flex flex-1 flex-col h-full bg-card min-w-0 overflow-hidden"
+    >
+      <ChatHeader state={state} />
+      <MessageList state={state} />
+      <ChatInputArea state={state} />
+    </main>
   );
 }

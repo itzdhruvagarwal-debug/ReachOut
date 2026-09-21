@@ -1,35 +1,50 @@
-/**
-* Route-level Suspense skeleton for dashboard Campaigns page.
-* Mirrors: page header + filter toolbar + campaign card grid.
-*/
 export default function CampaignsLoading() {
-return (
-<div className="flex-1 p-6" aria-hidden="true">
-{/* Page header */}
-<div className="mb-6">
-<div className="skeleton h-8 w-44 rounded-md mb-2" />
-<div className="skeleton h-4 w-72 rounded-sm" />
-</div>
-{/* Filter toolbar */}
-<div className="flex gap-3 mb-6">
-<div className="skeleton h-9 w-32 rounded-md" />
-<div className="skeleton h-9 w-32 rounded-md" />
-<div className="skeleton h-9 flex-1 rounded-md max-w-280" />
-</div>
-{/* Campaign cards */}
-<div className="grid gap-5 grid-auto-360">
-{[1, 2, 3, 4, 5, 6].map((i) => (
-<div key={i} className="card p-5">
-<div className="skeleton h-40 rounded-md mb-4" />
-<div className="skeleton h-5 w-3/4 rounded-sm mb-2" />
-<div className="skeleton h-3.5 w-1/2 rounded-sm mb-4" />
-<div className="flex justify-between items-center">
-<div className="skeleton h-6 w-20 rounded-md" />
-<div className="skeleton h-9 w-28 rounded-md" />
-</div>
-</div>
-))}
-</div>
-</div>
-);
+  return (
+    <div className="flex-1 max-w-7xl mx-auto p-4 sm:p-6 space-y-6 animate-pulse" aria-hidden="true">
+      {/* Header skeleton */}
+      <div className="space-y-2 border-b border-border pb-5">
+        <div className="h-8 w-48 bg-muted rounded-xl" />
+        <div className="h-4 w-72 bg-muted rounded-md" />
+      </div>
+
+      {/* Filter toolbar skeleton */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="h-10 flex-1 bg-muted/60 rounded-xl" />
+        <div className="h-10 sm:w-56 bg-muted/60 rounded-xl" />
+      </div>
+
+      {/* Category pills skeleton */}
+      <div className="flex gap-2 overflow-x-auto pb-1.5">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="h-8 w-24 bg-muted/50 rounded-xl shrink-0" />
+        ))}
+      </div>
+
+      {/* Campaign card grid skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-muted shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <div className="w-24 h-3.5 bg-muted rounded" />
+                <div className="w-40 h-4 bg-muted rounded" />
+              </div>
+              <div className="w-16 h-6 bg-muted rounded-full" />
+            </div>
+            <div className="h-10 bg-muted/60 rounded" />
+            <div className="flex gap-2">
+              <div className="w-16 h-5 bg-muted rounded" />
+              <div className="w-20 h-5 bg-muted rounded" />
+            </div>
+            <div className="h-16 bg-muted/40 rounded-xl" />
+            <div className="flex justify-between items-center pt-2">
+              <div className="w-24 h-4 bg-muted rounded" />
+              <div className="w-24 h-8 bg-muted rounded-xl" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

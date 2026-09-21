@@ -25,13 +25,15 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
   }
 
   return (
-    <Card className="card p-5 sm:p-6">
+    <Card className="p-5 sm:p-6 rounded-2xl border border-border bg-card shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <History className="w-5 h-5 text-primary" />
-          <h3 className="font-bold text-base sm:text-lg">Deliverables & Version History</h3>
+          <h3 className="font-heading font-bold text-base sm:text-lg text-foreground">
+            Deliverables & Version History
+          </h3>
         </div>
-        <span className="text-xs px-2.5 py-0.5 rounded-full bg-secondary font-semibold text-secondary">
+        <span className="text-xs px-2.5 py-0.5 rounded-full bg-muted font-semibold text-muted-foreground border border-border">
           {submissions.length} {submissions.length === 1 ? "Version" : "Versions"}
         </span>
       </div>
@@ -45,20 +47,20 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
           const subUrls: ContentUrlEntry[] = Array.isArray(sub.contentUrls) ? sub.contentUrls : [];
 
           let statusBadge = (
-            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400">
+            <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-bold bg-pending-muted text-pending border border-pending-border">
               <Clock className="w-3 h-3" /> Under Review
             </span>
           );
 
           if (sub.status === "APPROVED") {
             statusBadge = (
-              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-bold bg-verified-muted text-verified border border-verified-border">
                 <CheckCircle2 className="w-3 h-3" /> Approved
               </span>
             );
           } else if (sub.status === "REVISION_REQUESTED") {
             statusBadge = (
-              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400">
+              <span className="inline-flex items-center gap-1 text-xs px-2.5 py-0.5 rounded-full font-bold bg-disputed-muted text-disputed border border-disputed-border">
                 <AlertTriangle className="w-3 h-3" /> Revision Requested
               </span>
             );
@@ -70,29 +72,29 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
               className={`rounded-xl border transition-all overflow-hidden ${
                 isLatest
                   ? "border-primary/40 bg-card shadow-sm"
-                  : "border-border bg-secondary/15"
+                  : "border-border bg-muted/30"
               }`}
             >
               {/* Version Accordion Header */}
               <button
                 type="button"
                 onClick={() => setExpandedVersion(isExpanded ? -1 : versionNumber)}
-                className="w-full flex items-center justify-between p-3.5 sm:p-4 text-left hover:bg-secondary/40 transition-colors"
+                className="w-full flex items-center justify-between p-3.5 sm:p-4 text-left hover:bg-muted/50 transition-colors"
                 aria-expanded={isExpanded}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span className={`px-2 py-0.5 rounded-md text-xs font-bold font-mono ${
-                    isLatest ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
+                    isLatest ? "bg-primary text-primary-foreground" : "bg-muted text-foreground border border-border"
                   }`}>
                     v{versionNumber}
                   </span>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm">
+                      <span className="font-semibold text-sm text-foreground">
                         {isLatest ? "Latest Deliverable" : `Submission v${versionNumber}`}
                       </span>
                     </div>
-                    <div className="text-[11px] text-secondary">
+                    <div className="text-[11px] text-muted-foreground">
                       Submitted on {formatContractDate(sub.submittedAt || sub.createdAt)}
                     </div>
                   </div>
@@ -101,20 +103,20 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
                 <div className="flex items-center gap-3">
                   {statusBadge}
                   {isExpanded ? (
-                    <ChevronUp className="w-4 h-4 text-secondary" />
+                    <ChevronUp className="w-4 h-4 text-muted-foreground" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-secondary" />
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
                   )}
                 </div>
               </button>
 
               {/* Version Details Collapsible Content */}
               {isExpanded && (
-                <div className="p-3.5 sm:p-4 pt-0 space-y-3 border-t border-border/50">
-                  {/* Brand Rejection / Revision Note */}
+                <div className="p-3.5 sm:p-4 pt-0 space-y-3 border-t border-border">
+                  {/* Brand Feedback */}
                   {sub.feedback && (
-                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
-                      <div className="font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1.5 mb-1">
+                    <div className="p-3 rounded-xl bg-pending-muted border border-pending-border text-xs">
+                      <div className="font-bold text-pending flex items-center gap-1.5 mb-1">
                         <AlertTriangle className="w-3.5 h-3.5" />
                         <span>Brand Feedback:</span>
                       </div>
@@ -130,14 +132,14 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
                       subUrls.map((urlObj: ContentUrlEntry) => (
                         <div
                           key={urlObj.type}
-                          className="flex justify-between items-center p-2.5 bg-secondary/50 rounded-lg border border-border text-xs"
+                          className="flex justify-between items-center p-2.5 bg-muted/40 rounded-xl border border-border text-xs"
                         >
                           <div>
-                            <span className="font-semibold capitalize block">
+                            <span className="font-semibold text-foreground capitalize block">
                               {urlObj.type.replace(/_\d+$/, "").replaceAll("_", " ")}
                             </span>
                             {urlObj.feedback && (
-                              <span className="text-[11px] text-amber-600 dark:text-amber-400">
+                              <span className="text-[11px] text-pending">
                                 Note: {urlObj.feedback}
                               </span>
                             )}
@@ -145,12 +147,12 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
 
                           <div className="flex items-center gap-2">
                             {urlObj.status && (
-                              <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                                 urlObj.status === "APPROVED"
-                                  ? "bg-emerald-500/15 text-emerald-600"
+                                  ? "bg-verified-muted text-verified border border-verified-border"
                                   : urlObj.status === "REVISION_REQUESTED"
-                                  ? "bg-rose-500/15 text-rose-600"
-                                  : "bg-secondary text-secondary"
+                                  ? "bg-disputed-muted text-disputed border border-disputed-border"
+                                  : "bg-muted text-muted-foreground border border-border"
                               }`}>
                                 {urlObj.status}
                               </span>
@@ -167,8 +169,8 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
                         </div>
                       ))
                     ) : sub.contentUrl ? (
-                      <div className="flex justify-between items-center p-2.5 bg-secondary/50 rounded-lg border border-border text-xs">
-                        <span className="font-semibold">Deliverable Media Link</span>
+                      <div className="flex justify-between items-center p-2.5 bg-muted/40 rounded-xl border border-border text-xs">
+                        <span className="font-semibold text-foreground">Deliverable Media Link</span>
                         <a
                           href={sub.contentUrl}
                           target="_blank"
@@ -181,9 +183,9 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
                     ) : null}
                   </div>
 
-                  {/* Influencer Submission Notes */}
+                  {/* Creator Notes */}
                   {notes.trim() && (
-                    <div className="p-3 bg-secondary/30 rounded-lg text-xs text-secondary">
+                    <div className="p-3 bg-muted/40 rounded-xl border border-border text-xs text-muted-foreground">
                       <strong className="text-foreground">Creator Notes:</strong> {notes}
                     </div>
                   )}

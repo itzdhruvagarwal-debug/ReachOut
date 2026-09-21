@@ -1,602 +1,257 @@
 "use client";
 
-
-
 import { useState, useMemo } from "react";
 import useSWR from "swr";
-import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import { createSchemaFetcher } from "@/lib/fetcher";
 import {
   type Deal,
   type RawDealItem as RawDeal,
   type DealsListResponse as DealsApiResponse,
   dealsListResponseSchema,
 } from "@/lib/schemas";
-import Image from "next/image";
 import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import { formatCurrency, formatDate, normalizeDeliverables } from "@/lib/utils-client";
+import { formatDate, normalizeDeliverables } from "@/lib/utils-client";
 import EmptyState from "@/components/ui/EmptyState";
-import { Badge, Button } from "@/components/ui";
-
-const statusConfig: Record<
-string,
-{ label: string; tone: string; icon: string }
-> = {
-PENDING_SIGNATURE: {
-label: "Awaiting Signature",
-tone: "warning",
-icon: "✏️",
-},
-ACTIVE: { label: "Active", tone: "cyan", icon: "▶️" },
-CONTENT_SUBMITTED: {
-label: "Awaiting Review",
-tone: "warning",
-icon: "⏳",
-},
-REVISION_REQUESTED: {
-label: "Revision Needed",
-tone: "warning",
-icon: "↺",
-},
-CONTENT_APPROVED: {
-label: "Ready to Post",
-tone: "primary",
-icon: "✅",
-},
-POSTED: {
-label: "Post Submitted",
-tone: "cyan",
-icon: "📤",
-},
-VERIFICATION_PENDING: {
-label: "Verifying",
-tone: "warning",
-icon: "🔍",
-},
-VERIFIED: { label: "Verified", tone: "success", icon: "✓" },
-COMPLETED: { label: "Completed", tone: "success", icon: "🏁" },
-DISPUTED: { label: "Disputed", tone: "danger", icon: "⚠️" },
-CANCELLED: {
-label: "Cancelled",
-tone: "muted",
-icon: "✕",
-},
-PAYMENT_PENDING: {
-label: "Payment Pending",
-tone: "warning",
-icon: "⏳",
-},
-PAYMENT_HELD: {
-label: "Payment Secured",
-tone: "success",
-icon: "🔒",
-},
-};
-
-function getStatusInfo(status: string) {
-return (
-statusConfig[status] || {
-label: status.replaceAll("_", " "),
-tone: "muted",
-icon: "--",
-}
-);
-}
-
-function getBadgeToneVariant(tone: string) {
-if (tone === "success") return "success";
-if (tone === "danger") return "danger";
-if (tone === "warning") return "warning";
-if (tone === "cyan") return "primary";
-return "ghost";
-}
-
-
+import { Button } from "@/components/ui";
+import { DealsMetricsBar } from "@/components/dashboard/deals/DealsMetricsBar";
+import { DealsFilterToolbar } from "@/components/dashboard/deals/DealsFilterToolbar";
+import { DealPipelineCard } from "@/components/dashboard/deals/DealPipelineCard";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 function normalizeDeal(raw: RawDeal): Deal {
-const campaign = raw?.campaign || {};
-const brand = raw?.brand || {};
+  const campaign = raw?.campaign || {};
+  const brand = raw?.brand || {};
 
-return {
-id: String(raw?.id || ""),
-status: String(raw?.status || "PENDING_SIGNATURE"),
-amount: Number(raw?.amount || 0),
-createdAt: raw?.createdAt
-? formatDate(raw.createdAt)
-: "Not started",
-postingDeadline: raw?.postingDeadline || campaign?.postingDeadline || new Date().toISOString(),
-campaign: {
-title: String(campaign?.title || "Untitled Campaign"),
-},
-brand: {
-companyName: String(brand?.companyName || "Brand"),
-logo: brand?.logo || null,
-},
-deliverables: normalizeDeliverables(raw?.deliverables || campaign?.deliverables),
-};
+  return {
+    id: String(raw?.id || ""),
+    status: String(raw?.status || "PENDING_SIGNATURE"),
+    amount: Number(raw?.amount || 0),
+    createdAt: raw?.createdAt ? formatDate(raw.createdAt) : "Not started",
+    postingDeadline: raw?.postingDeadline || campaign?.postingDeadline || new Date().toISOString(),
+    campaign: {
+      title: String(campaign?.title || "Untitled Campaign"),
+    },
+    brand: {
+      companyName: String(brand?.companyName || "Brand Partner"),
+      logo: brand?.logo || null,
+    },
+    deliverables: normalizeDeliverables(raw?.deliverables || campaign?.deliverables),
+  };
 }
 
+function DealsLoadingSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse" aria-hidden="true">
+      {/* Metrics skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="h-28 rounded-2xl bg-card border border-border p-5 flex flex-col justify-between">
+            <div className="w-24 h-4 bg-muted rounded" />
+            <div className="w-32 h-8 bg-muted rounded" />
+            <div className="w-40 h-3 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
 
+      {/* Filter skeleton */}
+      <div className="h-10 bg-muted/50 rounded-xl mb-6" />
 
-function getDeliverableIcon(type: string): string {
-const icons: Record<string, string> = {
-INSTAGRAM_POST: "IG",
-INSTAGRAM_REEL: "IG",
-INSTAGRAM_STORY: "IG",
-YOUTUBE_VIDEO: "YT",
-YOUTUBE_SHORT: "YT",
-TWITTER_POST: "X",
-LINKEDIN_POST: "LI",
-};
-return icons[type] || "POST";
-}
-
-function DealSkeleton() {
-return (
-<div className="card mb-4">
-<div className="flex gap-4 items-center mb-4">
-<div className="deal-skeleton-logo skeleton flex-shrink-0 rounded-md" />
-<div className="flex-1">
-<div className="deal-skeleton-title skeleton rounded-md" />
-<div className="deal-skeleton-subtitle skeleton rounded-md h-3" />
-</div>
-<div className="skeleton rounded-full h-7 w-25" />
-</div>
-<div className="flex justify-between items-center flex-wrap gap-4">
-<div className="deal-skeleton-meta flex flex-1">
-<div>
-<div className="deal-skeleton-label-wide skeleton rounded-sm h-3 mb-1-5" />
-<div className="deal-skeleton-value-wide skeleton rounded-sm h-3-5" />
-</div>
-<div>
-<div className="deal-skeleton-label skeleton rounded-sm h-3 mb-1-5" />
-<div className="skeleton rounded-sm h-3-5 w-15" />
-</div>
-</div>
-<div className="text-right">
-<div className="deal-skeleton-label skeleton rounded-sm h-3 mb-1-5 ml-auto" />
-<div className="deal-skeleton-value-wide skeleton rounded-sm h-5-5 ml-auto" />
-</div>
-</div>
-</div>
-);
-}
-
-interface DealListItemProps {
-readonly deal: Deal;
-readonly selectedDeal: string | null;
-readonly setSelectedDeal: (id: string | null) => void;
-readonly isInfluencer?: boolean;
-}
-
-interface DealsEmptyStateProps {
-readonly statusFilter: string;
-readonly isInfluencer: boolean;
-readonly setStatusFilter: (filter: string) => void;
-}
-
-function DealsEmptyState({ statusFilter, isInfluencer, setStatusFilter }: DealsEmptyStateProps) {
-let message = "No deals match this status filter. Try a different filter.";
-if (statusFilter === "all") {
-message = isInfluencer
-? "Apply to campaigns to start collaborating with brands and earning!"
-: "Create a campaign and invite influencers to start collaborating.";
-}
-
-const title = statusFilter === "all"
-? "No Deals Yet"
-: `No ${statusFilter.replaceAll("_", " ").toLowerCase()} deals`;
-
-const isAll = statusFilter === "all";
-let actionLabel = "View All Deals";
-let actionHref: string | undefined = undefined;
-
-if (isAll) {
-  actionLabel = isInfluencer ? "Browse Campaigns" : "Create Campaign";
-  actionHref = isInfluencer ? "/dashboard/campaigns" : "/dashboard/campaigns/create";
-}
-
-const onActionClick = !isAll ? () => setStatusFilter("all") : undefined;
-
-return (
-<EmptyState
-title={title}
-description={message}
-actionLabel={actionLabel}
-actionHref={actionHref}
-onActionClick={onActionClick}
-/>
-);
-}
-
-function DealListItem({ deal, selectedDeal, setSelectedDeal, isInfluencer = false }: DealListItemProps) {
-const status = getStatusInfo(deal.status);
-const canSubmitContent = isInfluencer && [
-"ACTIVE",
-"PAYMENT_HELD",
-"REVISION_REQUESTED",
-].includes(deal.status);
-const isBrand = !isInfluencer;
-
-return (
-<div
-className="deal-list-card card overflow-hidden p-0"
-data-selected={selectedDeal === deal.id}
->
-<Button
-type="button"
-variant="ghost"
-onClick={() =>
-setSelectedDeal(selectedDeal === deal.id ? null : deal.id)
-}
-aria-expanded={selectedDeal === deal.id}
-className="block w-full p-6 text-left"
->
-<div
-className="flex justify-between items-start mb-4 flex-wrap gap-3"
->
-<div
-className="flex gap-4 items-center"
->
-<div
-className="deal-brand-logo"
->
-{deal.brand.logo ? (
-<Image
-src={deal.brand.logo}
-alt={deal.brand.companyName}
-fill
-unoptimized
-className="object-cover"
-/>
-) : (
-<span>{deal.brand.companyName?.[0]?.toUpperCase() || "B"}</span>
-)}
-</div>
-<div>
-<h3 className="text-base font-bold">
-{deal.campaign.title}
-</h3>
-<p
-className="text-sm text-secondary"
->
-{deal.brand.companyName}
-</p>
-</div>
-</div>
-<Badge
-variant={getBadgeToneVariant(status.tone)}
-className="flex items-center gap-2"
->
-<span>{status.icon}</span>
-<span>{status.label}</span>
-</Badge>
-</div>
-
-<div
-className="flex justify-between items-center flex-wrap gap-4"
->
-<div
-className="flex gap-4 flex-wrap"
->
-<div>
-<div
-className="text-xs text-muted"
->
-Deliverables
-</div>
-<div
-className="flex gap-2 mt-1 flex-wrap"
->
-{deal.deliverables.map((d, idx) => (
-<span key={d.type + "_" + idx} className="text-sm">
-{getDeliverableIcon(d.type)} x{d.count}
-</span>
-))}
-</div>
-</div>
-<div>
-<div
-className="text-xs text-muted"
->
-Deadline
-</div>
-<div className="text-sm font-semibold">
-{formatDate(deal.postingDeadline, "-", {
-day: "numeric",
-month: "short",
-})}
-</div>
-</div>
-</div>
-<div className="deal-amount text-right">
-<div
-className="text-xs text-muted"
->
-Amount
-</div>
-<div
-
-className="text-lg font-extrabold gradient-text"
->
-{formatCurrency(deal.amount)}
-</div>
-</div>
-</div>
-</Button>
-
-{selectedDeal === deal.id && (
-<div
-className="deal-expanded"
->
-<div
-className="deal-expanded-grid"
->
-<div className="deal-expanded-section">
-<div className="flex items-center gap-2 mb-2">
-<span className="text-base">📅</span>
-<h4 className="text-sm font-bold text-white">Deal Timeline</h4>
-</div>
-<div className="text-sm flex flex-col gap-1 text-secondary">
-<div className="flex justify-between">
-<span className="text-muted">Started:</span>
-<span className="font-medium text-white">{deal.createdAt}</span>
-</div>
-<div className="flex justify-between">
-<span className="text-muted">Post Deadline:</span>
-<span className="font-semibold text-primary-light">
-{formatDate(deal.postingDeadline)}
-</span>
-</div>
-</div>
-</div>
-
-<div className="deal-expanded-section">
-<div className="flex items-center gap-2 mb-2">
-<span className="text-base">📦</span>
-<h4 className="text-sm font-bold text-white">Required Deliverables</h4>
-</div>
-<div className="flex flex-wrap gap-2">
-{deal.deliverables.map((d, idx) => (
-<div
-key={d.type + "_" + idx}
-className="badge px-3 py-1 bg-secondary border border-card rounded-md text-xs font-semibold flex items-center gap-1.5"
->
-<span className="text-emerald font-bold">{getDeliverableIcon(d.type)}</span>
-<span>{d.type.replaceAll("_", " ")}</span>
-<span className="text-muted">× {d.count}</span>
-</div>
-))}
-</div>
-</div>
-</div>
-
-        <div className="flex items-center justify-between flex-wrap gap-3 mt-4">
-<div className="flex gap-2 flex-wrap">
-<Button href={`/dashboard/messages?deal=${deal.id}`} variant="secondary" size="sm">
-💬 Message
-</Button>
-<Button href={`/dashboard/deals/${deal.id}`} variant="ghost" size="sm">
-📄 Details
-</Button>
-</div>
-
-<div className="flex gap-2 flex-wrap">
-{deal.status === "PENDING_SIGNATURE" && (
-<Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm">
-✍️ Sign Contract
-</Button>
-)}
-{canSubmitContent && (
-<Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm">
-📤 Submit Content
-</Button>
-)}
-{isInfluencer && deal.status === "CONTENT_APPROVED" && (
-<Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm">
-🔗 Submit Post URL
-</Button>
-)}
-{isBrand && deal.status === "CONTENT_SUBMITTED" && (
-<Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm">
-👀 Review Content
-</Button>
-)}
-{isBrand && ["POSTED", "VERIFIED", "VERIFICATION_PENDING"].includes(deal.status) && (
-<Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm">
-💰 Release Payment
-</Button>
-)}
-</div>
-</div>
-</div>
-)}
-</div>
-);
+      {/* Cards skeleton */}
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="rounded-2xl border border-border bg-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-full bg-muted shrink-0" />
+            <div className="space-y-2">
+              <div className="w-48 h-4 bg-muted rounded" />
+              <div className="w-32 h-3 bg-muted rounded" />
+            </div>
+          </div>
+          <div className="w-32 h-9 bg-muted rounded-xl" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export default function DealsPage() {
-const { data: session } = useSession();
-const [statusFilter, setStatusFilter] = useState("all");
-const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
-const [currentPage, setCurrentPage] = useState(1);
-const DEALS_PER_PAGE = 50;
-const isInfluencer = session?.user?.userType === "INFLUENCER";
+  const { data: session } = useSession();
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const DEALS_PER_PAGE = 50;
 
-const statusParam = statusFilter === "all" ? "" : `&status=${statusFilter}`;
-const dealsListFetcher = createSchemaFetcher(dealsListResponseSchema);
-const { data: payload, isLoading: loading } = useSWR<DealsApiResponse>(
-`/api/deals?page=${currentPage}&limit=${DEALS_PER_PAGE}${statusParam}`,
-dealsListFetcher
-);
+  const isInfluencer = session?.user?.userType === "INFLUENCER";
 
-const { deals, totalPages, stats } = useMemo(() => {
-const data = payload?.data || payload;
-const rawDeals: unknown[] = Array.isArray(data?.deals) ? data.deals : [];
-const mappedDeals = rawDeals.map((raw) => normalizeDeal(raw as RawDeal)).filter((deal) => deal.id);
-const pages = data?.pagination?.totalPages || 1;
-const dealStats = data?.stats || { active: 0, completed: 0, totalEarnings: 0 };
-return { deals: mappedDeals, totalPages: pages, stats: dealStats };
-}, [payload]);
+  const statusParam = statusFilter === "all" ? "" : `&status=${statusFilter}`;
+  const dealsListFetcher = createSchemaFetcher(dealsListResponseSchema);
+  const { data: payload, isLoading: loading } = useSWR<DealsApiResponse>(
+    `/api/deals?page=${currentPage}&limit=${DEALS_PER_PAGE}${statusParam}`,
+    dealsListFetcher
+  );
 
-const filteredDeals = deals;
+  const { deals, totalPages, stats } = useMemo(() => {
+    const data = payload?.data || payload;
+    const rawDeals: unknown[] = Array.isArray(data?.deals) ? data.deals : [];
+    const mappedDeals = rawDeals
+      .map((raw) => normalizeDeal(raw as RawDeal))
+      .filter((deal) => deal.id);
+    const pages = data?.pagination?.totalPages || 1;
+    const dealStats = data?.stats || { active: 0, completed: 0, totalEarnings: 0 };
+    return { deals: mappedDeals, totalPages: pages, stats: dealStats };
+  }, [payload]);
 
-const dealStats = stats;
+  // Client-side search filter for instantaneous matching
+  const filteredDeals = useMemo(() => {
+    if (!searchQuery.trim()) return deals;
+    const query = searchQuery.toLowerCase();
+    return deals.filter(
+      (d) =>
+        d.campaign.title.toLowerCase().includes(query) ||
+        d.brand.companyName.toLowerCase().includes(query) ||
+        d.status.toLowerCase().includes(query)
+    );
+  }, [deals, searchQuery]);
 
-if (!session) {
-return <div className="p-8 text-center text-muted">Loading session...</div>;
-}
+  if (!session) {
+    return (
+      <div className="p-8 text-center text-muted-foreground text-sm">
+        Loading session...
+      </div>
+    );
+  }
 
-return (
-<DashboardShell user={session.user}>
-{/* Page Header */}
-<div
-className="mb-6 flex justify-between items-center"
->
-<div>
-<h1 className="text-2xl font-extrabold">My Deals</h1>
-<p className="text-secondary text-sm">
-Manage your active collaborations
-</p>
-</div>
-</div>
+  const isAll = statusFilter === "all";
+  const emptyTitle = isAll ? "No Collaborations Yet" : `No ${statusFilter.replaceAll("_", " ").toLowerCase()} deals`;
+  const emptyDescription = isAll
+    ? isInfluencer
+      ? "Apply to open brand campaigns to start collaborating and unlock guaranteed escrow payouts!"
+      : "Create a campaign and invite top-ranked creators to launch escrow-backed collaborations."
+    : "No collaborations match your current filter criteria. Try selecting another status or clear search.";
 
-{loading ? (
-<div>
-{/* Stats skeleton */}
-<div className="grid-3 mb-6">
-{[1, 2, 3].map((i) => (
-<div key={i} className="card text-center p-6">
-<div className="deal-stat-skeleton skeleton h-9 w-20 rounded-md" />
-<div className="skeleton rounded-sm mx-auto h-3 w-25" />
-</div>
-))}
-</div>
-{/* Deal card skeletons */}
-{[1, 2, 3, 4].map((i) => <DealSkeleton key={i} />)}
-</div>
-) : (
-<>
-{/* Stats */}
-<div className="grid-3 mb-6">
-<div className="card text-center">
-<div
-className="font-extrabold text-3xl text-cyan"
->
-{dealStats.active}
-</div>
-<div
-className="text-secondary text-sm"
->
-Active Deals
-</div>
-</div>
-<div className="card text-center">
-<div
-className="font-extrabold text-3xl text-emerald"
->
-{dealStats.completed}
-</div>
-<div
-className="text-secondary text-sm"
->
-Completed
-</div>
-</div>
-<div className="card text-center">
-<div
-className="text-3xl font-extrabold gradient-text"
->
-{formatCurrency(dealStats.totalEarnings || 0)}
-</div>
-<div
-className="text-secondary text-sm"
->
-{isInfluencer ? "Total Earned" : "Total Spent"}
-</div>
-</div>
-</div>
+  const emptyActionLabel = isAll
+    ? isInfluencer
+      ? "Browse Open Campaigns"
+      : "Create New Campaign"
+    : "View All Deals";
 
-{/* Filter */}
-<div
-className="scrollable-tabs flex gap-2 mb-6 pb-2"
->
-{[
-{ key: "all", label: "All Deals" },
-{ key: "PENDING_SIGNATURE", label: "Awaiting Signature" },
-{ key: "ACTIVE", label: "Active" },
-{ key: "PAYMENT_HELD", label: "Secured" },
-{ key: "CONTENT_SUBMITTED", label: "Awaiting Review" },
-{ key: "REVISION_REQUESTED", label: "Revision Needed" },
-{ key: "CONTENT_APPROVED", label: "Ready to Post" },
-{ key: "POSTED", label: "Post Submitted" },
-{ key: "VERIFICATION_PENDING", label: "Verifying" },
-{ key: "COMPLETED", label: "Completed" },
-{ key: "CANCELLED", label: "Cancelled" },
-{ key: "DISPUTED", label: "Disputed" },
-].map((f) => (
-<Button
-key={f.key}
-variant={statusFilter === f.key ? "primary" : "secondary"}
-onClick={() => {
-setStatusFilter(f.key);
-setCurrentPage(1);
-}}
-className="whitespace-nowrap"
->
-{f.label}
-</Button>
-))}
-</div>
+  const emptyActionHref = isAll
+    ? isInfluencer
+      ? "/dashboard/campaigns"
+      : "/dashboard/campaigns/create"
+    : undefined;
 
-{/* Deals List */}
-<div
-className="flex flex-col gap-4"
->
-{filteredDeals.map((deal) => (
-<DealListItem
-key={deal.id}
-deal={deal}
-selectedDeal={selectedDeal}
-setSelectedDeal={setSelectedDeal}
-isInfluencer={isInfluencer}
-/>
-))}
-</div>
+  const onEmptyActionClick = !isAll
+    ? () => {
+        setStatusFilter("all");
+        setSearchQuery("");
+      }
+    : undefined;
 
-{filteredDeals.length === 0 && (
-<DealsEmptyState
-statusFilter={statusFilter}
-isInfluencer={isInfluencer}
-setStatusFilter={setStatusFilter}
-/>
-)}
-</>
-)}
-{/* Pagination */}
-{totalPages > 1 && (
-<div className="deals-pagination flex justify-center items-center gap-4">
-<Button
-variant="secondary"
-disabled={currentPage <= 1}
-onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-className="min-w-100"
->
- Previous
-</Button>
-<span className="text-sm text-secondary">
-Page {currentPage} of {totalPages}
-</span>
-<Button
-variant="secondary"
-disabled={currentPage >= totalPages}
-onClick={() => setCurrentPage((p) => p + 1)}
-className="min-w-100"
->
-Next
-</Button>
-</div>
-)}
-</DashboardShell>
-);
+  return (
+    <DashboardShell user={session.user}>
+      <div className="max-w-7xl mx-auto space-y-6 pb-12">
+        {/* Page Header */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-5">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+              My Collaborations
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              {isInfluencer
+                ? "Track your contract milestones, upload deliverables, and receive verified escrow payouts."
+                : "Manage campaign deliverables, approve creator submissions, and release escrow funds safely."}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-center">
+            <Button
+              href={isInfluencer ? "/dashboard/campaigns" : "/dashboard/campaigns/create"}
+              variant="primary"
+              size="sm"
+              className="text-xs font-bold gap-1 shadow-sm"
+            >
+              {isInfluencer ? "Explore Campaigns" : "+ New Campaign"}
+            </Button>
+          </div>
+        </header>
+
+        {loading ? (
+          <DealsLoadingSkeleton />
+        ) : (
+          <>
+            {/* Top Telemetry Stat Cards */}
+            <DealsMetricsBar
+              activeCount={stats.active || 0}
+              completedCount={stats.completed || 0}
+              totalEarningsPaise={stats.totalEarnings || 0}
+              isInfluencer={isInfluencer}
+            />
+
+            {/* Filter and Search Bar */}
+            <DealsFilterToolbar
+              statusFilter={statusFilter}
+              setStatusFilter={(status) => {
+                setStatusFilter(status);
+                setCurrentPage(1);
+              }}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+            />
+
+            {/* Pipeline Deals List */}
+            {filteredDeals.length > 0 ? (
+              <section aria-label="Deals pipeline list" className="space-y-3.5">
+                {filteredDeals.map((deal) => (
+                  <DealPipelineCard
+                    key={deal.id}
+                    deal={deal}
+                    isSelected={selectedDeal === deal.id}
+                    onToggleSelect={() => setSelectedDeal(selectedDeal === deal.id ? null : deal.id)}
+                    isInfluencer={isInfluencer}
+                  />
+                ))}
+              </section>
+            ) : (
+              <EmptyState
+                title={emptyTitle}
+                description={emptyDescription}
+                actionLabel={emptyActionLabel}
+                actionHref={emptyActionHref}
+                onActionClick={onEmptyActionClick}
+              />
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <nav aria-label="Pagination" className="flex justify-center items-center gap-3 pt-6">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="text-xs font-semibold gap-1"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" /> Previous
+                </Button>
+                <span className="text-xs font-medium text-muted-foreground px-2">
+                  Page <strong className="text-foreground">{currentPage}</strong> of {totalPages}
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  className="text-xs font-semibold gap-1"
+                >
+                  Next <ChevronRight className="w-3.5 h-3.5" />
+                </Button>
+              </nav>
+            )}
+          </>
+        )}
+      </div>
+    </DashboardShell>
+  );
 }

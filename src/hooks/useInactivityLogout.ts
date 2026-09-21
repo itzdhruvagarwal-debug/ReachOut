@@ -12,9 +12,13 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { signOut } from "next-auth/react";
+import {
+  INACTIVITY_LOGOUT_MS,
+  INACTIVITY_WARNING_BEFORE_MS,
+} from "@/constants";
 
-const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-const WARNING_BEFORE_MS = 5 * 60 * 1000; // Show warning 5 min before logout
+const INACTIVITY_TIMEOUT_MS = INACTIVITY_LOGOUT_MS; // 30 minutes
+const WARNING_BEFORE_MS = INACTIVITY_WARNING_BEFORE_MS; // Show warning 5 min before logout
 
 interface InactivityState {
 /** True when the warning modal should be shown */

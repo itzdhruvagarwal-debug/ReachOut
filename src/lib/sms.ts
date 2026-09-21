@@ -10,10 +10,15 @@ import { randomInt, timingSafeEqual, createHmac, randomUUID } from "node:crypto"
 import { redis } from "./redis";
 import { logger } from "./logger";
 import { sendSMS } from "./communication";
+import {
+  AUTH_OTP_EXPIRY_SECONDS,
+  MAX_OTP_VERIFICATION_ATTEMPTS,
+  OTP_RESEND_COOLDOWN_SECONDS,
+  SMS_GATEWAY_TIMEOUT_MS,
+} from "@/constants";
 
-const OTP_TTL_SECONDS = 10 * 60;
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_RESEND_COOLDOWN_SECONDS = 60;
+const OTP_TTL_SECONDS = AUTH_OTP_EXPIRY_SECONDS;
+const OTP_MAX_ATTEMPTS = MAX_OTP_VERIFICATION_ATTEMPTS;
 
 type OtpPurpose =
 | "registration"
@@ -130,7 +135,7 @@ Body: message,
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15_000);
+      const timeoutId = setTimeout(() => controller.abort(), SMS_GATEWAY_TIMEOUT_MS);
 
       const response = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
@@ -171,7 +176,7 @@ async function sendViaMetaWhatsApp(phone: string, otp: string) {
     if (!phoneNumberId || !accessToken || !templateName || !to) return false;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
+    const timeoutId = setTimeout(() => controller.abort(), SMS_GATEWAY_TIMEOUT_MS);
 
     const response = await fetch(
       `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`,

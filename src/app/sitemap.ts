@@ -29,6 +29,12 @@ changeFrequency: "monthly",
 priority: 0.6,
 },
 {
+url: `${baseUrl}/help`,
+lastModified: new Date(),
+changeFrequency: "weekly",
+priority: 0.7,
+},
+{
 url: `${baseUrl}/legal`,
 lastModified: new Date(),
 changeFrequency: "monthly",

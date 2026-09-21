@@ -18,15 +18,19 @@ import { logger } from "@/lib/logger-client";
 
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useCallback, useRef } from "react";
+import {
+  INACTIVITY_LOGOUT_MS,
+  WARN_SESSION_AGE_MS,
+  SENSITIVE_ACTION_MAX_SESSION_AGE_MS,
+  MAX_ALLOWED_CLOCK_SKEW_MS,
+} from "@/constants";
 
 // Maximum session age before forced re-auth (30 minutes of inactivity)
-const MAX_SESSION_AGE_MS = 30 * 60 * 1000;
-// Warn threshold (25 minutes)
-const WARN_SESSION_AGE_MS = 25 * 60 * 1000;
+const MAX_SESSION_AGE_MS = INACTIVITY_LOGOUT_MS;
 // Maximum age for a "fresh" session required by sensitive actions (10 minutes)
-const SENSITIVE_ACTION_MAX_AGE_MS = 10 * 60 * 1000;
+const SENSITIVE_ACTION_MAX_AGE_MS = SENSITIVE_ACTION_MAX_SESSION_AGE_MS;
 // Maximum clock skew we tolerate (1 minute)
-const MAX_CLOCK_SKEW_MS = 60_000;
+const MAX_CLOCK_SKEW_MS = MAX_ALLOWED_CLOCK_SKEW_MS;
 
 export function useTokenRefreshGuard() {
 const { data: session } = useSession();

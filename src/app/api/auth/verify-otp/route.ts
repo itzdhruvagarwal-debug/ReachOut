@@ -8,6 +8,7 @@ import { sendOTP, verifyOTP } from "@/lib/sms";
 import { checkRateLimit, rateLimit } from "@/lib/rate-limit";
 import { apiWrapper, ApiResponse } from "@/lib/api-wrapper";
 import { AppError } from "@/lib/errors";
+import { AUTH_OTP_EXPIRY_SECONDS } from "@/constants";
 
 const sendRegistrationOtpSchema = z.object({
 phone: z
@@ -217,7 +218,7 @@ return ApiResponse.error(verifyResult.error || "Invalid OTP. Please try again.")
 }
 
 await redis.del(key);
-await redis.setex(`phone-otp-verified:${phone}`, 15 * 60, "1");
+await redis.setex(`phone-otp-verified:${phone}`, AUTH_OTP_EXPIRY_SECONDS, "1");
 
 return ApiResponse.success({ verified: true }, "Phone verified successfully!");
 } catch (error: unknown) {

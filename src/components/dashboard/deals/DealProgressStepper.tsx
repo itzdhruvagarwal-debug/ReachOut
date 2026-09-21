@@ -1,10 +1,9 @@
 "use client";
 
 import React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Check,
-  Clock,
   AlertTriangle,
   XCircle,
   FileCheck2,
@@ -87,7 +86,7 @@ export function getStageIndex(status: string): number {
     case "COMPLETED":
       return 5;
     case "DISPUTED":
-      return 3; // Disputed usually pauses during review/verification
+      return 3;
     case "CANCELLED":
       return 0;
     default:
@@ -101,34 +100,31 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
   const isCancelled = status === "CANCELLED";
   const isCompleted = status === "COMPLETED";
 
-  // Calculate percentage for desktop progress bar
   const progressPercent = Math.min(
     100,
     Math.max(0, (currentStageIndex / (DEAL_STAGES.length - 1)) * 100)
   );
 
   return (
-    <div className="w-full bg-card border border-border rounded-xl p-5 sm:p-6 shadow-sm mb-6 transition-colors">
-      {/* Header Row */}
+    <div className="w-full bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-sm mb-6 transition-colors">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-base sm:text-lg font-bold text-foreground">
-              Deal Progress
+            <h2 className="text-base sm:text-lg font-heading font-bold text-foreground">
+              Milestone Progress
             </h2>
             {justUpdated && (
               <motion.span
-                initial={{ opacity: 0, scale: 0.8 }}
+                initial={{ opacity: 0, scale: 0.85 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-verified-muted text-verified border border-verified-border"
               >
                 <Sparkles className="w-3 h-3 animate-spin" />
                 Updated Just Now
               </motion.span>
             )}
           </div>
-          <p className="text-xs sm:text-sm text-secondary mt-0.5">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             Stage {isCompleted ? 6 : currentStageIndex + 1} of 6:{" "}
             <span className="font-semibold text-foreground">
               {isCancelled
@@ -140,33 +136,29 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
           </p>
         </div>
 
-        {/* State Indicators */}
         {isDisputed && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-disputed-muted text-disputed border border-disputed-border">
             <AlertTriangle className="w-3.5 h-3.5" />
             Dispute in Progress
           </div>
         )}
         {isCancelled && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-rose/15 text-rose border border-rose/30">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-disputed-muted text-disputed border border-disputed-border">
             <XCircle className="w-3.5 h-3.5" />
             Cancelled & Refunded
           </div>
         )}
         {isCompleted && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-verified-muted text-verified border border-verified-border">
             <Check className="w-3.5 h-3.5" />
             Completed & Settled
           </div>
         )}
       </div>
 
-      {/* Desktop Horizontal Stepper */}
+      {/* Desktop Stepper */}
       <div className="hidden lg:block relative my-4">
-        {/* Background Track Line */}
-        <div className="absolute top-5 left-8 right-8 h-1 bg-border rounded-full -z-0" />
-
-        {/* Animated Active Progress Fill Line */}
+        <div className="absolute top-5 left-8 right-8 h-1 bg-muted rounded-full -z-0" />
         <motion.div
           className="absolute top-5 left-8 h-1 bg-primary rounded-full -z-0"
           initial={{ width: 0 }}
@@ -176,7 +168,6 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
           transition={{ type: "spring", stiffness: 90, damping: 18 }}
         />
 
-        {/* Stages Row */}
         <div className="relative z-10 flex justify-between items-start">
           {DEAL_STAGES.map((stage, idx) => {
             const isStageCompleted = !isCancelled && (currentStageIndex > idx || isCompleted);
@@ -188,24 +179,18 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
                 key={stage.id}
                 className="flex flex-col items-center text-center w-28 group"
               >
-                {/* Step Circle with "Did that work?" Confirmation Motion */}
                 <motion.div
                   className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all ${
                     isStageCompleted
                       ? "bg-primary border-primary text-primary-foreground shadow-sm"
                       : isCurrent
-                      ? "bg-background border-primary text-primary ring-4 ring-primary/20 shadow-md"
-                      : "bg-card border-border text-secondary"
+                      ? "bg-card border-primary text-primary ring-4 ring-primary/20 shadow-md"
+                      : "bg-muted border-border text-muted-foreground"
                   }`}
                   animate={
                     isCurrent && justUpdated
                       ? {
                           scale: [1, 1.2, 1],
-                          boxShadow: [
-                            "0 0 0 0 rgba(59, 130, 246, 0.4)",
-                            "0 0 0 10px rgba(59, 130, 246, 0)",
-                            "0 0 0 0 rgba(59, 130, 246, 0)",
-                          ],
                         }
                       : isCurrent
                       ? { scale: 1.05 }
@@ -226,7 +211,6 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
                   )}
                 </motion.div>
 
-                {/* Stage Title & Subtitle */}
                 <div className="mt-2.5">
                   <p
                     className={`text-xs font-bold leading-tight ${
@@ -234,12 +218,12 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
                         ? "text-primary"
                         : isStageCompleted
                         ? "text-foreground"
-                        : "text-secondary"
+                        : "text-muted-foreground"
                     }`}
                   >
                     {stage.label}
                   </p>
-                  <p className="text-[11px] text-secondary/80 mt-0.5 font-medium leading-tight">
+                  <p className="text-[11px] text-muted-foreground mt-0.5 font-medium leading-tight">
                     {stage.sublabel}
                   </p>
                 </div>
@@ -249,7 +233,7 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
         </div>
       </div>
 
-      {/* Mobile Vertical Timeline */}
+      {/* Mobile Stepper */}
       <div className="lg:hidden space-y-4 pt-2">
         {DEAL_STAGES.map((stage, idx) => {
           const isStageCompleted = !isCancelled && (currentStageIndex > idx || isCompleted);
@@ -258,7 +242,6 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
 
           return (
             <div key={stage.id} className="flex items-start gap-3 relative">
-              {/* Connector Line between vertical dots */}
               {idx < DEAL_STAGES.length - 1 && (
                 <div
                   className={`absolute left-4 top-8 bottom-0 w-0.5 ${
@@ -267,14 +250,13 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
                 />
               )}
 
-              {/* Circle Icon */}
               <motion.div
                 className={`relative z-10 w-8 h-8 rounded-full flex items-center justify-center shrink-0 border-2 ${
                   isStageCompleted
                     ? "bg-primary border-primary text-primary-foreground"
                     : isCurrent
-                    ? "bg-background border-primary text-primary ring-2 ring-primary/20 shadow-sm"
-                    : "bg-card border-border text-secondary"
+                    ? "bg-card border-primary text-primary ring-2 ring-primary/20 shadow-sm"
+                    : "bg-muted border-border text-muted-foreground"
                 }`}
                 animate={
                   isCurrent && justUpdated
@@ -289,7 +271,6 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
                 )}
               </motion.div>
 
-              {/* Text content */}
               <div className="pt-0.5 pb-2">
                 <div className="flex items-center gap-2">
                   <p
@@ -298,7 +279,7 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
                         ? "text-primary"
                         : isStageCompleted
                         ? "text-foreground"
-                        : "text-secondary"
+                        : "text-muted-foreground"
                     }`}
                   >
                     {stage.label}
@@ -309,7 +290,7 @@ export function DealProgressStepper({ status, justUpdated }: DealProgressStepper
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-secondary mt-0.5">{stage.sublabel}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{stage.sublabel}</p>
               </div>
             </div>
           );

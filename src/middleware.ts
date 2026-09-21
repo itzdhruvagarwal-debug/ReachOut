@@ -422,7 +422,10 @@ pathname.startsWith("/_next") ||
 pathname === "/favicon.ico" ||
 /\.[a-zA-Z0-9]+$/.test(pathname);
 const isDashboardPath =
-pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+  pathname === "/dashboard" ||
+  pathname.startsWith("/dashboard/") ||
+  pathname === "/onboarding" ||
+  pathname.startsWith("/onboarding/");
 
 // 3. Admin Protection
 const isAdminPath =

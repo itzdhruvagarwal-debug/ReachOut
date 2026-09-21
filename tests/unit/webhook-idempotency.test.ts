@@ -147,7 +147,7 @@ describe("Unit Tests: Webhook Signature Verification, Hardening & Idempotency", 
   describe("Requirement 3: 5x Deliberate Replay Idempotency Test", () => {
     it("should execute business logic on Call 1 and no-op on Calls 2 through 5 via real processWebhookEventInternal", async () => {
       const processedEvents = new Set<string>();
-      let topUpCompletedCount = 0;
+      const _topUpCompletedCount = 0;
 
       (vi.spyOn(prisma.processedWebhookEvent, "findUnique") as any).mockImplementation(async ({ where }: any) => {
         if (processedEvents.has(where.eventId)) {

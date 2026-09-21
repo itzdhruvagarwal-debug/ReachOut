@@ -16,17 +16,25 @@ tdsAmount: number;
 netPayout: number;
 };
 
-// Rs 5,00,000 100 paise = 50,000,000 paise. Section 194-O threshold.
-// Previous value (500000) was Rs 5,000 100 too small, causing illegal over-withholding.
-const TDS_THRESHOLD = 50_000_000;
-const TDS_RATE = 0.001; // Section 194-O: 0.1%.
+import {
+  TDS_194O_RATE,
+  TDS_194O_THRESHOLD_PAISE,
+  TDS_194J_RATE,
+  TDS_194J_THRESHOLD_PAISE,
+  TDS_206AA_PENAL_RATE,
+  TDS_194J_PENAL_RATE,
+  TDS_194O_RATE_PERCENT_STRING,
+  TDS_206AA_PENAL_RATE_PERCENT_STRING,
+  TDS_194J_RATE_PERCENT_STRING,
+  TDS_194J_PENAL_RATE_PERCENT_STRING,
+  IST_OFFSET_MS,
+} from "@/constants";
 
 function currentIndianFinancialYearStart() {
 const now = new Date();
 // India Standard Time is UTC+5:30. Use IST so April 1 00:00 IST is correctly
 // treated as the new FY start (April 1 00:00 IST = March 31 18:30 UTC without
 // this offset getUTCMonth() returns 2/March and bucketing goes to the prior FY).
-const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const istNow = new Date(now.getTime() + IST_OFFSET_MS);
 const year = istNow.getUTCFullYear();
 const month = istNow.getUTCMonth();
@@ -82,7 +90,7 @@ async function calculateTdsForPayout(
   const hasPan = Boolean(taxCompliance?.panLast4);
   // Under Second Proviso to Section 194-O(1), the Rs 5,00,000 threshold only applies if PAN/Aadhaar is furnished.
   // If no PAN is furnished, threshold is 0 and TDS is deducted from the first rupee under Section 206AA.
-  const tdsThreshold = !hasPan ? 0 : (is194J ? 3_000_000 : TDS_THRESHOLD);
+  const tdsThreshold = !hasPan ? 0 : (is194J ? TDS_194J_THRESHOLD_PAISE : TDS_194O_THRESHOLD_PAISE);
   if (totalEarnings < tdsThreshold) return 0;
 
   // Calculate total TDS required on entire FY earnings, then subtract already-deducted amounts.
@@ -100,19 +108,19 @@ async function calculateTdsForPayout(
 
 function calculateApplicableTdsRate(hasPan: boolean, is194J: boolean): number {
   if (!hasPan) {
-    return is194J ? 0.20 : 0.05; // Under Section 206AA, apply penal rate if PAN is missing and threshold is crossed
+    return is194J ? TDS_194J_PENAL_RATE : TDS_206AA_PENAL_RATE; // Under Section 206AA, apply penal rate if PAN is missing and threshold is crossed
   }
-  return is194J ? 0.10 : TDS_RATE;
+  return is194J ? TDS_194J_RATE : TDS_194O_RATE;
 }
 
 function getAppliedTdsRatePercent(hasPan: boolean, is194J: boolean): string {
   if (!hasPan) {
-    return is194J ? "20%" : "5%";
+    return is194J ? TDS_194J_PENAL_RATE_PERCENT_STRING : TDS_206AA_PENAL_RATE_PERCENT_STRING;
   }
   if (is194J) {
-    return "10%";
+    return TDS_194J_RATE_PERCENT_STRING;
   }
-  return "0.1%";
+  return TDS_194O_RATE_PERCENT_STRING;
 }
 
 export async function creditInfluencerPayoutWithTax(

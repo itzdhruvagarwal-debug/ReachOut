@@ -1,10 +1,10 @@
 # VyaparMedia - Comprehensive Product Requirements Document (PRD)
 
-**Version**: 3.0 (Master Technical Specification & Enterprise Production Baseline)  
-**Last Updated**: September 2026  
+**Version**: 3.2 (Production UI/UX Rebuild, Dedicated Help Center & Guarded Route Alignment)  
+**Last Updated**: September 2026 (Full UI Rebuild, Missing Core Pages & Onboarding Guard)  
 **Document Status**: Production-Ready, Error-Sanitized & Enterprise-Hardened  
-**Target Scale**: 10,0,000+ (10 Lakh) Concurrent Active Users  
-**Primary Region**: India (IN) — Multi-lingual & Tier 1/2/3 Regional Coverage  
+**Target Scale**: 10,00,000+ (10 Lakh) Concurrent Active Users  
+**Primary Region**: India (IN) — English (Indian Creator & Commerce Context: INR, PAN, GST) with Tier 1/2/3 Regional Coverage  
 **Regulatory Framework**: Indian Contract Act 1872, IT Act 2000, Income Tax Act (Sections 194-O, 206AA, 194J), GST Acts 2017, RBI Payment Aggregator Guidelines  
 
 ---
@@ -34,7 +34,7 @@ graph TD
         DealCoordinator[Deal State Machine & Escrow Coordinator]
         SearchEngine[Composite Ranking & Full-Text Search Engine]
         FraudEngine[KYC & Payment Fraud Engine]
-        LeakDetector[Real-time Bilingual Contact Leak Detector]
+        LeakDetector[Real-time Contact Leak Detector]
         TaxCompliance[India Tax Engine - TDS 194-O & GST]
         Gamification[DRS Reputation & Referral Revenue Share]
         DisputeEngine[Tiered Dispute Mediation & Arbitration]
@@ -83,7 +83,7 @@ graph TD
 2. **Digital Reputation Score (DRS 0–900)**: Transparent, algorithmic reputation scoring replacing vanity follower counts with on-time delivery rates, review scores, and fraud flags.
 3. **Legally Binding Digital Contracts**: Cryptographic SHA-256 contracts capturing itemized deliverables, revision limits, licensing, and deadlines with dual digital timestamps.
 4. **Automated India Tax & Regulatory Compliance**: Real-time Section 194-O (0.1%), Section 206AA (5%), and Section 194J TDS calculation with FY tracking, GSTIN structure verification, and encrypted PAN storage.
-5. **Zero-Trust Security & Anti-Disintermediation**: Real-time bilingual contact leak detection, multi-pass HTML/XSS sanitization, append-only immutable audit logs, and edge WAF protection.
+5. **Zero-Trust Security & Anti-Disintermediation**: Real-time contact leak detection (homoglyph normalization, phonetic evasion filtering), multi-pass HTML/XSS sanitization, append-only immutable audit logs, and edge WAF protection.
 6. **Zero-Leak User Message Architecture**: Centralized error sanitization layer preventing all technical leaks (Prisma codes, PostgreSQL constraints, SQL syntax, stack traces) while delivering polite, respectful, actionable messages with recommended next steps and specific settlement timelines.
 
 ---
@@ -96,6 +96,7 @@ graph TD
 | :--- | :--- | :--- | :--- |
 | **Frontend Framework** | Next.js (App Router) | 16.2.6 | React Server Components (RSC), Streaming SSR, Route Handlers |
 | **Language** | TypeScript | 5.x | Strict type safety across client UI, backend APIs, and Prisma models |
+| **Application Language** | English (en-IN) | Single-Language | Indian creator & commerce context (INR, PAN, GST, bank transfers); zero multi-language complexity |
 | **Styling** | TailwindCSS + CSS Variables | 3.4.19 | Instagram-inspired aesthetic, OLED dark mode, 0 hardcoded colors |
 | **UI Primitives** | Base UI / Headless UI | 1.8.0 | Fully accessible, WCAG AA compliant headless components |
 | **Animations** | Framer Motion | 12.34.0 | Spring physics with reduced-motion hardware fallbacks |
@@ -511,8 +512,8 @@ Every transition executes within an exclusive transactional block:
   - *Contact Filter*: Scans submission notes; blocks submissions containing phone numbers, emails, external links, or UPI handles.
   - *Weekly Speed Challenges*: Automatically increments progress for `submit_early_2` and `submit_24h`.
 - **`autoApproveDealTx` (`src/services/deal/auto-approve.ts`)**:
-  - Evaluates brand review expiration window (`reviewPeriodHours`, default 48 hours).
-  - Acquires distributed Redis lock `cron:auto-approve:lock`.
+  - Evaluates brand review expiration window (`reviewPeriodHours`, default 48 hours, max 168 hours).
+  - Acquires distributed Redis lock `cron:content-auto-approve:lock` (`CRON_LOCK_KEYS.CONTENT_AUTO_APPROVE`).
   - Automatically transitions deal to `CONTENT_APPROVED` with `SYSTEM` actor role.
   - Dispatches transactional emails and notifications to both creator and brand.
 - **`verifyPost` (`src/services/deal/verify.ts`)**:
@@ -766,10 +767,10 @@ The contact leak detector (`src/lib/contact-leak-detector.ts`) prevents platform
 - **Homoglyph & Leetspeak Decoding**: Replaces `@` $\to$ `a`, `$` $\to$ `s`, `0` $\to$ `o`, `1` $\to$ `i`, `3` $\to$ `e`, `5` $\to$ `s`, `7` $\to$ `t`.
 - **Deliverable Mention Exemption**: Intelligently ignores legitimate terms like "1 Instagram Reel", "2 YouTube Shorts", or "3 Feed Posts".
 
-### 14.2 Bilingual Warning Banner (`ContactLeakWarningBanner.tsx`)
+### 14.2 Contact Leak Warning Banner (`ContactLeakWarningBanner.tsx`)
 Displays in real time as the user types in `ChatPanel.tsx`:
-> **Platform Safety Alert / सुरक्षा चेतावनी**:  
-> *"Sharing personal contact details or off-platform payment info removes Escrow protection. Deals completed off-platform are ineligible for dispute mediation or guaranteed payout."*
+> **Safety Warning: External Contact Details Detected**:  
+> *"Platform ke bahar contact share karna deal protection khatam kar sakta hai. VyaparMedia escrow security, payment guarantees, and dispute mediation apply only to agreements conducted directly within the platform."*
 
 ### 14.3 In-Chat Deal Context Mini Card (`DealContextMiniCard.tsx`)
 Anchors chat negotiations to the active contract, showing deal title, status, agreed amount in INR, and escrow security status.
@@ -981,9 +982,150 @@ Maintains developer guidelines, voice principles, UI component implementation re
 
 ---
 
-## 19. Notification Center & Web Push System
+## 19. UI/UX Architecture, Design System & Frontend Application Surface
 
-### 19.1 Multi-Channel Architecture (`src/lib/push-notifications.ts`)
+### 19.1 Design System Foundations & Aesthetic Principles
+VyaparMedia's frontend follows an Instagram-inspired, content-first visual philosophy paired with enterprise fintech trust semantics:
+1. **Instagram-Inspired Visual Cleanliness**: Minimal browser chrome, subtle hairline framing (`border-[var(--border)]`), circular creator avatars (`rounded-full`), and soft, modern card geometry (`rounded-2xl` / `rounded-xl`).
+2. **First-Class OLED Dark Mode**: A custom, hand-crafted OLED dark mode palette (`#0B0D12` background, `#141721` elevated surfaces, `#F3F4F6` text) providing high-contrast readability without harsh eye strain.
+3. **Zero Hardcoded Hex Values**: All styling strictly consumes CSS variables mapped through Tailwind CSS tokens (`bg-background`, `bg-card`, `text-foreground`, `border-border`).
+4. **Financial Trust Semantic Tokens (Light & Dark WCAG AA >= 4.5:1)**:
+   - **`verified`** (Emerald: `#159359` / Dark `#2CE08A`): KYC identity confirmation, authentic brand/creator status.
+   - **`escrow`** (Sapphire: `#1168E3` / Dark `#5EA0FD`): Upfront funds locked in escrow holding, active milestones.
+   - **`pending`** (Amber: `#C47D08` / Dark `#F6B832`): Deliverable submissions awaiting review, queued payouts.
+   - **`disputed`** (Crimson: `#DE2134` / Dark `#F45868`): Arbitrated deal freezes, fraud flags, rejected milestones.
+5. **Universal Dual-Coding (WCAG 2.1 AA Guideline 1.4.1)**: Color is never the sole carrier of status. Every badge and alert pairs a semantic tint with an explicit text label and a standard Lucide icon (`ShieldCheck`, `Lock`, `AlertTriangle`, `AlertCircle`).
+6. **Numeric Precision (`tabular-nums`)**: Tabular numeric digits (`font-variant-numeric: tabular-nums`) applied to all wallet amounts (`₹`), balances, and statistics to eliminate horizontal jitter during live counter animations.
+7. **Touch Target Sizing (`.touch-target-44`)**: 44px x 44px minimum hit targets on all mobile navigation and interactive controls complying with WCAG 2.5.5 and Apple HIG.
+8. **Universal Reduced-Motion Reset**: Vestibular safety reset (`@media (prefers-reduced-motion: reduce)`) setting animation durations to 0.001ms with instantaneous transitions.
+
+### 19.2 UI Component Taxonomy & Responsive Layout Architecture
+Components are structured into clear functional domains under `src/components/`:
+- **Base UI Headless Primitives (`src/components/ui/`)**: Built on `@base-ui/react` (v1.8.0) and imported via `@/components/ui`. Includes `Button`, `Modal`, `Input`, `Textarea`, `Select`, `Card`, `Toast`, `EmptyState`, `Skeleton`, `ConfirmationBadge`, `Pagination`, `Spinner`.
+- **Responsive App Shell (`src/components/navigation/`)**:
+  - `DesktopSidebar.tsx`: Fixed left navigation drawer displaying role-tailored links (`INFLUENCER`, `BRAND`, `ADMIN`), collapsible categories, and live wallet balances.
+  - `MobileBottomBar.tsx`: Fixed bottom navigation bar with 44pt touch targets, active tab indicators, and safe-area inset protection (`env(safe-area-inset-bottom)`).
+  - `EscrowStoriesBar.tsx`: Horizontal Instagram-style highlight strip showcasing platform milestones, top creators, and escrow activity.
+  - `RoleGuard.tsx`: Client-side navigational permission enforcement.
+- **Discovery Architecture (`src/components/discovery/`)**: `DiscoveryFeed`, `CampaignDiscoveryCard`, `CreatorDiscoveryCard`, `FilterBottomSheet`, `PullToRefresh`.
+- **Profile Components (`src/components/profile/`)**: `InfluencerProfileClient`, `CampaignProofModal`.
+- **Help Center Components (`src/components/help/`)**: `HelpCenterClient` (categorized FAQs, real-time query search, category tabs, and ticket escalation).
+- **Dashboard Home Components (`src/components/dashboard/home/`)**: `DashboardHomeClient`, `ActionRequiredBanner`, `ActiveDealsFeed`.
+- **Campaign Creation Wizard (`src/components/dashboard/campaigns/create/`)**: `CreateCampaignClient`, `CampaignSummarySidebar`, `DeliverablesList`, `ProductSeedingCard`.
+- **Deal Lifecycle Components (`src/components/dashboard/deals/`)**: `DealProgressStepper`, `DealActionsBar`, `MilestoneTimeline`.
+- **Onboarding & Registration (`src/components/register/`, `src/app/onboarding/`)**: `OtpFields`, `Step2RegistrationForm`, `useRegistration`, `OnboardingPage`.
+
+### 19.3 Core Application Pages Deep Specification
+The UI rebuild established four primary high-impact page flows:
+
+#### 1. Public Creator Profile (`/creator/[username]`)
+- **Route Handler**: `src/app/creator/[username]/page.tsx`
+- **Architecture**: Dynamic Next.js Server Component fetching `InfluencerProfile` joined with verified `User` trust metrics, rendering the interactive `InfluencerProfileClient.tsx`. Fully publicly accessible without requiring session authentication.
+- **Key Capabilities**:
+  - *Public Dossier & Verified Badges*: Creator display name, bio, niche category pills, city/state chips, verified KYC badge (`ShieldCheck`), and Instagram/YouTube channel badges.
+  - *DRS Trust Gauge*: Circular SVG radial gauge visualizing the 0–900 Dynamic Reliability Score with status badge tiers (e.g., *Elite Creator* for 800+).
+  - *Instagram 3-Column Square Portfolio Grid*: Content-first 3-column square grid showcasing past campaign deliverables with hover overlay metrics (reach, engagement rate, INR payout).
+  - *Proof of Work Modal (`CampaignProofModal`)*: Rich modal allowing brands to inspect full creative deliverables, verified escrow payouts, and client feedback.
+  - *Itemized Transparent Rate Card*: Deliverable-based pricing slabs (Instagram Reels, Instagram Stories, YouTube Dedicated Videos, YouTube Shorts) with turnaround times and allowed revision rounds.
+  - *Security & Anti-Leak Sanitization*: Strict PII boundary via `formatCreatorProfileData` in `src/lib/creator-profile.ts` ensuring email, phone numbers, PAN, GST, bank account numbers, and internal flags are strictly excluded from the public view.
+  - *SEO & Social Graph*: Dynamic metadata generation (`generateMetadata`) providing OpenGraph preview tags, Twitter cards, canonical URLs, and structured JSON-LD.
+
+#### 2. Multi-Step Onboarding Wizard & Route Guard (`/onboarding`)
+- **Route Handler**: `src/app/onboarding/page.tsx`
+- **Architecture**: 4-step progressive disclosure wizard for newly registered users with live progress indicator:
+  - *Step 1: Role Confirmation & Core Identity*: Primary role verification (`INFLUENCER` vs. `BRAND`), display name, city, state, and bio.
+  - *Step 2: Content Niches & Languages*: Interactive multi-select category chips (Tech, Fashion, Fitness, Gaming, etc.) and primary regional languages.
+  - *Step 3: Social Handles & Commercial Rates*: Instagram and YouTube handles, with baseline pricing for Reels, Stories, and Dedicated Videos.
+  - *Step 4: Celebration & Workspace Entry*: Summary confirmation card with direct "Enter Dashboard" CTA.
+- **Signup Wiring & Dashboard Guard (No Orphan State)**:
+  - Upon registration completion, `useRegistration.ts` funnels users to `/login?registered=true&callbackUrl=/onboarding`.
+  - A server-side onboarding completeness guard in `src/app/dashboard/page.tsx` checks if the user's profile is complete (e.g. city and non-default categories set). If incomplete, it immediately calls `redirect("/onboarding")`, preventing un-onboarded users from accessing the dashboard directly.
+
+#### 3. Categorized Help Center & FAQ (`/help`)
+- **Route Handler**: `src/app/help/page.tsx` with `HelpCenterClient.tsx`
+- **Architecture**: Comprehensive standalone Help Center equipped with categorized knowledge base, search, and support escalation:
+  - *12 Categorized FAQs across 4 Domains*:
+    1. `GETTING_STARTED`: Platform overview, dual creator/brand roles, campaign invitation and offer workflow.
+    2. `PAYMENTS_ESCROW`: 100% Escrow security, platform fee structure (5% + GST), milestone payout timelines.
+    3. `DISPUTES_REVISIONS`: Creative revision requests, delivery deadline lapses, 48-hour mutual resolution & senior arbitration.
+    4. `KYC_SECURITY`: Aadhaar & PAN verification necessity, DRS scoring algorithm, automated anti-leak contact protection.
+  - *Real-Time Search Query Filtering*: Instant client-side filtering matching keywords across questions, answers, and category tags.
+  - *Category Filter Pills*: Quick-access filter tabs with contextual Lucide icons (`Sparkles`, `Lock`, `AlertCircle`, `ShieldCheck`).
+  - *Support Escalation CTA*: Persistent bottom callout linking to `/dashboard/support` ("Still have questions? Raise a Support Ticket") ensuring users always have an escalation route.
+  - *Supplementary Pricing FAQ*: Retains accessible accordion at `/pricing#faq` for checkout-stage questions.
+
+#### 4. Custom Branded 404 Error Recovery (`src/app/not-found.tsx`)
+- **Route Handler**: Root `src/app/not-found.tsx`
+- **Architecture**: High-trust branded dark-mode error recovery card:
+  - Neon amber border container with prominent `404` status code and clear error explanation.
+  - *Primary CTAs*: "Go to Home" (`/`), "Contact Support" (`/dashboard/support`), and "Browse FAQ" (`/help`).
+  - *Quick Recovery Grid*: Direct navigational chips to Influencer Discovery, Live Campaigns, and Brand Escrow.
+  - *Trust & Compliance Footer*: Bank-grade 256-bit encryption & 100% Milestone-Protected Escrow disclaimer.
+
+### 19.4 Comprehensive Frontend Page & Route Catalog (52 Pages)
+
+| Group | Route | Source File | Purpose & Description |
+| :--- | :--- | :--- | :--- |
+| **Public** | `/` | `src/app/page.tsx` | Platform landing page with hero mockup, trust metrics, escrow value props |
+| | `/about` | `src/app/about/page.tsx` | Company mission, founding team, escrow guarantees |
+| | `/help` | `src/app/help/page.tsx` | Categorized FAQ & Help Center with real-time search & support escalation |
+| | `/pricing` | `src/app/pricing/page.tsx` | Pricing breakdown & interactive accessible FAQ accordion |
+| | `/contact` | `src/app/contact/page.tsx` | Support inquiry form & corporate office information |
+| | `/blog` | `src/app/blog/page.tsx` | Marketing insights, creator economy industry benchmarks |
+| | `/legal` | `src/app/legal/page.tsx` | Master terms, regulatory governance hub |
+| | `/privacy` | `src/app/privacy/page.tsx` | DPDP privacy policy, PII encryption disclosure |
+| | `/terms` | `src/app/terms/page.tsx` | Terms of Service for brands and creators |
+| | `/refund` | `src/app/refund/page.tsx` | Escrow cancellation & refund settlement policies |
+| | `/cookie-policy` | `src/app/cookie-policy/page.tsx` | Cookie usage, session security, analytics tracking |
+| **Auth** | `/login` | `src/app/login/page.tsx` | Email/Phone login with 2FA TOTP verification |
+| | `/register` | `src/app/register/page.tsx` | 2-step registration with 6-digit OTP & role selection |
+| | `/onboarding` | `src/app/onboarding/page.tsx` | Multi-step role-specific profile setup wizard with progress tracking |
+| | `/forgot-password` | `src/app/forgot-password/page.tsx` | Password reset request with rate-limited email token |
+| | `/reset-password` | `src/app/reset-password/page.tsx` | Cryptographic token password update form |
+| **Portfolio** | `/creator/[username]` | `src/app/creator/[username]/page.tsx` | Public creator showcase with Instagram 3-col grid, verified reach, DRS gauge, rate card, & direct offer CTA |
+| **Dashboard** | `/dashboard` | `src/app/dashboard/page.tsx` | Central overview: active deals, wallet summary, notifications, and onboarding guard |
+| | `/dashboard/campaigns` | `src/app/dashboard/campaigns/page.tsx` | Campaign discovery & brand campaign management |
+| | `/dashboard/campaigns/create` | `src/app/dashboard/campaigns/create/page.tsx` | 3-step campaign creation wizard with live summary sidebar & budget escrow calculator |
+| | `/dashboard/campaigns/[id]` | `src/app/dashboard/campaigns/[id]/page.tsx` | Campaign detail, applicant review, & deal conversion |
+| | `/dashboard/applications` | `src/app/dashboard/applications/page.tsx` | Sent & received campaign proposals tracker |
+| | `/dashboard/deals` | `src/app/dashboard/deals/page.tsx` | Deal roster with milestone status pills & urgency filters |
+| | `/dashboard/deals/[id]` | `src/app/dashboard/deals/[id]/page.tsx` | Deal room: contract terms, timeline stepper, draft submissions, revision triggers |
+| | `/dashboard/deals/[id]/dispute`| `src/app/dashboard/deals/[id]/dispute/page.tsx`| Dispute initiation form with escrow freezing |
+| | `/dashboard/disputes` | `src/app/dashboard/disputes/page.tsx` | Active dispute cases & mediation tracking |
+| | `/dashboard/disputes/[id]` | `src/app/dashboard/disputes/[id]/page.tsx` | Dispute evidence room & settlement status |
+| | `/dashboard/influencers` | `src/app/dashboard/influencers/page.tsx` | Creator discovery feed with composite search & filters |
+| | `/dashboard/influencers/[id]` | `src/app/dashboard/influencers/[id]/page.tsx` | Creator dossier with verified stats & offer trigger |
+| | `/dashboard/messages` | `src/app/dashboard/messages/page.tsx` | Real-time deal messaging with contact leak protection |
+| | `/dashboard/wallet` | `src/app/dashboard/wallet/page.tsx` | Escrow balances, double-entry ledger, bank accounts, instant withdrawal |
+| | `/dashboard/analytics` | `src/app/dashboard/analytics/page.tsx` | Campaign ROI, reach, GMV, and conversion performance |
+| | `/dashboard/leaderboard` | `src/app/dashboard/leaderboard/page.tsx` | DRS reputation leaderboard & top creator tiers |
+| | `/dashboard/badges` | `src/app/dashboard/badges/page.tsx` | Achievement badges & gamification milestones |
+| | `/dashboard/referrals` | `src/app/dashboard/referrals/page.tsx` | Referral dashboard: links, tracked users, payouts |
+| | `/dashboard/settings` | `src/app/dashboard/settings/page.tsx` | Profile info, 2FA management, notifications |
+| | `/dashboard/support` | `src/app/dashboard/support/page.tsx` | Customer support ticket submission & history |
+| **Admin** | `/admin` | `src/app/admin/page.tsx` | Platform health, GMV, active escrow overview |
+| | `/admin/users` | `src/app/admin/users/page.tsx` | User directory, account bans, role adjustments |
+| | `/admin/verifications` | `src/app/admin/verifications/page.tsx` | KYC review queue (PAN, Aadhaar, GST) |
+| | `/admin/verifications/[id]` | `src/app/admin/verifications/[id]/page.tsx` | Detailed document inspection & approval panel |
+| | `/admin/disputes` | `src/app/admin/disputes/page.tsx` | Arbitration court & escrow settlement queue |
+| | `/admin/disputes/[id]` | `src/app/admin/disputes/[id]/page.tsx` | Dispute evidence review & split settlement release |
+| | `/admin/financial` | `src/app/admin/financial/page.tsx` | Platform treasury, fee ledger, escrow drift audit |
+| | `/admin/payouts` | `src/app/admin/payouts/page.tsx` | RazorpayX payout queue & batch approval controls |
+| | `/admin/applications` | `src/app/admin/applications/page.tsx` | Cross-platform application oversight |
+| | `/admin/violations` | `src/app/admin/violations/page.tsx` | Contact leak flags, terms violations, fraud tracking |
+| | `/admin/audit-logs` | `src/app/admin/audit-logs/page.tsx` | Cryptographic immutable security audit logs |
+| | `/admin/analytics` | `src/app/admin/analytics/page.tsx` | Macro platform growth metrics & category analytics |
+| | `/admin/newsletter` | `src/app/admin/newsletter/page.tsx` | System announcements & broadcast manager |
+| **System** | `/not-found` (404) | `src/app/not-found.tsx` | Branded 404 recovery with Help Center, home CTA, and quick destinations |
+| | Root Error (500) | `src/app/error.tsx` | Application root error boundary |
+| | Global Error | `src/app/global-error.tsx` | Catastrophic root html/body error boundary |
+| | Dashboard Error | `src/app/dashboard/error.tsx` | Scoped dashboard error boundary |
+
+---
+
+## 20. Notification Center & Web Push System
+
+### 26.1 Multi-Channel Architecture (`src/lib/push-notifications.ts`)
 - **Web Push API**: Standards-compliant Web Push with VAPID key signing.
 - **Multi-Device Support**: Subscriptions saved in Upstash Redis (90-day TTL) with Postgres database fallback.
 - **Granular User Preferences (`NotificationPreferencesPanel.tsx`)**:
@@ -993,9 +1135,9 @@ Maintains developer guidelines, voice principles, UI component implementation re
 
 ---
 
-## 20. Background Jobs, Queues & Scheduled Cron Tasks
+## 21. Background Jobs, Queues & Scheduled Cron Tasks
 
-### 20.1 QStash Asynchronous Task Queue (`src/lib/qstash.ts`)
+### 26.1 QStash Asynchronous Task Queue (`src/lib/qstash.ts`)
 - **Job Tiers**:
   - `time-critical`: 5 retries, 60s timeout, exponential backoff (Payments, Ledger mutations).
   - `scheduled`: 3 retries, 120s timeout, exponential backoff (Crons, Reconciliations).
@@ -1003,7 +1145,7 @@ Maintains developer guidelines, voice principles, UI component implementation re
 - **Payload Budget**: Strict 8KB payload budget enforcement (passes reference IDs instead of bloated records).
 - **Dead-Letter Queue (DLQ)**: Failed tasks after max retries persist into `DeadLetterJob` table with full error stack traces and trigger admin alerts.
 
-### 20.2 Scheduled Crons Catalog
+### 26.2 Scheduled Crons Catalog
 
 | Endpoint | Schedule | Purpose | Guarding Mechanism |
 | :--- | :--- | :--- | :--- |
@@ -1012,28 +1154,28 @@ Maintains developer guidelines, voice principles, UI component implementation re
 | `/api/cron/post-monitor` | `*/30 * * * *` (Every 30m) | 30-day post status check; detects deleted posts & triggers clawbacks | Distributed Lock + Secret |
 | `/api/cron/expire-signatures` | `0 * * * *` (Hourly) | Cancels unexecuted deals exceeding 72-hour signing window | QStash Signature + Secret |
 | `/api/cron/stale-fulfillment` | `0 2 * * *` (2:00 AM IST) | Handles overdue product shipments & unfulfilled seeding | QStash Signature + Secret |
-| `/api/cron/content-auto-approve` | `0 4 * * *` (4:00 AM IST) | Auto-approves submitted drafts after 7 days of brand silence | QStash Signature + Secret |
+| `/api/cron/content-auto-approve` | `0 4 * * *` (4:00 AM IST) | Auto-approves submitted drafts after brand review window expiration (default 48 hours, configurable up to 168 hours) | Distributed Lock + QStash Signature |
 | `/api/cron/weekly-challenges` | `0 0 * * 1` (Mondays) | Rotates weekly gamification challenges & awards badges | QStash Signature + Secret |
 | `/api/cron/lift-suspensions` | `0 1 * * *` (1:00 AM IST) | Auto-restores accounts that completed temporary penalty suspensions | QStash Signature + Secret |
 | `/api/cron/engagement` | `0 */6 * * *` (Every 6h) | Polls Instagram & YouTube APIs for post impressions and engagement | Distributed Lock + Secret |
 | `/api/cron/cleanup-idempotency` | `0 5 * * *` (5:00 AM IST) | Purges expired idempotency keys older than 24 hours | Secret Verification |
 
-### 20.3 QStash Deployment & Verification Tooling
+### 26.3 QStash Deployment & Verification Tooling
 - `scripts/setup-qstash-crons.ts`: Automates programmatic registration of all scheduled crons with Upstash QStash, including retry counts, timeouts, and authorization headers.
 - `scripts/verify-cron-triggers.ts`: Verifies HMAC signature validation and execution latency across all active cron webhooks.
 
 ---
 
-## 21. Progressive Web App (PWA) & Offline Capabilities
+## 22. Progressive Web App (PWA) & Offline Capabilities
 
-### 21.1 Service Worker Caching Architecture (`public/sw.js`)
+### 26.1 Service Worker Caching Architecture (`public/sw.js`)
 - **Versioned Cache**: Cache namespace `vyaparmedia-static-<timestamp>` ensures immediate invalidation on deployment.
 - **Cache Strategy**:
   - *Static Assets* (`/_next/static/`, images, icons, fonts): Cache-first with network fallback.
   - *API & Route Navigation*: Network-first. Never caches authenticated HTML or API payloads to prevent cross-user data leakage.
   - *Offline Navigation Fallback*: Renders branded `public/offline.html` when offline navigation fails.
 
-### 21.2 PWA Client Components
+### 26.2 PWA Client Components
 1. **Custom Install Banner (`CustomInstallBanner.tsx`)**:
    - Intercepts browser `beforeinstallprompt` event.
    - Detects existing standalone display mode (`display-mode: standalone`).
@@ -1046,11 +1188,11 @@ Maintains developer guidelines, voice principles, UI component implementation re
 
 ---
 
-## 22. Comprehensive REST API Routes Catalog (32 Route Groups)
+## 23. Comprehensive REST API Routes Catalog (32 Route Groups)
 
 Every route is guarded by `apiWrapper` (`src/lib/api-wrapper.ts`) enforcing session injection, CSRF validation, rate limiting, and RBAC permissions.
 
-### 22.1 API Endpoints Catalog
+### 26.1 API Endpoints Catalog
 
 | Group | Method | Path | Required Permission | Description |
 | :--- | :--- | :--- | :--- | :--- |
@@ -1111,28 +1253,28 @@ Every route is guarded by `apiWrapper` (`src/lib/api-wrapper.ts`) enforcing sess
 
 ---
 
-## 23. Social Media Integrations Technical Specifications
+## 24. Social Media Integrations Technical Specifications
 
-### 23.1 Instagram Graph API (v18.0)
+### 26.1 Instagram Graph API (v18.0)
 - **OAuth 2.0 Flow**: User authorizes permissions: `instagram_basic`, `pages_show_list`, `instagram_manage_insights`.
 - **Token Handling**: Exchanges short-lived user token for 60-day long-lived access token. Cached in Redis and encrypted in database.
 - **Data Fetched**: Follower count, media count, bio, profile picture, post media URL, permalink, like count, comment count, and timestamp.
 - **Engagement Formula**:
   $$\text{Instagram Engagement Rate} = \frac{\text{Average (Likes + Comments across last 12 posts)}}{\text{Follower Count}} \times 100$$
-- **Verification Webhook**: Subscribes to Instagram Webhooks for real-time post deletion alerts.
+- **Verification Webhook [Planned]**: Subscribes to Instagram Webhooks for real-time post deletion alerts. (OAuth authentication and post reach metrics fetch are currently active).
 
-### 23.2 YouTube Data API (v3)
+### 26.2 YouTube Data API (v3)
 - **OAuth 2.0 Flow**: Scopes: `https://www.googleapis.com/auth/youtube.readonly`.
 - **Data Fetched**: Channel subscriber count, total view count, video count, video title, description, tags, duration, view count, like count, comment count.
-- **Privacy Status Check**: Calls `videos.list(part: 'status')` to verify video is `public`. Flags deal if status flips to `private` or `unlisted`.
+- **Privacy Status Check [Planned]**: Automated cron/webhook verification calling `videos.list(part: 'status')` to detect public-to-private flips. (Creator channel linking and post submission verification are currently active).
 - **Engagement Formula**:
   $$\text{YouTube Engagement Rate} = \frac{\text{Average (Likes + Comments across last 10 videos)}}{\text{Average Video Views}} \times 100$$
 
 ---
 
-## 24. Testing, Verification & Quality Assurance Suite
+## 25. Testing, Verification & Quality Assurance Suite
 
-### 24.1 Vitest Unit & Integration Test Matrix (27 Test Suites, 331 Passing Tests)
+### 26.1 Vitest Unit & Integration Test Matrix (27 Test Suites, 331 Passing Tests)
 
 The repository enforces a comprehensive automated test battery covering core financial accounting, state machines, edge security, rate limiting, and user messages:
 
@@ -1161,13 +1303,13 @@ The repository enforces a comprehensive automated test battery covering core fin
 | `tests/unit/health-check.test.ts` | Health Endpoints | Database ping, Redis latency, service readiness probe | 3 tests |
 | `tests/integration/db-transactions.test.ts` | Database ACID | Rollback on simulated failures, foreign key integrity, concurrent locks | 15 tests |
 | *Additional Integration Suites (5)* | System Workflows | Application lifecycle, dispute settlement, referral rewards, tax reporting | 58 tests |
-| **Total Automated Suite** | **Full Application** | **Zero failures across all core modules (`npm test`)** | **331 tests** |
+| **Total Automated Suite** | **Full Application** | **Zero failures across all core modules (`npm test`)** | **355 tests** |
 
-### 24.2 TypeScript Type-Safety Verification
+### 26.2 TypeScript Type-Safety Verification
 - Enforces strict TypeScript configuration (`tsconfig.json`): `strict: true`, `noImplicitAny: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`.
 - Zero compilation errors (`npm run typecheck` exits with code 0).
 
-### 24.3 Concurrency & Stress Test Scripts
+### 26.3 Concurrency & Stress Test Scripts
 - `scripts/test-wallet-concurrency.ts`: Simulates 50 concurrent wallet withdrawals to prove zero race condition drift.
 - `scripts/test-webhook-hardening.ts`: Replays duplicate and tampered Razorpay webhooks.
 - `scripts/test-kyc-fraud-system.ts`: Tests adversarial KYC evasion and duplicate bank account reuse.
@@ -1176,9 +1318,9 @@ The repository enforces a comprehensive automated test battery covering core fin
 
 ---
 
-## 25. Environment Variables & Production Deployment
+## 26. Environment Variables & Production Deployment
 
-### 25.1 Environment Variables Dictionary (`src/env.ts`)
+### 26.1 Environment Variables Dictionary (`src/env.ts`)
 
 ```typescript
 // Core Database
@@ -1214,7 +1356,7 @@ KYC_API_KEY?: string;                 // Surepass production token
 SENTRY_DSN?: string;                  // Sentry error monitoring DSN
 ```
 
-### 25.2 Production Go-Live Checklist
+### 26.2 Production Go-Live Checklist
 - [x] Run `prisma migrate deploy` to apply all enterprise database migrations.
 - [x] Verify database defense-in-depth triggers (`trg_immutable_audit_log`) and check constraints.
 - [x] Seed platform treasury wallets: `PLATFORM_TREASURY` and `TDS_WITHHOLDING_TREASURY`.
@@ -1223,21 +1365,36 @@ SENTRY_DSN?: string;                  // Sentry error monitoring DSN
 - [x] Schedule daily reconciliation cron job (`/api/cron/reconcile-ledger-settlements`).
 - [x] Verify QStash signing keys and dead-letter queue escalation routing.
 
+### 26.3 Centralized Constants Architecture (`src/constants/`)
+
+To eliminate magic numbers, prevent drift between frontend validation and backend enforcement, and comply with Indian statutory thresholds, business values are codified in domain-specific constants:
+
+| Domain Module | Key Constants & Guardrails | Business Value & Statutory Basis |
+|:---|:---|:---|
+| **`wallet.ts`** | `MIN_WALLET_TOPUP_PAISE = 10_000`<br>`MAX_WALLET_TOPUP_PAISE = 100_000_000`<br>`MIN_WITHDRAWAL_AMOUNT_PAISE = 50_000`<br>`MAX_WITHDRAWAL_AMOUNT_PAISE = 50_000_000`<br>`RAPID_FIRE_WITHDRAWAL_WINDOW_SECONDS = 600` | Min top-up ₹100 (prevents gateway loss); Max single top-up ₹10,00,000.<br>Min withdrawal ₹500; Max single withdrawal ₹5,00,000.<br>Velocity check: max 2 withdrawals per 10m window. |
+| **`tax.ts`** | `TDS_194O_RATE = 0.001` (0.1%)<br>`TDS_194O_THRESHOLD_PAISE = 50_000_000`<br>`TDS_206AA_PENAL_RATE = 0.05` (5%)<br>`TDS_194J_RATE = 0.10` (10%)<br>`GST_STANDARD_RATE = 0.18` (18%) | Income Tax Act 1961 Section 194-O: 0.1% TDS on creator GMV exceeding ₹5,00,000 per FY.<br>Section 206AA: 5% penal rate for missing/unfurnished PAN.<br>Section 194J: 10% on technical services.<br>CGST/SGST: 18% on platform commissions. |
+| **`auth.ts`** | `AUTH_OTP_EXPIRY_SECONDS = 900` (15m)<br>`CONTACT_UPDATE_OTP_EXPIRY_SECONDS = 600` (10m)<br>`OTP_RESEND_COOLDOWN_SECONDS = 60`<br>`INACTIVITY_LOGOUT_MS = 1_800_000` (30m)<br>`SENSITIVE_ACTION_MAX_SESSION_AGE_MS = 600_000` (10m) | User onboarding OTP valid 15m; sensitive profile update OTP valid 10m.<br>60s resend throttle.<br>30m idle session forced logout with 5m advance modal warning.<br>Sensitive actions (withdraw, sign deal) require fresh auth (<10m). |
+| **`deals.ts`** | `DEFAULT_BRAND_REVIEW_PERIOD_HOURS = 48`<br>`MAX_BRAND_REVIEW_PERIOD_HOURS = 168`<br>`DEAL_SIGNING_WINDOW_HOURS = 72`<br>`POST_MONITORING_WINDOW_DAYS = 30`<br>`DEFAULT_INCLUDED_REVISIONS = 2` | 48-hour brand review window before auto-approval (campaigns can customize up to 7 days).<br>72-hour contract signing window before expiration.<br>30-day post retention monitoring against deletion/clawbacks. |
+| **`drs.ts`** | `MIN_TRUST_SCORE = 0`<br>`MAX_TRUST_SCORE = 900`<br>`IST_OFFSET_MS = 19_800_000` (UTC+5:30)<br>`DRS_DEAL_CAP_LIMITED_PAISE = 500_000`<br>`DRS_DEAL_CAP_NORMAL_PAISE = 2_500_000` | Reputation score bounds 0–900; Indian Standard Time synchronization.<br>Limited tier deal cap: ₹5,000; Normal tier: ₹25,000; Trusted: ₹1,00,000. |
+| **`files.ts`** | `MAX_IMAGE_SIZE_BYTES = 5MB`<br>`MAX_DOCUMENT_SIZE_BYTES = 10MB`<br>`MAX_VIDEO_SIZE_BYTES = 50MB`<br>`MAX_DELIVERABLE_SIZE_BYTES = 100MB` | File upload limits strictly enforced across S3/Supabase upload presigned routes and UI dropzones. |
+| **`network.ts`** | `SMS_GATEWAY_TIMEOUT_MS = 15_000`<br>`IPINFO_TIMEOUT_MS = 3_000`<br>`CRON_LOCK_KEYS.CONTENT_AUTO_APPROVE`<br>`CRON_LOCK_TTLS.AUTO_APPROVE = 300` | Outgoing HTTP timeouts prevent hung worker threads.<br>Centralized Redis distributed lock keys with 5-minute TTL prevent concurrent cron overlap. |
+| **`ui.ts`** | `DEFAULT_TOAST_DURATION_MS = 5000`<br>`SHORT_TOAST_DURATION_MS = 3000`<br>`COPIED_FEEDBACK_DURATION_MS = 2000`<br>`NAVIGATION_REDIRECT_DELAY_MS = 2000` | Uniform notification auto-dismiss and navigation transition timings. |
+
 ---
 
-## 26. Product Roadmap (2026 – 2027)
+## 27. Product Roadmap (2026 – 2027)
 
-### Phase 1: AI Vision Content Verification (Q4 2026)
+### [Planned] Phase 1: AI Vision Content Verification (Q4 2026)
 - Automated vision-model inspection of submitted video deliverables for mandatory brand logo visibility, hashtag placement, and paid partnership disclosures.
 - Vector embedding based creator-campaign semantic matchmaking.
 
-### Phase 2: Native Mobile Applications (Q1 2027)
+### [Planned] Phase 2: Native Mobile Applications (Q1 2027)
 - React Native / Expo apps for iOS and Android sharing TypeScript schemas and state machine logic.
 - Biometric verification (FaceID / Fingerprint) for high-value wallet withdrawals.
 
-### Phase 3: Cross-Border & Vernacular Expansion (Q2 2027)
+### [Planned] Phase 3: Cross-Border Platform Expansion (Q2 2027)
 - Multi-currency escrow (USD, AED, SGD, EUR) for cross-border creator contracts.
-- Localization for 8 major Indian vernacular languages (Hindi, Marathi, Tamil, Telugu, Bengali, Gujarati, Kannada, Punjabi).
+- Global creator payout routing via international wire and multi-currency bank accounts.
 
 ---
 

@@ -7,6 +7,11 @@ import { logger } from "@/lib/logger";
 import { sendDealNotificationEmail } from "@/lib/email";
 import { NotificationService } from "@/services/notification.service";
 import { transitionDealState } from "@/lib/deal-state-machine";
+import {
+  DEFAULT_BRAND_REVIEW_PERIOD_HOURS,
+  CRON_LOCK_KEYS,
+  CRON_LOCK_TTLS,
+} from "@/constants";
 
 async function sendAutoApproveEmails(deal: ExpiredDealCandidate) {
 try {
@@ -29,7 +34,7 @@ if (brandUser?.email) {
 await sendDealNotificationEmail(
 brandUser.email,
 deal.campaign.title,
-`Content for "${deal.campaign.title}" was auto-approved because your ${deal.reviewPeriodHours ?? 48}-hour brand review window expired.`
+`Content for "${deal.campaign.title}" was auto-approved because your ${deal.reviewPeriodHours ?? DEFAULT_BRAND_REVIEW_PERIOD_HOURS}-hour brand review window expired.`
 );
 }
 } catch (mailErr) {
@@ -59,7 +64,7 @@ data: { status: "APPROVED", reviewedAt: now },
       fromState: "CONTENT_SUBMITTED",
       toState: "CONTENT_APPROVED",
       actor: { userId: "SYSTEM_AUTO_APPROVE", role: "SYSTEM" },
-      reason: `Auto-approved by system because ${deal.reviewPeriodHours ?? 48}-hour brand review window expired without action.`,
+      reason: `Auto-approved by system because ${deal.reviewPeriodHours ?? DEFAULT_BRAND_REVIEW_PERIOD_HOURS}-hour brand review window expired without action.`,
       metadata: {
         autoApproved: true,
         submissionId: latestSubmission.id,
@@ -137,7 +142,7 @@ async function processBatchOfCandidateDeals(
 
   const expiredDeals = candidateDeals.filter((deal) => {
     if (!deal.submittedAt) return false;
-    const reviewHours = deal.reviewPeriodHours ?? 48;
+    const reviewHours = deal.reviewPeriodHours ?? DEFAULT_BRAND_REVIEW_PERIOD_HOURS;
     const reviewWindowMs =
       reviewHours <= 0 ? 0 : Math.max(reviewHours, 1) * 60 * 60 * 1000;
     return now.getTime() - deal.submittedAt.getTime() >= reviewWindowMs;
@@ -164,8 +169,8 @@ async function processBatchOfCandidateDeals(
 }
 
 export async function autoApproveExpiredContent(now: Date = new Date()) {
-  const lockKey = "cron:auto_approve_expired_content:lock";
-  const lockToken = await acquireDistributedLock(lockKey, 300);
+  const lockKey = CRON_LOCK_KEYS.CONTENT_AUTO_APPROVE;
+  const lockToken = await acquireDistributedLock(lockKey, CRON_LOCK_TTLS.AUTO_APPROVE);
   if (!lockToken) {
     logger.info("autoApproveExpiredContent already running, skipping to avoid race condition.");
     return { processed: 0, skipped: 0, scanned: 0, locked: true };
@@ -182,7 +187,7 @@ export async function autoApproveExpiredContent(now: Date = new Date()) {
 
     while (hasMore) {
       // Extend the lock for another 5 minutes during processing to prevent expiration under heavy backlog
-      await extendDistributedLock(lockKey, lockToken, 300);
+      await extendDistributedLock(lockKey, lockToken, CRON_LOCK_TTLS.AUTO_APPROVE);
 
       const candidateDeals = await prisma.deal.findMany({
         where: {

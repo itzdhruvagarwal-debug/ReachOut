@@ -1,8 +1,24 @@
 /**
-* Digital Reputation Score (DRS) Calculator
-* Advanced rule-based system for calculating user reputation.
+ * Digital Reputation Score (DRS) Calculator
+ * Advanced rule-based system for calculating user reputation.
  * Replaces the legacy Trust Score system.
  */
+
+import {
+  MIN_TRUST_SCORE,
+  MAX_TRUST_SCORE,
+  IST_OFFSET_MS,
+  DRS_TIER_FLAGGED_MAX,
+  DRS_TIER_LIMITED_MAX,
+  DRS_TIER_NORMAL_MAX,
+  DRS_TIER_TRUSTED_MAX,
+  DRS_DEAL_CAP_FLAGGED_PAISE,
+  DRS_DEAL_CAP_LIMITED_PAISE,
+  DRS_DEAL_CAP_NORMAL_PAISE,
+  DRS_DEAL_CAP_TRUSTED_PAISE,
+  DRS_DEAL_CAP_ELITE_PAISE,
+  DRS_QUALIFIED_DEAL_VALUE_PAISE,
+} from "@/constants";
 
 export interface InfluencerDRSFactors {
 completedDeals: number;
@@ -40,14 +56,14 @@ reason: string;
  * Clamp DRS score between 0 and 900.
  */
 export function clampDRSScore(score: number): number {
-  return Math.max(0, Math.min(900, Math.round(score)));
+  return Math.max(MIN_TRUST_SCORE, Math.min(MAX_TRUST_SCORE, Math.round(score)));
 }
 
 /**
  * Returns UTC timestamp for start of day (00:00:00.000) in Indian Standard Time (IST).
  */
 export function getISTStartOfDay(date: Date = new Date()): Date {
-  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istOffset = IST_OFFSET_MS;
   const todayIST = new Date(date.getTime() + istOffset);
   todayIST.setUTCHours(0, 0, 0, 0);
   return new Date(todayIST.getTime() - istOffset);
@@ -57,16 +73,16 @@ export function getDRSTierAndLimit(score: number): {
 tier: DRSResult["tier"];
 maxDealAmount: number;
 } {
-if (score <= 450) {
-return { tier: "FLAGGED", maxDealAmount: 0 };
-} else if (score < 550) {
-return { tier: "LIMITED", maxDealAmount: 500000 }; // 5K
-} else if (score <= 750) {
-return { tier: "NORMAL", maxDealAmount: 2500000 }; // 25K
-} else if (score <= 850) {
-return { tier: "TRUSTED", maxDealAmount: 10000000 }; // 1L
+if (score <= DRS_TIER_FLAGGED_MAX) {
+return { tier: "FLAGGED", maxDealAmount: DRS_DEAL_CAP_FLAGGED_PAISE };
+} else if (score < DRS_TIER_LIMITED_MAX) {
+return { tier: "LIMITED", maxDealAmount: DRS_DEAL_CAP_LIMITED_PAISE };
+} else if (score <= DRS_TIER_NORMAL_MAX) {
+return { tier: "NORMAL", maxDealAmount: DRS_DEAL_CAP_NORMAL_PAISE };
+} else if (score <= DRS_TIER_TRUSTED_MAX) {
+return { tier: "TRUSTED", maxDealAmount: DRS_DEAL_CAP_TRUSTED_PAISE };
 } else {
-return { tier: "ELITE", maxDealAmount: -1 }; // Unlimited
+return { tier: "ELITE", maxDealAmount: DRS_DEAL_CAP_ELITE_PAISE };
 }
 }
 
@@ -76,7 +92,7 @@ function applyInfluencerBonuses(
   weights?: Record<string, number>,
 ) {
   const dealWeight = weights?.DEAL_EXPERIENCE_WEIGHT ?? 15;
-  const qualifiedDeals = Math.min(factors.completedDeals, Math.floor(factors.totalEarningsPaise / 500000));
+  const qualifiedDeals = Math.min(factors.completedDeals, Math.floor(factors.totalEarningsPaise / DRS_QUALIFIED_DEAL_VALUE_PAISE));
   const dealBonus = qualifiedDeals * dealWeight;
   if (dealBonus > 0) {
     state.score += dealBonus;
