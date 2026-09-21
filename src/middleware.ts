@@ -391,12 +391,7 @@ const { pathname } = req.nextUrl;
 const session = req.auth;
 
 const redirectTo = (targetPath: string) => {
-  const configured =
-    process.env.NEXTAUTH_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.APP_BASE_URL ||
-    req.nextUrl.origin;
-  return new URL(targetPath, configured);
+  return new URL(targetPath, req.nextUrl.origin);
 };
 
 // Helper to apply CSP headers to response

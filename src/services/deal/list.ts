@@ -20,7 +20,14 @@ const limit = Math.min(50, Math.max(1, params.limit || 10));
 
 const where: Prisma.DealWhereInput = { deletedAt: null };
 
-if (params.status) where.status = params.status as DealStatus;
+if (params.status) {
+  const normalized = params.status.trim().toUpperCase();
+  if (normalized === "ACTIVE") {
+    where.status = { in: ACTIVE_DEAL_STATUSES as DealStatus[] };
+  } else if (Object.values(DealStatus).includes(normalized as DealStatus)) {
+    where.status = normalized as DealStatus;
+  }
+}
 
 // Scope by user type
 const statsWhere: Prisma.DealWhereInput = { deletedAt: null };
