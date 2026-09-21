@@ -142,10 +142,12 @@ export default function WalletPage() {
 
   const handleAddFunds = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // Capture form reference synchronously before any `await` —
+    // React nullifies e.currentTarget after the first async suspension point.
+    const form = e.currentTarget;
     const fresh = await requireFreshSession();
     if (!fresh) return;
 
-    const form = e.currentTarget;
     const amountInput = form.elements.namedItem("amount") as HTMLInputElement;
     const amountRupees = parseFloat(amountInput.value);
 
@@ -161,21 +163,34 @@ export default function WalletPage() {
         throw new Error("Unable to connect to payment gateway. Please check your connection.");
       }
 
-      const orderData = (await apiClient.wallet.addFunds(Math.round(amountRupees * 100))) as {
+      // Generate a per-attempt idempotency key: "topup_<timestamp>_<random8hex>"
+      // Matches the server regex: ^[A-Za-z0-9:_-]{16,128}$
+      const idempotencyKey =
+        `topup_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+
+      const orderData = (await apiClient.wallet.addFunds(
+        Math.round(amountRupees * 100),
+        idempotencyKey,
+      )) as {
         data?: { amount: number; orderId: string };
+        orderId?: string;
+        amount?: number;
       };
 
-      if (!orderData?.data?.orderId) {
+      if (!orderData?.data?.orderId && !orderData?.orderId) {
         throw new Error("Failed to initialize payment order");
       }
 
+      const resolvedOrderId = orderData.data?.orderId ?? orderData.orderId!;
+      const resolvedAmount  = orderData.data?.amount  ?? orderData.amount!;
+
       const rzp = new window.Razorpay({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
-        amount: orderData.data.amount,
+        amount: resolvedAmount,
         currency: "INR",
         name: "VyaparMedia Marketplace",
         description: "Wallet Balance Top-Up",
-        order_id: orderData.data.orderId,
+        order_id: resolvedOrderId,
 
         handler: async (paymentResponse: {
           razorpay_payment_id?: string;

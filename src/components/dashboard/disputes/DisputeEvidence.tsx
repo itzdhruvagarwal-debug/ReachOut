@@ -1,160 +1,193 @@
 "use client";
 
 import React from "react";
-import { Card, Button, Select, Input, Textarea } from "@/components/ui";
+import { Button, Select, Input, Textarea } from "@/components/ui";
 import { DisputeDetail } from "./DisputeHelpers";
 import { formatDate } from "@/lib/utils-client";
+import { Paperclip, ExternalLink, Plus, X, FileText, CheckCircle2 } from "lucide-react";
 
 interface DisputeEvidenceProps {
-readonly dispute: DisputeDetail;
-readonly showEvidenceForm: boolean;
-readonly setShowEvidenceForm: (show: boolean) => void;
-readonly evidenceType: string;
-readonly setEvidenceType: (type: string) => void;
-readonly evidenceUrl: string;
-readonly setEvidenceUrl: (url: string) => void;
-readonly evidenceDesc: string;
-readonly setEvidenceDesc: (desc: string) => void;
-readonly onSubmit: (e: React.FormEvent) => void;
-readonly isSubmitting: boolean;
+  readonly dispute: DisputeDetail;
+  readonly showEvidenceForm: boolean;
+  readonly setShowEvidenceForm: (show: boolean) => void;
+  readonly evidenceType: string;
+  readonly setEvidenceType: (type: string) => void;
+  readonly evidenceUrl: string;
+  readonly setEvidenceUrl: (url: string) => void;
+  readonly evidenceDesc: string;
+  readonly setEvidenceDesc: (desc: string) => void;
+  readonly onSubmit: (e: React.FormEvent) => void;
+  readonly isSubmitting: boolean;
 }
 
 export function DisputeEvidence({
-dispute,
-showEvidenceForm,
-setShowEvidenceForm,
-evidenceType,
-setEvidenceType,
-evidenceUrl,
-setEvidenceUrl,
-evidenceDesc,
-setEvidenceDesc,
-onSubmit,
-isSubmitting,
+  dispute,
+  showEvidenceForm,
+  setShowEvidenceForm,
+  evidenceType,
+  setEvidenceType,
+  evidenceUrl,
+  setEvidenceUrl,
+  evidenceDesc,
+  setEvidenceDesc,
+  onSubmit,
+  isSubmitting,
 }: Readonly<DisputeEvidenceProps>) {
-return (
-<Card>
-<div className="section-header-row mb-4 flex justify-between items-center">
-<h2 className="section-title text-lg font-bold mb-0 flex items-center gap-2">
-  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4.5 h-4.5 text-blue-500">
-    <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-  </svg>
-  Evidence
-</h2>
-{["OPEN", "TIER1_AUTO", "TIER2_MEDIATION"].includes(
-dispute.status,
-) && (
-<Button
-variant="secondary"
-size="sm"
-onClick={() => setShowEvidenceForm(!showEvidenceForm)}
->
-{showEvidenceForm ? "Cancel" : "+ Add Evidence"}
-</Button>
-)}
-</div>
+  const canAddEvidence = ["OPEN", "TIER1_AUTO", "TIER2_MEDIATION"].includes(dispute.status);
+  const evidenceList = dispute.evidence || [];
 
-{showEvidenceForm && (
-<form
-onSubmit={onSubmit}
-className="card mb-6 p-4 bg-tertiary"
->
-<Select
-  label="Type"
-  id="evidence-type-select"
-  value={evidenceType}
-  onChange={(e) => setEvidenceType(e.target.value)}
-  className="mb-3"
-  fullWidth
->
-  <option value="CONTRACT">Contract / Agreement</option>
-  <option value="DELIVERABLE">Deliverable / Content File</option>
-  <option value="CHAT_LOG">Chat Log / Messages</option>
-  <option value="PAYMENT_PROOF">Payment Proof</option>
-  <option value="OTHER">Other</option>
-</Select>
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
+      {/* Header Row */}
+      <div className="flex justify-between items-center pb-2 border-b border-border/60">
+        <div className="flex items-center gap-2">
+          <Paperclip className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-bold text-foreground">Evidence Vault</h2>
+          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
+            {evidenceList.length}
+          </span>
+        </div>
 
-<Input
-label="URL"
-id="evidence-url-input"
-type="url"
-placeholder="https://drive.google.com/..."
-value={evidenceUrl}
-onChange={(e) => setEvidenceUrl(e.target.value)}
-className="mb-3"
-fullWidth
-required
-/>
+        {canAddEvidence && (
+          <Button
+            variant={showEvidenceForm ? "secondary" : "primary"}
+            size="sm"
+            onClick={() => setShowEvidenceForm(!showEvidenceForm)}
+            className="flex items-center gap-1.5 text-xs py-1.5 px-3 rounded-xl"
+          >
+            {showEvidenceForm ? (
+              <>
+                <X className="w-3.5 h-3.5" />
+                Cancel
+              </>
+            ) : (
+              <>
+                <Plus className="w-3.5 h-3.5" />
+                Add Evidence
+              </>
+            )}
+          </Button>
+        )}
+      </div>
 
-<Textarea
-label="Description"
-id="evidence-desc-textarea"
-rows={2}
-placeholder="What does this evidence show?"
-value={evidenceDesc}
-onChange={(e) => setEvidenceDesc(e.target.value)}
-className="mb-4"
-fullWidth
-required
-/>
+      {/* Evidence Submission Form */}
+      {showEvidenceForm && (
+        <form
+          onSubmit={onSubmit}
+          className="bg-background/80 border border-border rounded-xl p-4 space-y-3 animate-fade-in"
+        >
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
+              Submit Supporting Documentation
+            </h3>
+          </div>
 
-<Button
-variant="primary"
-type="submit"
-disabled={isSubmitting}
-fullWidth
->
-{isSubmitting ? "Submitting..." : "Submit Evidence"}
-</Button>
-</form>
-)}
+          <Select
+            label="Evidence Category"
+            id="evidence-type-select"
+            value={evidenceType}
+            onChange={(e) => setEvidenceType(e.target.value)}
+            fullWidth
+          >
+            <option value="CONTRACT">Contract & Agreement Terms</option>
+            <option value="DELIVERABLE">Deliverable Video / Photo Draft</option>
+            <option value="CHAT_LOG">Platform Chat Log / Direct Agreement</option>
+            <option value="PAYMENT_PROOF">Payment or Invoice Receipt</option>
+            <option value="OTHER">Other Documentation</option>
+          </Select>
 
-{dispute.evidence.length === 0 ? (
-<p
-className="text-secondary text-sm"
->
-No evidence submitted yet.
-</p>
-) : (
-<div
-className="flex flex-col gap-3"
->
-{dispute.evidence.map((ev) => (
-<div
-key={ev.id}
-className="p-3 border-card rounded-sm"
->
-<div
-className="flex justify-between mb-1"
->
-<span className="badge">{ev.type}</span>
-<span
-className="text-secondary text-xs"
->
-{ev.submittedAt ? formatDate(ev.submittedAt) : ""}
-</span>
-</div>
-<p className="text-sm mb-2">
-{ev.description}
-</p>
-{ev.url && (
-  <a
-    href={ev.url}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="text-sm text-primary flex items-center gap-1"
-  >
-    <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
-      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-    </svg>
-    View File
-  </a>
-)}
-</div>
-))}
-</div>
-)}
-</Card>
-);
+          <Input
+            label="Evidence Direct URL"
+            id="evidence-url-input"
+            type="url"
+            placeholder="https://drive.google.com/... or https://dropbox.com/..."
+            value={evidenceUrl}
+            onChange={(e) => setEvidenceUrl(e.target.value)}
+            fullWidth
+            required
+          />
+
+          <Textarea
+            label="Context & Explanation"
+            id="evidence-desc-textarea"
+            rows={3}
+            placeholder="Explain how this document supports your position..."
+            value={evidenceDesc}
+            onChange={(e) => setEvidenceDesc(e.target.value)}
+            fullWidth
+          />
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowEvidenceForm(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={isSubmitting || !evidenceUrl}
+            >
+              {isSubmitting ? "Uploading..." : "Submit to Mediators"}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* Evidence Items List */}
+      {evidenceList.length === 0 ? (
+        <div className="text-center py-6 px-4 bg-muted/30 rounded-xl border border-dashed border-border/80">
+          <FileText className="w-8 h-8 text-muted-foreground/60 mx-auto mb-2" />
+          <p className="text-xs font-semibold text-foreground">No Evidence Files Uploaded Yet</p>
+          <p className="text-[11px] text-muted-foreground mt-0.5 max-w-xs mx-auto">
+            Both parties can upload screenshots, contract revisions, or raw media drafts to substantiate their claim.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2.5">
+          {evidenceList.map((item) => (
+            <div
+              key={item.id}
+              className="bg-background/60 border border-border/70 rounded-xl p-3 hover:border-border transition-colors space-y-1.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-muted text-foreground border border-border">
+                  {item.type.replaceAll("_", " ")}
+                </span>
+                {item.submittedAt && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {formatDate(item.submittedAt)}
+                  </span>
+                )}
+              </div>
+
+              {item.description && (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {item.description}
+                </p>
+              )}
+
+              {item.url && (
+                <div className="pt-1">
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Open Evidence File
+                  </a>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }

@@ -1,205 +1,272 @@
 "use client";
 
+import React from "react";
 import { Button } from "@/components/ui";
 import {
-MediatorAnalysis,
-DisputeDetail,
-getFindingIcon,
+  MediatorAnalysis,
+  DisputeDetail,
 } from "./DisputeHelpers";
+import {
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Scale,
+  TrendingUp,
+  TrendingDown,
+  Percent,
+} from "lucide-react";
 
 interface DisputeAnalysisCardProps {
-readonly analysis: MediatorAnalysis | null;
-readonly dispute: DisputeDetail;
-readonly canTakeAction: boolean;
-readonly actionLoading: string | null;
-readonly handleDisputeAction: (action: string) => Promise<void>;
+  readonly analysis: MediatorAnalysis | null;
+  readonly dispute: DisputeDetail;
+  readonly canTakeAction: boolean;
+  readonly actionLoading: string | null;
+  readonly handleDisputeAction: (action: string) => Promise<void>;
 }
 
 export function DisputeAnalysisCard({
-analysis,
-dispute,
-canTakeAction,
-actionLoading,
-handleDisputeAction,
+  analysis,
+  dispute,
+  canTakeAction,
+  actionLoading,
+  handleDisputeAction,
 }: Readonly<DisputeAnalysisCardProps>) {
-if (!analysis) return null;
+  if (!analysis) return null;
 
-let confidenceTone: "success" | "warning" | "danger" = "danger";
-if (analysis.confidence === "HIGH") {
-confidenceTone = "success";
-} else if (analysis.confidence === "MEDIUM") {
-confidenceTone = "warning";
-}
+  const isHighConfidence = analysis.confidence === "HIGH";
+  const isMediumConfidence = analysis.confidence === "MEDIUM";
 
-const trustTone = (value: number) => (value >= 0 ? "positive" : "negative");
-const verdictTone = (() => {
-switch (analysis.verdict) {
-case "INFLUENCER_FAVORED":
-return "influencer";
-case "BRAND_FAVORED":
-return "brand";
-case "SPLIT":
-return "warning";
-case "ESCALATE":
-return "danger";
-case "DISMISSED":
-return "muted";
-default:
-return "neutral";
-}
-})();
+  const getVerdictLabel = (verdict: string) => {
+    switch (verdict) {
+      case "INFLUENCER_FAVORED":
+        return "Influencer Favored Resolution";
+      case "BRAND_FAVORED":
+        return "Brand Favored Resolution";
+      case "SPLIT":
+        return "Split Compromise Settlement";
+      case "ESCALATE":
+        return "Escalation Recommended";
+      case "DISMISSED":
+        return "Dispute Dismissed";
+      default:
+        return verdict.replaceAll("_", " ");
+    }
+  };
 
-return (
-<div className="card mb-6 dispute-analysis-card">
-<div className="flex justify-between items-center mb-4">
-<div className="flex items-center gap-3">
-  <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6 text-blue-500">
-    <rect x="4" y="4" width="16" height="16" rx="2" />
-    <rect x="9" y="9" width="6" height="6" />
-    <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 15h3M1 9h3M1 15h3" />
-  </svg>
-<div>
-<h2 className="text-lg font-bold">AI Mediator Analysis</h2>
-<span className="text-xs text-secondary">
-Tier {analysis.tier} Auto-Resolution Engine
-</span>
-</div>
-</div>
-<span
-className="font-bold rounded-lg text-xs px-2 py-1 dispute-confidence"
-data-tone={confidenceTone}
->
-{analysis.confidence} CONFIDENCE
-</span>
-</div>
+  const getFindingIcon = (result: string) => {
+    switch (result) {
+      case "PASS":
+        return <CheckCircle2 className="w-4 h-4 text-verified flex-shrink-0" />;
+      case "FAIL":
+        return <XCircle className="w-4 h-4 text-disputed flex-shrink-0" />;
+      case "WARNING":
+        return <AlertTriangle className="w-4 h-4 text-pending flex-shrink-0" />;
+      default:
+        return <Scale className="w-4 h-4 text-muted-foreground flex-shrink-0" />;
+    }
+  };
 
-{/* Verdict */}
-{analysis.verdict && analysis.verdict !== "PENDING" && (
-<div className="p-4 mb-4 bg-tertiary rounded-md">
-<div className="text-xs text-secondary mb-1">VERDICT</div>
-<div className="text-base font-bold dispute-verdict" data-tone={verdictTone}>
-{analysis.verdict.replaceAll("_", " ")}
-</div>
-</div>
-)}
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4 mb-6">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/60">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <Sparkles className="w-4 h-4" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              AI Mediator Analysis & Proposal
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Tier {analysis.tier} Automated Escrow Resolution Engine
+            </p>
+          </div>
+        </div>
 
-{/* Explanation */}
-<div className="mb-4">
-<div className="text-xs text-secondary mb-1">EXPLANATION</div>
-<p className="text-sm leading-1-6">{analysis.explanation}</p>
-</div>
+        <span
+          className={`px-2.5 py-1 rounded-full text-xs font-bold border ${
+            isHighConfidence
+              ? "bg-verified-muted text-verified border-verified-border"
+              : isMediumConfidence
+              ? "bg-pending-muted text-pending border-pending-border"
+              : "bg-muted text-muted-foreground border-border"
+          }`}
+        >
+          {analysis.confidence} CONFIDENCE
+        </span>
+      </div>
 
-{/* Financial Outcome */}
-{(analysis.refundPercentage > 0 || analysis.influencerPayoutPercentage > 0) && (
-<div className="grid gap-3 mb-4 dispute-two-grid">
-<div className="p-3 bg-tertiary rounded-md">
-<div className="text-secondary text-xs">Brand Refund</div>
-<div className="text-xl font-bold">{analysis.refundPercentage}%</div>
-</div>
-<div className="p-3 bg-tertiary rounded-md">
-<div className="text-secondary text-xs">Influencer Payout</div>
-<div className="text-xl font-bold">{analysis.influencerPayoutPercentage}%</div>
-</div>
-</div>
-)}
-
-{/* Trust Score Changes */}
-{(analysis.trustScoreChanges.influencer !== 0 || analysis.trustScoreChanges.brand !== 0) && (
-<div className="grid gap-3 mb-4 dispute-two-grid">
-<div className="p-3 bg-tertiary rounded-md">
-<div className="text-secondary text-xs">Influencer Trust </div>
-<div
-className="text-base font-bold dispute-trust-delta"
-data-tone={trustTone(analysis.trustScoreChanges.influencer)}
->
-{analysis.trustScoreChanges.influencer >= 0 ? "+" : ""}
-{analysis.trustScoreChanges.influencer}
-</div>
-</div>
-<div className="p-3 bg-tertiary rounded-md">
-<div className="text-secondary text-xs">Brand Trust </div>
-<div
-className="text-base font-bold dispute-trust-delta"
-data-tone={trustTone(analysis.trustScoreChanges.brand)}
->
-{analysis.trustScoreChanges.brand >= 0 ? "+" : ""}
-{analysis.trustScoreChanges.brand}
-</div>
-</div>
-</div>
-)}
-
-{/* Findings */}
-{analysis.findings && analysis.findings.length > 0 && (
-<div className="mb-4">
-<div className="text-xs text-secondary mb-2">FINDINGS</div>
-<div className="flex flex-col gap-1.5">
-{analysis.findings.map((f, idx) => (
-<div
-key={f.check + "_" + idx}
-className="flex items-center gap-2 bg-tertiary px-3 py-2 rounded-md dispute-finding-row"
-data-result={f.result}
->
-<span>{getFindingIcon(f.result)}</span>
-<div className="flex-1">
-<div className="text-sm font-semibold">{f.check}</div>
-<div className="text-xs text-secondary">{f.detail}</div>
-</div>
-<span className="font-bold text-xs dispute-finding-result" data-result={f.result}>
-{f.result}
-</span>
-</div>
-))}
-</div>
-</div>
-)}
-
-{/* Action Buttons */}
-{canTakeAction && dispute.status !== "RESOLVED" && dispute.status !== "CLOSED" && (
-  <div className="flex gap-3 flex-wrap border-t border-card pt-4">
-    <Button
-      variant="primary"
-      onClick={() => {
-        if (!confirm("Accept the AI mediator's resolution? This action is final and will apply the proposed financial outcome.")) return;
-        handleDisputeAction("accept");
-      }}
-      disabled={!!actionLoading}
-      className="flex-1 flex items-center justify-center gap-2"
-    >
-      {actionLoading === "accept" ? (
-        "Processing..."
-      ) : (
-        <>
-          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-          Accept Resolution
-        </>
+      {/* Recommended Verdict Banner */}
+      {analysis.verdict && analysis.verdict !== "PENDING" && (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
+          <div className="text-[11px] font-bold text-primary uppercase tracking-wider mb-0.5">
+            Proposed Verdict
+          </div>
+          <div className="text-base font-bold text-foreground">
+            {getVerdictLabel(analysis.verdict)}
+          </div>
+        </div>
       )}
-    </Button>
-    <Button
-      variant="secondary"
-      onClick={() => {
-        if (!confirm("Reject this resolution and escalate to the next tier? You cannot undo this.")) return;
-        handleDisputeAction("reject");
-      }}
-      disabled={!!actionLoading}
-      className="flex-1 flex items-center justify-center gap-2"
-    >
-      {actionLoading === "reject" ? (
-        "Processing..."
-      ) : (
-        <>
-          <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-          Reject & Escalate
-        </>
+
+      {/* Explanation */}
+      <div className="space-y-1">
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+          Mediator Reasoning
+        </span>
+        <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed bg-muted/30 p-3.5 rounded-xl border border-border/60">
+          {analysis.explanation}
+        </p>
+      </div>
+
+      {/* Financial Split Breakdown */}
+      {(analysis.refundPercentage > 0 || analysis.influencerPayoutPercentage > 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-muted/40 border border-border rounded-xl p-3.5 space-y-1">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Percent className="w-3.5 h-3.5" />
+              Brand Refund
+            </span>
+            <div className="text-xl font-black text-foreground tabular-nums">
+              {analysis.refundPercentage}%
+            </div>
+          </div>
+          <div className="bg-muted/40 border border-border rounded-xl p-3.5 space-y-1">
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Percent className="w-3.5 h-3.5" />
+              Creator Payout
+            </span>
+            <div className="text-xl font-black text-foreground tabular-nums">
+              {analysis.influencerPayoutPercentage}%
+            </div>
+          </div>
+        </div>
       )}
-    </Button>
-  </div>
-)}
-</div>
-);
+
+      {/* Trust Score Delta Impact */}
+      {(analysis.trustScoreChanges.influencer !== 0 || analysis.trustScoreChanges.brand !== 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-muted/30 border border-border rounded-xl p-3 flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Creator Trust (DRS)</span>
+            <span
+              className={`text-xs font-bold flex items-center gap-1 ${
+                analysis.trustScoreChanges.influencer >= 0
+                  ? "text-verified"
+                  : "text-disputed"
+              }`}
+            >
+              {analysis.trustScoreChanges.influencer >= 0 ? (
+                <TrendingUp className="w-3.5 h-3.5" />
+              ) : (
+                <TrendingDown className="w-3.5 h-3.5" />
+              )}
+              {analysis.trustScoreChanges.influencer >= 0 ? "+" : ""}
+              {analysis.trustScoreChanges.influencer} pts
+            </span>
+          </div>
+
+          <div className="bg-muted/30 border border-border rounded-xl p-3 flex justify-between items-center">
+            <span className="text-xs text-muted-foreground">Brand Trust (DRS)</span>
+            <span
+              className={`text-xs font-bold flex items-center gap-1 ${
+                analysis.trustScoreChanges.brand >= 0
+                  ? "text-verified"
+                  : "text-disputed"
+              }`}
+            >
+              {analysis.trustScoreChanges.brand >= 0 ? (
+                <TrendingUp className="w-3.5 h-3.5" />
+              ) : (
+                <TrendingDown className="w-3.5 h-3.5" />
+              )}
+              {analysis.trustScoreChanges.brand >= 0 ? "+" : ""}
+              {analysis.trustScoreChanges.brand} pts
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Objective Findings Checks */}
+      {analysis.findings && analysis.findings.length > 0 && (
+        <div className="space-y-2">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+            Objective Contract & Evidence Audit
+          </span>
+          <div className="space-y-2">
+            {analysis.findings.map((f, idx) => (
+              <div
+                key={f.check + "_" + idx}
+                className="flex items-start gap-2.5 bg-background/80 border border-border/80 p-3 rounded-xl"
+              >
+                {getFindingIcon(f.result)}
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-bold text-foreground">{f.check}</div>
+                  <div className="text-[11px] text-muted-foreground leading-normal mt-0.5">
+                    {f.detail}
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-muted text-foreground border border-border">
+                  {f.result}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Action Triggers */}
+      {canTakeAction && dispute.status !== "RESOLVED" && dispute.status !== "CLOSED" && (
+        <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-border/60">
+          <Button
+            variant="primary"
+            onClick={() => {
+              if (
+                !confirm(
+                  "Accept the proposed resolution? This action is final and will disburse escrow funds accordingly."
+                )
+              )
+                return;
+              handleDisputeAction("accept");
+            }}
+            disabled={!!actionLoading}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-xs"
+          >
+            {actionLoading === "accept" ? (
+              "Processing Settlement..."
+            ) : (
+              <>
+                <CheckCircle2 className="w-4 h-4" />
+                Accept Proposed Settlement
+              </>
+            )}
+          </Button>
+
+          <Button
+            variant="secondary"
+            onClick={() => {
+              if (
+                !confirm(
+                  "Reject this recommendation and escalate to next tier? A human mediator will review."
+                )
+              )
+                return;
+              handleDisputeAction("reject");
+            }}
+            disabled={!!actionLoading}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-semibold text-xs border border-border"
+          >
+            {actionLoading === "reject" ? (
+              "Escalating..."
+            ) : (
+              <>
+                <XCircle className="w-4 h-4 text-disputed" />
+                Reject & Request Human Review
+              </>
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 }

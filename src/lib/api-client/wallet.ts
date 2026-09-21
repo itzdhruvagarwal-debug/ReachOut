@@ -67,9 +67,22 @@ export function exportTransactionsCsv(
   });
 }
 
-/** POST /api/wallet/add-funds — create Razorpay order */
-export function addFunds(amountPaise: number, options?: HttpOptions) {
-  return post("/api/wallet/add-funds", { amount: amountPaise }, options);
+/** POST /api/wallet/add-funds — create Razorpay order.
+ *  @param amountPaise  Amount in paise (e.g. 10000 for ₹100).
+ *  @param idempotencyKey  Caller-supplied key; must be 16-128 chars matching [A-Za-z0-9:_-].
+ */
+export function addFunds(amountPaise: number, idempotencyKey: string, options?: HttpOptions) {
+  return post(
+    "/api/wallet/add-funds",
+    { amount: amountPaise },
+    {
+      ...options,
+      headers: {
+        ...(options?.headers as Record<string, string> | undefined),
+        "Idempotency-Key": idempotencyKey,
+      },
+    },
+  );
 }
 
 /** POST /api/wallet/add-funds/verify — verify Razorpay payment */
