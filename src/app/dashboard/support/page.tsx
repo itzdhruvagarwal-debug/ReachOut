@@ -9,231 +9,355 @@ import { createSupportSchema } from "@/lib/validations/campaign";
 import { apiClient } from "@/lib/api-client";
 import { ApiClientError } from "@/lib/api-client/errors";
 import { formatUserError } from "@/lib/user-messages";
+import Link from "next/link";
+import {
+  Bug,
+  MessageSquareDiff,
+  Camera,
+  Trophy,
+  X,
+  AlertCircle,
+  CheckCircle2,
+  ArrowRight,
+  ShieldCheck,
+  HelpCircle,
+  Banknote,
+} from "lucide-react";
+
+/* ── Quick-help category cards ───────────────────────────────────────────── */
+const HELP_CATEGORIES = [
+  {
+    id: "bug",
+    icon: <Bug className="w-5 h-5 text-disputed" />,
+    bg: "bg-disputed-muted border-disputed-border",
+    title: "Report a Bug",
+    desc: "Something broken? Tell us and get rewarded with a badge.",
+    action: "BUG",
+  },
+  {
+    id: "payment",
+    icon: <Banknote className="w-5 h-5 text-escrow" />,
+    bg: "bg-escrow-muted border-escrow-border",
+    title: "Billing & Escrow",
+    desc: "Questions about payments, withdrawals, or escrow holds.",
+    action: "FEEDBACK",
+  },
+  {
+    id: "dispute",
+    icon: <ShieldCheck className="w-5 h-5 text-verified" />,
+    bg: "bg-verified-muted border-verified-border",
+    title: "Dispute Help",
+    desc: "Already opened a dispute? Visit the Resolution Center.",
+    href: "/dashboard/disputes",
+  },
+  {
+    id: "faq",
+    icon: <HelpCircle className="w-5 h-5 text-pending" />,
+    bg: "bg-pending-muted border-pending-border",
+    title: "FAQ & Help Center",
+    desc: "Browse categorized articles and quick answers.",
+    href: "/help",
+  },
+] as const;
+
+/* ── Main Page ────────────────────────────────────────────────────────────── */
 
 export default function SupportPage() {
-const { data: session } = useSession();
-const [type, setType] = useState<"BUG" | "FEEDBACK">("FEEDBACK");
-const [title, setTitle] = useState("");
-const [description, setDescription] = useState("");
-const [screenshotUrl, setScreenshotUrl] = useState("");
-const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
-const [loading, setLoading] = useState(false);
-const [statusMsg, setStatusMsg] = useState("");
-const [errorMsg, setErrorMsg] = useState("");
-const [badgeAwarded, setBadgeAwarded] = useState<string | null>(null);
-const fileInputRef = useRef<HTMLInputElement>(null);
+  const { data: session } = useSession();
+  const [type, setType] = useState<"BUG" | "FEEDBACK">("FEEDBACK");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [screenshotUrl, setScreenshotUrl] = useState("");
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [badgeAwarded, setBadgeAwarded] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-const file = e.target.files?.[0];
-if (!file) return;
+  const handleScreenshotUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-setUploadingScreenshot(true);
-setErrorMsg("");
-setStatusMsg("");
+    setUploadingScreenshot(true);
+    setErrorMsg("");
+    setStatusMsg("");
 
-try {
-  const data = await apiClient.upload.file(file, "feedback");
-  setScreenshotUrl(data.data?.url || data.url || "");
-} catch (err: unknown) {
-  setErrorMsg(formatUserError(err, "Screenshot upload failed. Please try again."));
-} finally {
-  setUploadingScreenshot(false);
-}
-};
+    try {
+      const data = await apiClient.upload.file(file, "feedback");
+      setScreenshotUrl(data.data?.url || data.url || "");
+    } catch (err: unknown) {
+      setErrorMsg(formatUserError(err, "Screenshot upload failed. Please try again."));
+    } finally {
+      setUploadingScreenshot(false);
+    }
+  };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setStatusMsg("");
+    setErrorMsg("");
+    setBadgeAwarded(null);
 
-const handleSubmit = async (e: React.FormEvent) => {
-e.preventDefault();
-setStatusMsg("");
-setErrorMsg("");
-setBadgeAwarded(null);
+    const validation = createSupportSchema.safeParse({
+      type,
+      title: title.trim(),
+      description: description.trim(),
+      screenshotUrl: screenshotUrl || undefined,
+    });
 
-const validation = createSupportSchema.safeParse({
-type,
-title: title.trim(),
-description: description.trim(),
-screenshotUrl: screenshotUrl || undefined,
-});
+    if (!validation.success) {
+      setErrorMsg(validation.error.issues[0]?.message || "Invalid input details.");
+      return;
+    }
 
-if (!validation.success) {
-setErrorMsg(validation.error.issues[0]?.message || "Invalid input details.");
-return;
-}
+    setLoading(true);
+    try {
+      const data = (await apiClient.users.submitFeedback({
+        type,
+        title,
+        description,
+        screenshotUrl: screenshotUrl || undefined,
+      })) as { message?: string; data?: { badgeAwarded?: string } };
 
-setLoading(true);
-try {
-  const data = (await apiClient.users.submitFeedback({
-    type,
-    title,
-    description,
-    screenshotUrl: screenshotUrl || undefined,
-  })) as { message?: string; data?: { badgeAwarded?: string } };
+      setStatusMsg(data?.message || "Submitted successfully. Thank you for your feedback!");
+      setTitle("");
+      setDescription("");
+      setScreenshotUrl("");
+      if (data?.data?.badgeAwarded) {
+        setBadgeAwarded(data.data.badgeAwarded);
+      }
+    } catch (err: unknown) {
+      setErrorMsg(formatUserError(err, "Failed to submit feedback. Please try again."));
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  setStatusMsg(data?.message || "Submitted successfully. Thank you for your feedback!");
-  setTitle("");
-  setDescription("");
-  setScreenshotUrl("");
-  if (data?.data?.badgeAwarded) {
-    setBadgeAwarded(data.data.badgeAwarded);
-  }
-} catch (err: unknown) {
-  setErrorMsg(formatUserError(err, "Failed to submit feedback. Please try again."));
-} finally {
-  setLoading(false);
-}
-};
+  return (
+    <DashboardShell user={session?.user}>
+      <div className="max-w-3xl mx-auto space-y-6 pb-12">
 
+        {/* ── Page Header ── */}
+        <div className="flex items-center gap-3 p-5 rounded-2xl bg-card border border-border shadow-sm">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+            <MessageSquareDiff className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold tracking-tight text-foreground">
+              Support &amp; Feedback Hub
+            </h1>
+            <p className="text-xs text-muted-foreground">
+              Submit bug reports or platform feedback — verified submissions earn badges!
+            </p>
+          </div>
+        </div>
 
-return (
-<DashboardShell user={session?.user}>
-<div className="max-w-680 mx-auto p-24-16">
-<header className="mb-8 text-center">
-<h1 className="font-extrabold mb-2 gradient-text text-3xl">
-Support & Feedback Hub
-</h1>
-<p className="text-secondary text-base">
-Submit bug reports or platform feedback. Verified submissions will be rewarded with badges by the admin!
-</p>
-</header>
+        {/* ── Quick Help Category Cards ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {HELP_CATEGORIES.map((cat) => {
+            const inner = (
+              <div
+                className={`group flex items-start gap-3 p-4 rounded-xl border transition-all hover:shadow-md hover:-translate-y-0.5 ${cat.bg}`}
+              >
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-card/60`}>
+                  {cat.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-foreground">{cat.title}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">
+                    {cat.desc}
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform" />
+              </div>
+            );
 
-<form onSubmit={handleSubmit} className="card grid gap-5 p-8">
-<div>
-<Select
-id="type"
-label="Submission Type"
-value={type}
-onChange={(e) => setType(e.target.value as "BUG" | "FEEDBACK")}
-fullWidth
->
-<option value="FEEDBACK">Give Platform Feedback</option>
-<option value="BUG">Report a Bug</option>
-</Select>
-</div>
+            if ("href" in cat) {
+              return (
+                <Link key={cat.id} href={cat.href}>
+                  {inner}
+                </Link>
+              );
+            }
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                className="text-left w-full"
+                onClick={() => setType(cat.action)}
+              >
+                {inner}
+              </button>
+            );
+          })}
+        </div>
 
-<div>
-<Input
-type="text"
-id="title"
-label="Title"
-value={title}
-onChange={(e) => setTitle(e.target.value)}
-placeholder={type === "BUG" ? "e.g., OTP login verification fails on step 2" : "e.g., Feature request for YouTube analytics graphs"}
-required
-fullWidth
-/>
-</div>
+        {/* ── Submission Form ── */}
+        <div className="bg-card border border-border rounded-2xl shadow-sm overflow-hidden">
+          {/* Form header */}
+          <div className="px-5 py-4 border-b border-border bg-muted/30 flex items-center gap-2">
+            <MessageSquareDiff className="w-4 h-4 text-primary" />
+            <span className="text-sm font-bold text-foreground">Submit a Report</span>
+          </div>
 
-<div>
-<Textarea
-id="description"
-label="Description"
-value={description}
-onChange={(e) => setDescription(e.target.value)}
-placeholder={
-type === "BUG"
-? "Describe the issue, steps to reproduce, and what you expected to happen..."
-: "Share your ideas, suggestions, or comments about the platform experience..."
-}
-required
-rows={5}
-fullWidth
-/>
-</div>
+          <form onSubmit={handleSubmit} className="p-5 space-y-5">
+            {/* Type selector */}
+            <Select
+              id="type"
+              label="Submission Type"
+              value={type}
+              onChange={(e) => setType(e.target.value as "BUG" | "FEEDBACK")}
+              fullWidth
+            >
+              <option value="FEEDBACK">Give Platform Feedback</option>
+              <option value="BUG">Report a Bug</option>
+            </Select>
 
-<div>
-<label htmlFor="screenshot-file-input" className="block font-semibold mb-2 text-sm">
-Screenshot (Optional)
-</label>
-{screenshotUrl ? (
-<div className="flex items-center gap-3 p-3 bg-tertiary rounded-md border-card">
-<Image src={screenshotUrl} alt="Uploaded screenshot" width={48} height={48} unoptimized className="object-cover rounded-sm" />
-<div className="flex-1 overflow-hidden text-sm whitespace-nowrap text-ellipsis">
-Screenshot uploaded successfully
-</div>
-<Button
-type="button"
-aria-label="Remove uploaded screenshot"
-onClick={() => setScreenshotUrl("")}
-variant="ghost"
-className="font-semibold text-rose"
->
-Remove
-</Button>
-</div>
-) : (
-<div>
-<Button
-type="button"
-aria-label="Upload screenshot for your report"
-disabled={uploadingScreenshot}
-onClick={() => fileInputRef.current?.click()}
-variant="ghost"
-className="w-full p-3 text-secondary text-center font-semibold border-dashed flex items-center justify-center"
->
-{uploadingScreenshot ? (
-"Uploading screenshot..."
-) : (
-<span className="flex items-center justify-center gap-2">
-<svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
-<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-<circle cx="12" cy="13" r="3" />
-</svg>
-Upload Screenshot (Max 5MB)
-</span>
-)}
-</Button>
-<Input
-type="file"
-id="screenshot-file-input"
-ref={fileInputRef}
-onChange={handleScreenshotUpload}
-accept="image/png, image/jpeg, image/webp, image/gif"
-className="hidden"
-/>
-</div>
-)}
-</div>
+            {/* Title */}
+            <Input
+              type="text"
+              id="title"
+              label="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={
+                type === "BUG"
+                  ? "e.g., OTP login verification fails on step 2"
+                  : "e.g., Feature request for YouTube analytics graphs"
+              }
+              required
+              fullWidth
+            />
 
-{errorMsg && (
-<div role="alert" aria-live="assertive" className="p-3 text-sm rounded-sm text-rose bg-rose-subtle">
-{errorMsg}
-</div>
-)}
+            {/* Description */}
+            <Textarea
+              id="description"
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder={
+                type === "BUG"
+                  ? "Describe the issue, steps to reproduce, and what you expected to happen..."
+                  : "Share your ideas, suggestions, or comments about the platform experience..."
+              }
+              required
+              rows={5}
+              fullWidth
+            />
 
-{statusMsg && (
-<div role="status" aria-live="polite" className="p-3 text-sm rounded-sm text-emerald bg-emerald-subtle">
-{statusMsg}
-</div>
-)}
+            {/* Screenshot upload */}
+            <div>
+              <label htmlFor="screenshot-file-input" className="block text-sm font-semibold text-foreground mb-2">
+                Screenshot{" "}
+                <span className="text-muted-foreground font-normal">(Optional)</span>
+              </label>
 
-{badgeAwarded && (
-<div className="flex items-center gap-4 p-4 rounded-md badge-earning-panel">
-<svg width={36} height={36} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-9 h-9 text-amber flex-shrink-0">
-<path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-<path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-<path d="M4 22h16" />
-<path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34" />
-<path d="M12 2a5 5 0 0 1 5 5v3.5a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z" />
-</svg>
-<div>
-<h4 className="font-extrabold text-amber">New Badge Earned!</h4>
-<p className="text-sm text-primary mt-1">
-You earned the <strong>{badgeAwarded === "bug_reporter" ? "Bug Reporter" : "Feedback Giver"}</strong> badge! Check it in your Badges tab.
-</p>
-</div>
-</div>
-)}
+              {screenshotUrl ? (
+                <div className="flex items-center gap-3 p-3 bg-verified-muted border border-verified-border rounded-xl">
+                  <Image
+                    src={screenshotUrl}
+                    alt="Uploaded screenshot"
+                    width={48}
+                    height={48}
+                    unoptimized
+                    className="object-cover rounded-lg"
+                  />
+                  <div className="flex-1 min-w-0 text-sm text-foreground font-medium">
+                    Screenshot uploaded
+                  </div>
+                  <Button
+                    type="button"
+                    aria-label="Remove uploaded screenshot"
+                    onClick={() => setScreenshotUrl("")}
+                    variant="ghost"
+                    size="sm"
+                    className="text-disputed hover:text-disputed gap-1"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Remove
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Upload screenshot for your report"
+                  disabled={uploadingScreenshot}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-border bg-muted/20 text-muted-foreground text-sm font-medium hover:bg-muted/40 hover:border-primary/40 hover:text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Camera className="w-4 h-4" />
+                  {uploadingScreenshot ? "Uploading screenshot..." : "Upload Screenshot (Max 5MB)"}
+                </button>
+              )}
 
-<Button
-type="submit"
-disabled={loading || uploadingScreenshot}
-variant="primary"
-className="justify-center font-bold p-3.5"
->
-{loading ? "Submitting..." : "Submit to Support"}
-</Button>
-</form>
-</div>
-</DashboardShell>
-);
+              <Input
+                type="file"
+                id="screenshot-file-input"
+                ref={fileInputRef}
+                onChange={handleScreenshotUpload}
+                accept="image/png, image/jpeg, image/webp, image/gif"
+                className="hidden"
+              />
+            </div>
+
+            {/* Error message */}
+            {errorMsg && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="flex items-start gap-2 p-3 rounded-xl bg-disputed-muted border border-disputed-border text-disputed text-sm"
+              >
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                {errorMsg}
+              </div>
+            )}
+
+            {/* Success message */}
+            {statusMsg && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="flex items-start gap-2 p-3 rounded-xl bg-verified-muted border border-verified-border text-verified text-sm"
+              >
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                {statusMsg}
+              </div>
+            )}
+
+            {/* Badge awarded celebration */}
+            {badgeAwarded && (
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-pending-muted border border-pending-border">
+                <Trophy className="w-8 h-8 text-pending shrink-0" />
+                <div>
+                  <h4 className="text-sm font-extrabold text-pending">New Badge Earned! 🎉</h4>
+                  <p className="text-xs text-foreground mt-0.5">
+                    You earned the{" "}
+                    <strong>
+                      {badgeAwarded === "bug_reporter" ? "Bug Reporter" : "Feedback Giver"}
+                    </strong>{" "}
+                    badge! Check it in your{" "}
+                    <Link href="/dashboard/badges" className="text-primary underline underline-offset-2">
+                      Badges tab
+                    </Link>
+                    .
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Submit */}
+            <Button
+              type="submit"
+              disabled={loading || uploadingScreenshot}
+              variant="primary"
+              className="w-full justify-center font-bold"
+            >
+              {loading ? "Submitting..." : "Submit to Support"}
+            </Button>
+          </form>
+        </div>
+      </div>
+    </DashboardShell>
+  );
 }

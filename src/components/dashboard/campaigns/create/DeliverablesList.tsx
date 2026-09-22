@@ -98,8 +98,8 @@ export function DeliverablesList({
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
                     isYoutube
-                      ? "bg-red-500/10 text-red-600"
-                      : "bg-pink-500/10 text-pink-600"
+                      ? "bg-disputed-muted text-disputed"
+                      : "bg-pink-500/10 text-pink-600 dark:bg-pink-500/15 dark:text-pink-400"
                   }`}
                 >
                   {isYoutube ? (

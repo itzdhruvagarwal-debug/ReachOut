@@ -2,95 +2,159 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import prisma from "@/lib/db";
 import { Button, Input, Textarea } from "@/components/ui";
+import {
+  Mail,
+  Users,
+  CheckCircle2,
+  Clock,
+  Send,
+  AlertTriangle,
+  FileCode,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
+export const metadata = {
+  title: "Send Newsletter | Admin",
+  description: "Compose and broadcast newsletters to verified blog subscribers",
+};
+
 async function getSubscriberStats() {
-const total = await prisma.blogSubscriber.count();
-const verified = await prisma.blogSubscriber.count({ where: { verified: true } });
-const unverified = total - verified;
-return { total, verified, unverified };
+  const total = await prisma.blogSubscriber.count();
+  const verified = await prisma.blogSubscriber.count({ where: { verified: true } });
+  const unverified = total - verified;
+  return { total, verified, unverified };
 }
 
 export default async function AdminNewsletterPage() {
-const session = await auth();
-if (!session?.user) redirect("/login");
+  const session = await auth();
+  if (!session?.user) redirect("/login");
 
-const stats = await getSubscriberStats();
+  const stats = await getSubscriberStats();
 
-return (
-<div className="admin-page">
-<div className="admin-toolbar mb-6">
-<div>
-<h1 className="text-3xl font-extrabold mb-1">
-Send Newsletter
-</h1>
-<p className="text-secondary text-sm">
-Compose and send newsletters to verified blog subscribers.
-</p>
-</div>
-</div>
+  return (
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+          <Mail className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground">
+            Send Newsletter
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Compose and broadcast newsletters to verified VyaparMedia subscribers.
+          </p>
+        </div>
+      </div>
 
-<div className="grid gap-4 mb-6 grid-auto-240">
-<div className="card admin-newsletter-stat">
-<div className="text-muted text-xs mb-1">Total Subscribers</div>
-<div className="text-3xl font-extrabold text-primary-light">{stats.total}</div>
-</div>
-<div className="card admin-newsletter-stat">
-<div className="text-muted text-xs mb-1">Verified Subscribers</div>
-<div className="text-3xl font-extrabold text-emerald">{stats.verified}</div>
-</div>
-<div className="card admin-newsletter-stat">
-<div className="text-muted text-xs mb-1">Pending Verification</div>
-<div className="text-3xl font-extrabold text-amber">{stats.unverified}</div>
-</div>
-</div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-5 rounded-2xl bg-card border border-border">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Total Subscribers
+            </span>
+            <Users className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div className="text-3xl font-black text-foreground mt-2">
+            {stats.total}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Registered reader base
+          </div>
+        </div>
 
-<div className="card p-6">
-<form action="/api/admin/newsletter" method="POST">
-<div className="mb-5">
-<Input
-type="text"
-id="subject"
-name="subject"
-label="Subject Line"
-required
-placeholder="e.g., New Guide: TDS Compliance for Influencers"
-fullWidth
-/>
-</div>
+        <div className="p-5 rounded-2xl bg-card border border-border">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Verified Subscribers
+            </span>
+            <CheckCircle2 className="w-4 h-4 text-verified" />
+          </div>
+          <div className="text-3xl font-black text-verified mt-2">
+            {stats.verified}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Active email recipients
+          </div>
+        </div>
 
-<div className="mb-5">
-<Textarea
-id="content"
-name="content"
-label="Content (HTML supported)"
-required
-rows={12}
-className="text-sm resize-y admin-newsletter-content"
-placeholder="Enter your newsletter content here. You can use HTML tags for formatting."
-fullWidth
-/>
-<p className="text-muted text-xs mt-1">
-Tip: Use &lt;p&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;a&gt;, &lt;ul&gt;, &lt;li&gt; for basic formatting.
-</p>
-</div>
+        <div className="p-5 rounded-2xl bg-card border border-border">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Pending Verification
+            </span>
+            <Clock className="w-4 h-4 text-warning" />
+          </div>
+          <div className="text-3xl font-black text-warning mt-2">
+            {stats.unverified}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Awaiting email link click
+          </div>
+        </div>
+      </div>
 
-<div className="card-gradient mb-6 rounded-md admin-newsletter-warning">
-<p className="text-sm font-semibold text-amber leading-normal">
-Warning: This will send an email to {stats.verified} verified subscribers immediately. Make sure to test your content before sending.
-</p>
-</div>
+      {/* Form Card */}
+      <div className="p-6 sm:p-8 rounded-2xl bg-card border border-border space-y-6">
+        <form action="/api/admin/newsletter" method="POST" className="space-y-6">
+          <div className="space-y-2">
+            <Input
+              type="text"
+              id="subject"
+              name="subject"
+              label="Subject Line"
+              required
+              placeholder="e.g., New Guide: TDS & GST Compliance for Influencers"
+              fullWidth
+            />
+          </div>
 
-<Button
-type="submit"
-variant="primary"
-className="w-full justify-center font-extrabold admin-newsletter-submit"
->
-Send Newsletter to {stats.verified} Subscribers
-</Button>
-</form>
-</div>
-</div>
-);
+          <div className="space-y-2">
+            <Textarea
+              id="content"
+              name="content"
+              label="Newsletter Content (HTML supported)"
+              required
+              rows={12}
+              className="text-sm font-mono resize-y"
+              placeholder="<h1>Hello Creators,</h1><p>Here is your weekly roundup of brand deals and legal escrow insights...</p>"
+              fullWidth
+            />
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
+              <FileCode className="w-3.5 h-3.5" />
+              <span>
+                Tip: Standard HTML tags like &lt;p&gt;, &lt;strong&gt;, &lt;em&gt;, &lt;a&gt;, &lt;ul&gt;, and &lt;li&gt; are supported.
+              </span>
+            </div>
+          </div>
+
+          {/* Broadcast Confirmation / Warning Alert */}
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border border-warning-border text-foreground">
+            <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed">
+              <span className="font-bold text-warning block mb-0.5">
+                Production Broadcast Notice
+              </span>
+              This action will dispatch transactional emails immediately to all{" "}
+              <strong>{stats.verified}</strong> verified subscribers via Resend/SMTP. Please proofread thoroughly before broadcasting.
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            className="w-full justify-center gap-2 font-black shadow-md"
+            disabled={stats.verified === 0}
+          >
+            <Send className="w-4 h-4" />
+            Broadcast Newsletter to {stats.verified} Subscribers
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
 }

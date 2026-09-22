@@ -1,46 +1,33 @@
 /**
-* Route-level Suspense skeleton for Admin Applications page.
-*/
+ * Route-level Suspense skeleton for Admin Applications page.
+ */
 export default function AdminApplicationsLoading() {
-return (
-<div className="admin-page" aria-hidden="true">
-<div className="admin-toolbar mb-6">
-<div>
-<div className="skeleton h-9 w-52 rounded-md mb-2" />
-<div className="skeleton h-4 w-80 rounded-sm" />
-</div>
-<div className="skeleton h-9 w-48 rounded-md" />
-</div>
-<div className="card overflow-hidden p-0">
-<div className="admin-table-wrap">
-<table className="w-full border-collapse">
-<thead>
-<tr className="bg-secondary">
-{["Influencer", "Campaign", "Proposed Rate", "Status", "Date", "Action"].map((col) => (
-<th key={col} className="text-left border-b border-card p-4">
-<div className={`skeleton h-3 rounded-sm ${col === "Campaign" ? "w-16" : "w-12"}`} />
-</th>
-))}
-</tr>
-</thead>
-<tbody>
-{Array.from({ length: 8 }).map((_, i) => (
-<tr key={i} className="border-b border-card">
-<td className="p-card">
-<div className="skeleton h-4 w-36 rounded-sm mb-1" />
-<div className="skeleton h-3 w-44 rounded-sm" />
-</td>
-<td className="p-card"><div className="skeleton h-4 w-44 rounded-sm" /></td>
-<td className="p-card"><div className="skeleton h-4 w-20 rounded-sm" /></td>
-<td className="p-card"><div className="skeleton h-6 w-24 rounded-md" /></td>
-<td className="p-card"><div className="skeleton h-4 w-20 rounded-sm" /></td>
-<td className="p-card"><div className="skeleton h-8 w-24 rounded-md" /></td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
-</div>
-</div>
-);
+  return (
+    <div className="max-w-6xl mx-auto space-y-6" aria-hidden="true">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-8 w-56 bg-muted rounded-xl animate-pulse" />
+          <div className="h-4 w-80 bg-muted rounded-md animate-pulse" />
+        </div>
+        <div className="h-10 w-44 bg-muted rounded-xl animate-pulse" />
+      </div>
+
+      <div className="rounded-2xl bg-card border border-border overflow-hidden p-4 space-y-3">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/40 animate-pulse"
+          >
+            <div className="space-y-1.5">
+              <div className="h-4 w-36 bg-muted rounded" />
+              <div className="h-3 w-44 bg-muted rounded" />
+            </div>
+            <div className="h-4 w-40 bg-muted rounded hidden sm:block" />
+            <div className="h-6 w-20 bg-muted rounded" />
+            <div className="h-8 w-24 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

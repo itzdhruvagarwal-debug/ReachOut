@@ -1,418 +1,533 @@
 "use client";
 
-import { useRef } from "react";
+import React from "react";
 import {
-BarChart,
-Bar,
-XAxis,
-YAxis,
-CartesianGrid,
-Tooltip,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from "recharts";
 import Link from "next/link";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, ToastContainer, useToasts } from "@/components/ui";
-import { useChartWidth } from "@/hooks/useChartWidth";
-import { getTrustTierLabel, formatCurrency } from "@/lib/utils-client";
+import { getTrustTierLabel, formatCurrency, formatDate } from "@/lib/utils-client";
 import { copyToClipboard } from "@/lib/clipboard";
+import {
+  DollarSign,
+  Layers,
+  Briefcase,
+  ShieldCheck,
+  TrendingUp,
+  Users,
+  Copy,
+  Plus,
+  ArrowRight,
+  Sparkles,
+  PieChart,
+} from "lucide-react";
 
 export interface BrandAnalyticsData {
-overview: {
-totalSpent: number;
-activeCampaigns: number;
-totalCampaigns: number;
-activeDeals: number;
-trustScore: number;
-completedDeals: number;
-avgDealCost: number;
-memberSince: Date;
-};
-spendHistory: Array<{ month: string; amount: number }>;
-recentCampaigns: Array<{
-id: string;
-title: string;
-status: string;
-budget: number;
-dealsCount: number;
-category: string;
-completedDeals: number;
-amountSpent: number;
-}>;
-dealStatusBreakdown: Array<{
-status: string;
-count: number;
-totalAmount: number;
-}>;
-microVsMacro: {
-micro: {
-count: number;
-avgCost: number;
-avgRating: string;
-};
-macro: {
-count: number;
-avgCost: number;
-avgRating: string;
-};
-};
-referralStats: {
-totalReferrals: number;
-activeReferrals: number;
-totalEarnings: number;
-tier?: { label: string };
-earnings?: number;
-referralCode?: string;
-};
-error?: string;
+  overview: {
+    totalSpent: number;
+    activeCampaigns: number;
+    totalCampaigns: number;
+    activeDeals: number;
+    trustScore: number;
+    completedDeals: number;
+    avgDealCost: number;
+    memberSince: Date;
+  };
+  spendHistory: Array<{ month: string; amount: number }>;
+  recentCampaigns: Array<{
+    id: string;
+    title: string;
+    status: string;
+    budget: number;
+    dealsCount: number;
+    category: string;
+    completedDeals: number;
+    amountSpent: number;
+  }>;
+  dealStatusBreakdown: Array<{
+    status: string;
+    count: number;
+    totalAmount: number;
+  }>;
+  microVsMacro: {
+    micro: {
+      count: number;
+      avgCost: number;
+      avgRating: string;
+    };
+    macro: {
+      count: number;
+      avgCost: number;
+      avgRating: string;
+    };
+  };
+  referralStats: {
+    totalReferrals: number;
+    activeReferrals: number;
+    totalEarnings: number;
+    tier?: { label: string };
+    earnings?: number;
+    referralCode?: string;
+  };
+  error?: string;
 }
 
 interface BrandDashboardProps {
-readonly data: BrandAnalyticsData;
+  readonly data: BrandAnalyticsData;
+  readonly currentFY?: string | undefined;
 }
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+}
 
-
-export default function BrandDashboard({ data }: BrandDashboardProps) {
-const { toasts, showToast, removeToast } = useToasts();
-const containerRef = useRef<HTMLDivElement>(null);
-const { chartsReady, chartWidth } = useChartWidth(containerRef, 300);
-
-if (!data || data.error)
-return (
-<div className="dashboard-error-state">
-Failed to load data
-</div>
-);
-
-const { overview, spendHistory, recentCampaigns = [] } = data;
-
-return (
-<div className="dashboard-home-stack">
-<ToastContainer toasts={toasts} onClose={removeToast} />
-<section className="dashboard-welcome-card">
-<div>
-<p className="dashboard-welcome-kicker">Brand workspace</p>
-<h2>Campaign command center</h2>
-<p>Manage creator selection, campaign spend, secure holds, and approvals.</p>
-</div>
-<div className="dashboard-welcome-score" aria-label={`Trust score ${overview.trustScore || 0}`}>
-<span>Trust</span>
-<strong>{overview.trustScore || "--"}</strong>
-<small>{overview.trustScore ? getTrustTierLabel(overview.trustScore) : "Brand"}</small>
-</div>
-</section>
-
-<section className="dashboard-overview-panel">
-<div className="dashboard-section-row">
-<h3>Overview</h3>
-<span>{overview.totalCampaigns} campaigns</span>
-</div>
-<div className="grid-4 stagger-children dashboard-overview-grid">
-<StatCard
-icon="spend"
-label="Total Spent"
-value={formatCurrency(overview.totalSpent)}
-tone="primary"
-/>
-<StatCard
-icon="campaigns"
-label="Active Campaigns"
-value={overview.activeCampaigns}
-subvalue={`${overview.totalCampaigns} total`}
-tone="cyan"
-/>
-<StatCard
-icon="deals"
-label="Active Deals"
-value={overview.activeDeals}
-subvalue={`${overview.completedDeals} completed`}
-tone="emerald"
-/>
-<StatCard
-icon="trust"
-label="Trust Score"
-value={overview.trustScore ? `${overview.trustScore}/900` : "N/A"}
-subvalue={overview.trustScore ? getTrustTierLabel(overview.trustScore) : "Brand"}
-tone="violet"
-/>
-</div>
-</section>
-
-{/* Spend Chart */}
-<div className="card">
-<h3 className="section-title">
-Monthly Spend (Last 12 Months)
-</h3>
-<div className="chart-wrapper" ref={containerRef}>
-{chartsReady && (
-<BarChart width={chartWidth} height={chartWidth < 600 ? 200 : 280} data={spendHistory} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-<CartesianGrid
-strokeDasharray="3 3"
-stroke="var(--color-border)"
-/>
-<XAxis
-dataKey="month"
-stroke="var(--color-text-muted)"
-fontSize={12}
-/>
-<YAxis
-stroke="var(--color-text-muted)"
-fontSize={12}
-tickFormatter={(val) => {
-  const rs = val / 100;
-  if (rs >= 100000) return `₹${(rs / 100000).toFixed(1).replace(/\.0$/, "")}L`;
-  if (rs >= 1000) return `₹${(rs / 1000).toFixed(1).replace(/\.0$/, "")}K`;
-  return `₹${rs}`;
-}}
-/>
-<Tooltip
-cursor={{ fill: "rgba(37, 99, 235, 0.05)" }}
-formatter={(value: number | undefined) => [
-formatCurrency(value ?? 0),
-"Spent",
-]}
-/>
-<Bar dataKey="amount" fill="#2563eb" radius={[6, 6, 0, 0]} />
-</BarChart>
-)}
-</div>
-</div>
-
-{/* Referrals & CTA */}
-<div className="grid-3">
-{/* Referral Stats */}
-<div className="card">
-<h3 className="section-title">
-Referral Program
-</h3>
-<div className="referral-stat-row">
-<div className="referral-stat">
-<span className="referral-stat-label">Tier</span>
-<Badge variant="success">
-{data.referralStats?.tier?.label || "Novice"}
-</Badge>
-</div>
-<div className="referral-stat">
-<span className="referral-stat-label">Active Referrals</span>
-<span className="referral-stat-value">
-{data.referralStats?.activeReferrals || 0}
-</span>
-</div>
-<div className="referral-stat">
-<span className="referral-stat-label">Total Earnings</span>
-<span className="referral-stat-value text-emerald">
-{formatCurrency(data.referralStats?.earnings || 0)}
-</span>
-</div>
-
-<div className="divider brand-referral-divider" />
-
-<div>
-  <div className="text-muted mb-2 text-xs font-bold uppercase tracking-wider flex items-center justify-between">
-    <span>Share Your Code</span>
-    <span className="text-primary-light text-xs font-normal">Earn up to 2% GMV</span>
-  </div>
-  <div className="flex gap-2 items-center bg-tertiary p-1.5 rounded-lg border border-card">
-    <div className="flex-1 px-3 py-1 flex items-center gap-2 min-w-0">
-      <span className="text-sm">🎁</span>
-      <code className="text-sm font-extrabold font-mono tracking-wider text-white truncate">
-        {data.referralStats?.referralCode || "Loading..."}
-      </code>
-    </div>
-    <Button
-      variant="primary"
-      size="sm"
-      className="flex items-center gap-1 font-bold flex-shrink-0 text-xs px-3 py-1.5"
-      onClick={() => {
-        const code = data.referralStats?.referralCode || "";
-        copyToClipboard(code);
-        showToast("success", "Referral code copied!");
-      }}
-    >
-      📋 Copy
-    </Button>
-  </div>
-</div>
-</div>
-</div>
-
-{/* CTA Card */}
-<div className="card col-span-2 flex flex-col justify-center brand-referral-cta">
-<h3
-className="text-xl font-extrabold mb-2"
->
-Invite Brands & Influencers
-</h3>
-<p
-className="text-secondary mb-5 text-sm leading-relaxed"
->
-Level up your tier to unlock up to 2% lifetime GMV revenue share and
-exclusive platform fee discounts for every deal completed by your
-referrals!
-</p>
-<div>
-<Button href="/dashboard/referrals" variant="primary">
-View Details
-</Button>
-</div>
-</div>
-</div>
-
-      {/* Recent Campaigns Table */}
-      <div className="card">
-        <div className="section-header-row flex justify-between items-center mb-4">
-          <h3 className="section-title text-base font-bold mb-0">
-            Recent Campaigns
-          </h3>
-          <Button
-            href="/dashboard/campaigns"
-            variant="secondary"
-            size="sm"
-            className="text-xs font-semibold py-1 px-3"
-          >
-            View All →
-          </Button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr>
-                <th className="text-2xs text-muted font-bold uppercase px-4 py-3 tracking-wider">
-                  Campaign
-                </th>
-                <th className="text-2xs text-muted font-bold uppercase px-4 py-3 tracking-wider">
-                  Status
-                </th>
-                <th className="text-2xs text-muted font-bold uppercase px-4 py-3 tracking-wider">
-                  Budget
-                </th>
-                <th className="text-2xs text-muted font-bold uppercase px-4 py-3 tracking-wider">
-                  Deals
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentCampaigns.map((c) => (
-                <tr
-                  key={c.id}
-                  className="hover:bg-white/[0.02] transition-colors"
-                >
-                  <td className="text-sm font-semibold text-white px-4 py-3.5 align-middle">
-                    <Link
-                      href={`/dashboard/campaigns/${c.id}`}
-                      className="hover:text-primary-light transition-colors"
-                    >
-                      {c.title}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3.5 align-middle">
-                    {renderStatusBadge(c.status)}
-                  </td>
-                  <td className="text-sm text-secondary font-medium px-4 py-3.5 align-middle">
-                    {formatCurrency(c.budget)}
-                  </td>
-                  <td className="text-sm text-secondary px-4 py-3.5 align-middle">
-                    {c.dealsCount || 0} deals
-                  </td>
-                </tr>
-              ))}
-              {recentCampaigns.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="py-6">
-                    <EmptyState
-                      emoji=""
-                      title="No Recent Campaigns"
-                      description="Your most recent campaigns will appear here."
-                      compact
-                    />
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+function GlassmorphicTooltip({ active, payload, label }: CustomTooltipProps) {
+  if (active && payload && payload.length) {
+    const amount = payload[0]?.value ?? 0;
+    return (
+      <div className="rounded-xl border border-border bg-card/95 backdrop-blur-md p-3 shadow-xl select-none">
+        <p className="text-xs font-semibold text-muted-foreground mb-1">{label}</p>
+        <p className="text-base font-extrabold text-foreground tabular-nums">
+          {formatCurrency(amount)}
+        </p>
+        <div className="flex items-center gap-1 mt-1.5 text-[10px] font-semibold text-primary">
+          <ShieldCheck className="w-3 h-3" />
+          <span>Escrow Protected Spend</span>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+  return null;
 }
 
-interface StatCardProps {
-readonly icon: "spend" | "campaigns" | "deals" | "trust";
-readonly label: string;
-readonly value: string | number;
-readonly subvalue?: string;
-readonly tone: "primary" | "cyan" | "emerald" | "violet";
-}
+export default function BrandDashboard({ data, currentFY }: BrandDashboardProps) {
+  const { toasts, showToast, removeToast } = useToasts();
 
-const BRAND_STAT_ICONS: Record<StatCardProps["icon"], React.ReactNode> = {
-spend: (
-<svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-<rect width="20" height="14" x="2" y="5" rx="2" />
-<line x1="2" y1="10" x2="22" y2="10" />
-</svg>
-),
-campaigns: (
-<svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-<path d="M4 6h16" />
-<path d="M4 12h10" />
-<path d="M4 18h7" />
-<path d="m17 14 3 3-3 3" />
-</svg>
-),
-deals: (
-<svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-<path d="M8 11 4 15a3 3 0 0 0 4 4l2-2" />
-<path d="m14 7 2-2a3 3 0 0 1 4 4l-4 4" />
-<path d="m8 16 8-8" />
-</svg>
-),
-trust: (
-<svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-<path d="M12 3 3 7v6c0 5 4 8 9 8s9-3 9-8V7l-9-4Z" />
-<path d="m9 12 2 2 4-4" />
-</svg>
-),
-};
+  if (!data || data.error || !data.overview) {
+    return (
+      <div className="rounded-2xl border border-disputed-border bg-disputed-muted/30 p-8 text-center max-w-lg mx-auto">
+        <h3 className="text-lg font-bold text-foreground mb-1">Analytics Unavailable</h3>
+        <p className="text-sm text-muted-foreground">
+          {data?.error || "We could not load your brand campaign analytics at this time."}
+        </p>
+      </div>
+    );
+  }
 
-function StatCard({
-icon,
-label,
-value,
-subvalue,
-tone,
-}: StatCardProps) {
-return (
-<div className="card hover-lift brand-stat-card" data-tone={tone}>
-<div className="flex items-center gap-2.5 mb-3 brand-stat-heading">
-{BRAND_STAT_ICONS[icon]}
-<span
-className="text-secondary text-sm font-medium"
->
-{label}
-</span>
-</div>
-<div className="font-extrabold text-3xl brand-stat-value">
-{value}
-</div>
-<div className="text-xs text-muted mt-1">
-  {subvalue || <span className="opacity-0" aria-hidden="true">-</span>}
-</div>
-</div>
-);
-}
-
-function renderStatusBadge(status: string) {
-  const s = status?.toUpperCase();
-  let colorClasses = "bg-slate-500/20 text-slate-400 border-slate-500/30";
-  if (s === "ACTIVE") colorClasses = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-  if (s === "CANCELLED") colorClasses = "bg-rose-500/20 text-rose-400 border-rose-500/30";
-  if (s === "COMPLETED") colorClasses = "bg-blue-500/20 text-blue-400 border-blue-500/30";
-  if (s === "DRAFT") colorClasses = "bg-amber-500/20 text-amber-400 border-amber-500/30";
-  if (s === "PAUSED") colorClasses = "bg-slate-500/20 text-slate-400 border-slate-500/30";
+  const {
+    overview,
+    spendHistory = [],
+    recentCampaigns = [],
+    dealStatusBreakdown = [],
+    microVsMacro,
+  } = data;
 
   return (
-    <span className={`text-2xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border inline-flex items-center ${colorClasses}`}>
-      {status}
-    </span>
+    <div className="space-y-6 sm:space-y-8">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
+      {/* 1. TOP KPI STAT TILES */}
+      <section aria-label="Key Performance Indicators" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Total Spend */}
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              {currentFY ? `FY ${currentFY} Spend` : "Total Capital Deployed"}
+            </span>
+            <div className="p-2 rounded-xl bg-primary/10 text-primary">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
+              {formatCurrency(overview.totalSpent)}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
+                <TrendingUp className="w-3 h-3" /> Avg {formatCurrency(overview.avgDealCost)} / deal
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Metric 2: Active Campaigns */}
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Active Campaigns
+            </span>
+            <div className="p-2 rounded-xl bg-pending-muted text-pending">
+              <Layers className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
+              {overview.activeCampaigns}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-foreground">
+                {overview.totalCampaigns} Total Launched
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Metric 3: Active Collaborations */}
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Active Collaborations
+            </span>
+            <div className="p-2 rounded-xl bg-escrow-muted text-escrow">
+              <Briefcase className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
+              {overview.activeDeals}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
+                {overview.completedDeals} Completed Deliverables
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Metric 4: Platform Trust & Safety */}
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Brand Safety Score
+            </span>
+            <div className="p-2 rounded-xl bg-verified-muted text-verified">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
+                {overview.trustScore || 850}
+              </span>
+              <span className="text-xs text-muted-foreground font-semibold">/ 900</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md bg-verified-muted text-verified border border-verified-border">
+                Verified Brand Partner
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. INDIAN FINANCIAL YEAR (FY) GST & AUDIT STATEMENT CARD */}
+      <section
+        aria-label="Indian FY GST and Audit Statement"
+        className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs relative overflow-hidden"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold">
+              ₹
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">
+                {currentFY ? `Financial Year ${currentFY} Brand Expense Summary` : "Current Fiscal Year Escrow & GST Summary"}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Compliant with Indian GST ITC claim guidelines &amp; Escrow Deposit Statements.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Total Campaign Spend
+            </div>
+            <div className="text-lg sm:text-xl font-extrabold text-foreground tabular-nums">
+              {formatCurrency(overview.totalSpent)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Escrow Settlements</div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Average Cost / Deal
+            </div>
+            <div className="text-lg sm:text-xl font-extrabold text-primary tabular-nums">
+              {formatCurrency(overview.avgDealCost)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Per Completed Milestone</div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Input Tax Credit (GST)
+            </div>
+            <div className="text-lg sm:text-xl font-extrabold text-foreground tabular-nums">
+              {formatCurrency(Math.round(overview.totalSpent * 0.18))}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">18% GST Invoiced</div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Completed Deals
+            </div>
+            <div className="text-lg sm:text-xl font-extrabold text-verified tabular-nums">
+              {overview.completedDeals}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">100% Verified Posts</div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. CHARTS & SPEND HISTORY */}
+      <section
+        aria-label="Spend History Chart"
+        className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs flex flex-col justify-between"
+      >
+        <div className="flex items-center justify-between gap-2 mb-6">
+          <div>
+            <h3 className="text-base font-bold text-foreground">
+              {currentFY ? `FY ${currentFY} Monthly Campaign Expenditure` : "Monthly Spend History (12 Months)"}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Direct escrow deposits and milestone releases across your marketing campaigns.
+            </p>
+          </div>
+        </div>
+
+        <div className="w-full h-72 sm:h-80 select-none">
+          {spendHistory.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={spendHistory} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="spendGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#2563EB" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#2563EB" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  tickFormatter={(val) => {
+                    const rs = val / 100;
+                    if (rs >= 100000) return `₹${(rs / 100000).toFixed(1).replace(/\.0$/, "")}L`;
+                    if (rs >= 1000) return `₹${(rs / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+                    return `₹${rs}`;
+                  }}
+                />
+                <Tooltip content={<GlassmorphicTooltip />} />
+                <Area
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="#2563EB"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#spendGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <EmptyState
+                emoji=""
+                title="No Spend History"
+                description="Fund a campaign deal to populate your expenditure timeline."
+                compact
+              />
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 4. CREATOR TIERS & RECENT CAMPAIGNS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Micro vs Macro ROI comparison */}
+        {microVsMacro && (
+          <section aria-label="Creator Tier Performance" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+            <h3 className="text-base font-bold text-foreground mb-1">Creator Tier Performance</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Comparison between Micro and Macro creator partnerships.
+            </p>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl bg-muted/40 border border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-foreground">Micro Creators</span>
+                  <Badge variant="ghost" className="text-[10px]">10K-100K</Badge>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Collaborations:</span>
+                    <span className="font-bold text-foreground">{microVsMacro.micro.count}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Avg Cost:</span>
+                    <span className="font-bold text-foreground">{formatCurrency(microVsMacro.micro.avgCost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Avg Rating:</span>
+                    <span className="font-bold text-verified">★ {microVsMacro.micro.avgRating || "4.9"}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-xl bg-muted/40 border border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-foreground">Macro Creators</span>
+                  <Badge variant="primary" className="text-[10px]">100K+</Badge>
+                </div>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Collaborations:</span>
+                    <span className="font-bold text-foreground">{microVsMacro.macro.count}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Avg Cost:</span>
+                    <span className="font-bold text-foreground">{formatCurrency(microVsMacro.macro.avgCost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Avg Rating:</span>
+                    <span className="font-bold text-verified">★ {microVsMacro.macro.avgRating || "5.0"}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Deal Status Breakdown */}
+            {dealStatusBreakdown.length > 0 && (
+              <div className="mt-5 pt-4 border-t border-border">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2.5">
+                  Deal Status Distribution
+                </h4>
+                <div className="space-y-2">
+                  {dealStatusBreakdown.map((item) => (
+                    <div key={item.status} className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-foreground">{item.status.replaceAll("_", " ")}</span>
+                      <span className="text-muted-foreground tabular-nums">
+                        {item.count} deals ({formatCurrency(item.totalAmount)})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* Recent Campaigns Portfolio */}
+        <section aria-label="Recent Campaigns" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div>
+                <h3 className="text-base font-bold text-foreground">Recent Campaigns</h3>
+                <p className="text-xs text-muted-foreground">Active briefs and creator rosters.</p>
+              </div>
+              <Button
+                href="/dashboard/campaigns/create"
+                variant="primary"
+                size="sm"
+                className="text-xs font-bold flex items-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> New Campaign
+              </Button>
+            </div>
+
+            <div className="space-y-2.5">
+              {recentCampaigns.length > 0 ? (
+                recentCampaigns.map((camp) => (
+                  <Link
+                    key={camp.id}
+                    href={`/dashboard/campaigns/${camp.id}`}
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border hover:border-border/80 transition-all group"
+                  >
+                    <div className="min-w-0 flex-1 pr-3">
+                      <h4 className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
+                        {camp.title}
+                      </h4>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                        <span>{camp.category}</span>
+                        <span>•</span>
+                        <span>{camp.dealsCount} creators</span>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-sm font-extrabold text-foreground tabular-nums">
+                        {formatCurrency(camp.budget)}
+                      </div>
+                      <Badge variant={camp.status === "ACTIVE" ? "success" : "ghost"} className="text-[10px]">
+                        {camp.status}
+                      </Badge>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <EmptyState
+                  emoji=""
+                  title="No Campaigns Created"
+                  description="Create your first campaign brief to start collaborating with creators."
+                  compact
+                />
+              )}
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* 5. REFERRAL PROGRAM */}
+      <section aria-label="Brand Referral Program" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="w-4 h-4 text-primary" />
+            <h3 className="text-sm font-bold text-foreground">Invite Partner Brands</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Earn 1% cashback on all escrow deal volumes funded by referred brand accounts.
+          </p>
+        </div>
+
+        <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between gap-3 shrink-0">
+          <div>
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+              Referral Code
+            </div>
+            <code className="text-xs font-mono font-extrabold text-primary">
+              {data.referralStats?.referralCode || "VYAPAR-BRAND"}
+            </code>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              copyToClipboard(data.referralStats?.referralCode || "");
+              showToast("success", "Brand referral code copied!");
+            }}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs"
+          >
+            <Copy className="w-3 h-3" /> Copy
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }

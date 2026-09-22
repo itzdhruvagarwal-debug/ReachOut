@@ -2,13 +2,14 @@
 
 import React, { useState, useMemo, useCallback } from "react";
 import useSWR from "swr";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { createSchemaFetcher } from "@/lib/fetcher";
 import {
   creatorsListResponseSchema,
   type CreatorsListResponse,
   type RawInfluencerApiItem,
 } from "@/lib/schemas";
-import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import EmptyState from "@/components/ui/EmptyState";
 import { Button, Input } from "@/components/ui";
@@ -19,7 +20,18 @@ import {
   type CreatorDiscoveryItem,
   type DiscoveryFilters,
 } from "@/components/discovery/types";
-import { Search, SlidersHorizontal, X, RotateCcw, Sparkles } from "lucide-react";
+import {
+  Search,
+  SlidersHorizontal,
+  X,
+  RotateCcw,
+  Sparkles,
+  ShieldCheck,
+  Zap,
+  TrendingUp,
+  Flame,
+  Users,
+} from "lucide-react";
 
 const CATEGORY_CHIPS = [
   "All",
@@ -86,8 +98,6 @@ export default function DiscoverInfluencersPage() {
     if (search.trim()) params.set("search", search.trim());
     if (selectedCategory && selectedCategory !== "All") {
       params.set("category", selectedCategory);
-    } else if (filters.niche) {
-      params.set("category", filters.niche);
     }
     if (filters.city) params.set("city", filters.city);
     if (typeof filters.minFollowers === "number") {
@@ -146,18 +156,18 @@ export default function DiscoverInfluencersPage() {
   if (!isBrandOrAdmin) {
     return (
       <DashboardShell user={session.user}>
-        <div className="max-w-lg mx-auto p-8 rounded-2xl bg-card border border-border text-center mt-12 shadow-sm">
-          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-4">
+        <div className="max-w-lg mx-auto p-8 rounded-2xl bg-card border border-border text-center mt-12 shadow-sm space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
             <Sparkles className="w-6 h-6" />
           </div>
-          <h1 className="text-xl font-heading font-bold text-foreground mb-2">
+          <h1 className="text-xl font-heading font-bold text-foreground">
             Brand Access Required
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mb-6">
-            Influencer discovery and rate cards are reserved for verified brand accounts. Browse available campaigns instead.
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+            Influencer discovery, engagement metrics, and rate cards are reserved for verified brand partners. Browse available campaigns instead.
           </p>
           <Button href="/dashboard/campaigns" variant="primary">
-            Browse Campaigns
+            Explore Campaigns
           </Button>
         </div>
       </DashboardShell>
@@ -166,15 +176,21 @@ export default function DiscoverInfluencersPage() {
 
   return (
     <DashboardShell user={session.user}>
-      <div className="max-w-7xl mx-auto space-y-6 pb-12">
-        {/* Header Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="max-w-7xl mx-auto space-y-6 pb-16 animate-fade-in">
+
+        {/* ── 1. HEADER (INSTAGRAM + COLLABR BENCHMARK) ───────────────────── */}
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
-              Discover Top Creators
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Find verified creators with audited engagement rates, KYC badges, and guaranteed escrow protection.
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
+                Creator Directory
+              </h1>
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-verified-muted text-verified border border-verified-border">
+                <ShieldCheck className="w-3.5 h-3.5" /> KYC &amp; DRS Verified
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Discover top Indian content creators with audited engagement rates, public rate-cards, and guaranteed escrow protection.
             </p>
           </div>
 
@@ -183,10 +199,10 @@ export default function DiscoverInfluencersPage() {
               variant="secondary"
               size="sm"
               onClick={() => setIsFilterSheetOpen(true)}
-              className="gap-2 text-xs font-semibold"
+              className="gap-2 text-xs font-semibold cursor-pointer shadow-xs"
             >
-              <SlidersHorizontal className="w-4 h-4" />
-              <span>Filters</span>
+              <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+              <span>Advanced Filters</span>
               {activeFilterCount > 0 && (
                 <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                   {activeFilterCount}
@@ -194,16 +210,49 @@ export default function DiscoverInfluencersPage() {
               )}
             </Button>
           </div>
+        </header>
+
+        {/* ── 2. TRUST HIGHLIGHT RIBBON (COLLABR ANTI-FRAUD GUARANTEE) ─────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-card border border-border shadow-xs text-xs">
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
+            <div className="w-7 h-7 rounded-lg bg-verified-muted text-verified flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-foreground block">DRS™ Anti-Fraud Audited</span>
+              <span className="text-[11px] text-muted-foreground">Bot followers &amp; fake engagement filtered out</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
+            <div className="w-7 h-7 rounded-lg bg-escrow-muted text-escrow flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-foreground block">100% Escrow Protection</span>
+              <span className="text-[11px] text-muted-foreground">Funds released only after deliverable signoff</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-foreground block">Transparent Rate Cards</span>
+              <span className="text-[11px] text-muted-foreground">Pre-negotiated INR pricing with 0 hidden fees</span>
+            </div>
+          </div>
         </div>
 
-        {/* Search Bar & Category Carousel */}
-        <div className="space-y-3">
+        {/* ── 3. SEARCH BAR & INSTAGRAM CATEGORY CAROUSEL ─────────────────── */}
+        <div className="space-y-3.5">
           {/* Live Search Input */}
           <div className="relative w-full">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
             <Input
               type="text"
-              placeholder="Search creators by name, handle, or city..."
+              placeholder="Search creators by name, Instagram handle, niche, or city..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 pr-10 text-sm h-11 rounded-2xl"
@@ -212,7 +261,7 @@ export default function DiscoverInfluencersPage() {
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
                 aria-label="Clear search input"
               >
                 <X className="w-4 h-4" />
@@ -220,8 +269,11 @@ export default function DiscoverInfluencersPage() {
             )}
           </div>
 
-          {/* Instagram-Inspired Category Chips Carousel */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs no-scrollbar">
+          {/* Horizontally Scrollable Category Chips Carousel */}
+          <nav
+            aria-label="Creator category filters"
+            className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none -mx-1 px-1 text-xs"
+          >
             {CATEGORY_CHIPS.map((chip) => {
               const isSelected = selectedCategory === chip;
               return (
@@ -229,27 +281,27 @@ export default function DiscoverInfluencersPage() {
                   key={chip}
                   type="button"
                   onClick={() => setSelectedCategory(chip)}
-                  className={`px-3.5 py-1.5 rounded-full font-semibold whitespace-nowrap transition-all cursor-pointer border ${
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full font-bold whitespace-nowrap transition-all cursor-pointer border ${
                     isSelected
-                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                      : "bg-muted text-muted-foreground border-border hover:text-foreground hover:bg-muted/80"
+                      ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                      : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted"
                   }`}
                 >
                   {chip}
                 </button>
               );
             })}
-          </div>
+          </nav>
         </div>
 
-        {/* Active Filters Pill Bar */}
+        {/* ── 4. ACTIVE FILTERS PILL BAR ──────────────────────────────────── */}
         {activeFilterCount > 0 && (
           <div className="flex items-center gap-2 flex-wrap text-xs pt-1">
             <span className="text-muted-foreground font-medium">Active filters:</span>
             {selectedCategory !== "All" && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold border border-primary/20">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold border border-primary/20">
                 {selectedCategory}
-                <button type="button" onClick={() => setSelectedCategory("All")} className="hover:opacity-75">
+                <button type="button" onClick={() => setSelectedCategory("All")} className="hover:opacity-75 cursor-pointer">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -257,7 +309,7 @@ export default function DiscoverInfluencersPage() {
             {filters.city && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold border border-border">
                 City: {filters.city}
-                <button type="button" onClick={() => setFilters((p) => ({ ...p, city: undefined }))} className="hover:opacity-75">
+                <button type="button" onClick={() => setFilters((p) => ({ ...p, city: undefined }))} className="hover:opacity-75 cursor-pointer">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -265,7 +317,7 @@ export default function DiscoverInfluencersPage() {
             {filters.minFollowers && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold border border-border">
                 {filters.minFollowers >= 1000 ? `${filters.minFollowers / 1000}K+ Reach` : `${filters.minFollowers}+ Reach`}
-                <button type="button" onClick={() => setFilters((p) => ({ ...p, minFollowers: undefined }))} className="hover:opacity-75">
+                <button type="button" onClick={() => setFilters((p) => ({ ...p, minFollowers: undefined }))} className="hover:opacity-75 cursor-pointer">
                   <X className="w-3 h-3" />
                 </button>
               </span>
@@ -281,7 +333,7 @@ export default function DiscoverInfluencersPage() {
           </div>
         )}
 
-        {/* Creator Showcase Grid */}
+        {/* ── 5. CREATOR SHOWCASE GRID (INSTAGRAM + COLLABR CARDS) ────────── */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <DiscoveryCardSkeleton />
@@ -291,10 +343,9 @@ export default function DiscoverInfluencersPage() {
         ) : creators.length === 0 ? (
           <div className="py-12">
             <EmptyState
-              emoji=""
-              title="Zero Matches Found"
-              description="No creators match your active search filters. Try broadening your criteria or resetting filters."
-              actionLabel="Clear All Filters"
+              title="Zero Creators Match Filters"
+              description="No creator dossiers match your active category, keyword, or reach filters. Try clearing criteria or exploring other niches."
+              actionLabel="Reset All Filters"
               onActionClick={handleClearAllFilters}
             />
           </div>
@@ -311,16 +362,13 @@ export default function DiscoverInfluencersPage() {
         )}
       </div>
 
-      {/* Filter Bottom Sheet / Modal */}
+      {/* ── 6. FILTER BOTTOM SHEET MODAL ─────────────────────────────────── */}
       <FilterBottomSheet
         isOpen={isFilterSheetOpen}
         onClose={() => setIsFilterSheetOpen(false)}
         filters={filters}
         onApplyFilters={(newFilters) => {
           setFilters(newFilters);
-          if (newFilters.niche) {
-            setSelectedCategory(newFilters.niche);
-          }
         }}
         mode="creators"
       />

@@ -1,53 +1,42 @@
 /**
-* Route-level Suspense skeleton for Admin Payouts page.
-*/
+ * Route-level Suspense skeleton for Admin Payouts page.
+ */
 export default function AdminPayoutsLoading() {
-return (
-<div className="admin-page" aria-hidden="true">
-<div className="admin-toolbar mb-6">
-<div>
-<div className="skeleton h-9 w-44 rounded-md mb-2" />
-<div className="skeleton h-4 w-72 rounded-sm" />
-</div>
-</div>
-<div className="grid gap-4 mb-6 grid-auto-240">
-{[1, 2, 3, 4].map((i) => (
-<div key={i} className="card p-6">
-<div className="skeleton h-3 w-28 rounded-sm mb-3" />
-<div className="skeleton h-8 w-32 rounded-md" />
-</div>
-))}
-</div>
-<div className="card overflow-hidden p-0">
-<div className="admin-table-wrap">
-<table className="w-full border-collapse">
-<thead>
-<tr className="bg-secondary">
-{["User", "Amount", "Method", "Status", "Date", "Action"].map((col) => (
-<th key={col} className="text-left border-b border-card p-4">
-<div className="skeleton h-3 w-16 rounded-sm" />
-</th>
-))}
-</tr>
-</thead>
-<tbody>
-{Array.from({ length: 7 }).map((_, i) => (
-<tr key={i} className="border-b border-card">
-<td className="p-card">
-<div className="skeleton h-4 w-36 rounded-sm mb-1" />
-<div className="skeleton h-3 w-44 rounded-sm" />
-</td>
-<td className="p-card"><div className="skeleton h-5 w-24 rounded-sm" /></td>
-<td className="p-card"><div className="skeleton h-6 w-20 rounded-md" /></td>
-<td className="p-card"><div className="skeleton h-6 w-20 rounded-md" /></td>
-<td className="p-card"><div className="skeleton h-4 w-20 rounded-sm" /></td>
-<td className="p-card"><div className="skeleton h-8 w-24 rounded-md" /></td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
-</div>
-</div>
-);
+  return (
+    <div className="max-w-6xl mx-auto space-y-6" aria-hidden="true">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-8 w-56 bg-muted rounded-xl animate-pulse" />
+          <div className="h-4 w-80 bg-muted rounded-md animate-pulse" />
+        </div>
+        <div className="h-12 w-48 bg-muted rounded-xl animate-pulse" />
+      </div>
+
+      {/* Filter chips skeleton */}
+      <div className="flex gap-2">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-8 w-20 bg-muted rounded-lg animate-pulse" />
+        ))}
+      </div>
+
+      {/* Table Skeleton */}
+      <div className="rounded-2xl bg-card border border-border overflow-hidden p-4 space-y-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={`skeleton-payout-${i}`}
+            className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/40 animate-pulse"
+          >
+            <div className="space-y-2">
+              <div className="h-4 w-40 bg-muted rounded" />
+              <div className="h-3 w-28 bg-muted rounded" />
+            </div>
+            <div className="h-5 w-24 bg-muted rounded" />
+            <div className="h-5 w-32 bg-muted rounded hidden sm:block" />
+            <div className="h-8 w-20 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

@@ -3,95 +3,225 @@
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import Link from "next/link";
+import { useState } from "react";
+import {
+  Mail,
+  MessageSquare,
+  Scale,
+  ShieldAlert,
+  ArrowUpRight,
+  ChevronDown,
+  Clock,
+  Sparkles,
+  Headphones,
+} from "lucide-react";
 
-const contactRows = [
+const contactChannels = [
   {
+    icon: Headphones,
     title: "Creator & Brand Support",
     body: "Assistance with campaigns, deliverables, escrow withdrawals, verification, and dashboard tools.",
     href: "mailto:support@vyaparmedia.in",
     label: "support@vyaparmedia.in",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "border-primary/20",
   },
   {
-    title: "Business & Agency Partnerships",
-    body: "Enterprise campaign management, D2C brand onboarding, talent agency rosters, and API integrations.",
+    icon: Sparkles,
+    title: "Agency & Brand Partnerships",
+    body: "Enterprise campaign management, D2C brand onboarding, talent agency rosters, and custom escrow SLAs.",
     href: "mailto:partnerships@vyaparmedia.in",
     label: "partnerships@vyaparmedia.in",
+    color: "text-verified",
+    bg: "bg-verified/10",
+    border: "border-verified-border",
   },
   {
+    icon: Scale,
     title: "Legal, Tax & Compliance",
-    body: "GST invoicing queries, TDS certificate requests, contracts, and regulatory compliance.",
+    body: "GST invoicing queries, Section 194-O TDS certificate requests, contracts, and regulatory filings.",
     href: "mailto:legal@vyaparmedia.in",
     label: "legal@vyaparmedia.in",
+    color: "text-accent-purple",
+    bg: "bg-accent-purple/10",
+    border: "border-accent-purple/20",
+  },
+  {
+    icon: ShieldAlert,
+    title: "Privacy & Data Grievance",
+    body: "Account deletion, personal data audit, consent withdrawal, and DPDP Act grievance escalation.",
+    href: "mailto:privacy@vyaparmedia.in",
+    label: "privacy@vyaparmedia.in",
+    color: "text-warning",
+    bg: "bg-warning/10",
+    border: "border-warning-border",
+  },
+];
+
+const faqs = [
+  {
+    q: "How long does platform support take to respond?",
+    a: "Support tickets are typically addressed within 1–2 business days. Critical payment or security escalations are prioritized and reviewed in under 4 hours.",
+  },
+  {
+    q: "What is the fastest way to get help on an active deal?",
+    a: "If you have an active deal, use the in-app deal room chat or the Dispute Center. It automatically attaches contract terms, escrow ledger history, and deliverable hashes.",
+  },
+  {
+    q: "Where do I send legal notices or compliance summons?",
+    a: "Please dispatch formal notices to legal@vyaparmedia.in with registered user emails, deal reference numbers, and full corporate signatory details.",
   },
 ];
 
 export default function ContactPage() {
-return (
-<div className="flex flex-col min-h-screen">
-<Navbar />
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
 
-<main className="flex-1 pt-20">
-<section className="section">
-<div className="container max-w-1040">
-<div className="text-center mb-10">
-<h1 className="section-title">
-Contact <span className="gradient-text">VyaparMedia</span>
-</h1>
-<p className="section-subtitle">
-Reach the right team for support, partnerships, privacy, or legal requests.
-</p>
-</div>
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <Navbar />
 
-<div className="grid-2 gap-8 items-start">
-<div className="grid gap-18px">
-{contactRows.map((row) => (
-<article key={row.title} className="card">
-<h2 className="text-xl font-extrabold mb-2">
-{row.title}
-</h2>
-<p className="text-secondary mb-3 leading-relaxed">
-{row.body}
-</p>
-<a href={row.href} className="text-primary font-bold">
-{row.label}
-</a>
-</article>
-))}
-</div>
+      <main className="flex-1 pt-24 pb-20 space-y-16">
+        {/* ── Hero ──────────────────────────────────────────── */}
+        <section className="px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto text-center space-y-4 pt-6">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider">
+            <Mail className="w-3.5 h-3.5" />
+            <span>Support &amp; Communications</span>
+          </div>
 
-<div className="card">
-<h2 className="text-2xl font-extrabold mb-4">
-Fastest support path
-</h2>
-<p className="text-secondary mb-5 leading-relaxed">
-Logged-in users should use the dashboard so we can attach the right account,
-campaign, deal, payout, or dispute record to the request.
-</p>
-<div className="grid gap-3">
-<Link href="/dashboard/messages" className="btn btn-primary justify-center">
-Open Dashboard Messages
-</Link>
-<Link href="/dashboard/disputes" className="btn btn-secondary justify-center">
-Open Dispute Center
-</Link>
-</div>
-<div className="mt-6 border-t border-card pt-5">
-<h3 className="text-base font-extrabold mb-2">
-Response windows
-</h3>
-<p className="text-secondary leading-relaxed">
-Support: 1 to 2 business days. Payment or security escalations are prioritized.
-Legal notices should be sent by email and include account identifiers where relevant.
-</p>
-</div>
-</div>
-</div>
-</div>
-</section>
-</main>
+          <h1 className="text-4xl sm:text-5xl font-black text-foreground tracking-tight">
+            Contact <span className="bg-gradient-to-r from-primary to-accent-purple bg-clip-text text-transparent">VyaparMedia</span>
+          </h1>
 
-<Footer />
-</div>
-);
+          <p className="text-base text-muted-foreground max-w-xl mx-auto leading-relaxed">
+            Connect with our creator support team, business partnerships unit, or compliance desk.
+          </p>
+        </section>
+
+        {/* ── Contact Channels Grid ─────────────────────────── */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {contactChannels.map((ch) => {
+              const Icon = ch.icon;
+              return (
+                <article
+                  key={ch.title}
+                  className="p-6 rounded-2xl bg-card border border-border hover:border-primary/40 hover:shadow-md transition-all flex flex-col justify-between space-y-4 group"
+                >
+                  <div className="space-y-3">
+                    <div className={`w-11 h-11 rounded-xl ${ch.bg} border ${ch.border} flex items-center justify-center ${ch.color}`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <h2 className="text-base font-bold text-foreground">
+                      {ch.title}
+                    </h2>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {ch.body}
+                    </p>
+                  </div>
+
+                  <a
+                    href={ch.href}
+                    className={`inline-flex items-center gap-1.5 text-xs font-bold ${ch.color} hover:underline pt-2`}
+                  >
+                    <span>{ch.label}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+                  </a>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ── Fastest Support Path & FAQ ────────────────────── */}
+        <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            {/* Direct Escalation Card */}
+            <div className="p-6 sm:p-7 rounded-2xl bg-card border border-border space-y-5 shadow-sm">
+              <div className="space-y-2">
+                <span className="text-xs font-black text-primary uppercase tracking-wider block">
+                  Logged-in User Support
+                </span>
+                <h2 className="text-xl font-black text-foreground">
+                  Fastest Support Path
+                </h2>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  For active deals, milestones, or pending payouts, opening a ticket inside the Dashboard guarantees priority handling with contract state pre-attached.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <Link
+                  href="/dashboard/messages"
+                  className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs text-center shadow-sm hover:bg-primary/90 transition-colors"
+                >
+                  Open Dashboard Messages
+                </Link>
+                <Link
+                  href="/dashboard/disputes"
+                  className="px-4 py-2.5 rounded-xl bg-card border border-border text-foreground font-bold text-xs text-center hover:bg-muted transition-colors"
+                >
+                  Open Dispute Resolution Desk
+                </Link>
+              </div>
+
+              <div className="pt-4 border-t border-border space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>Expected Response Windows</span>
+                </div>
+                <ul className="text-xs text-muted-foreground space-y-1 pl-5 list-disc">
+                  <li>General queries: 1–2 business days</li>
+                  <li>Payment / security inquiries: &lt; 4 hours</li>
+                  <li>Formal legal notices: Include full contract IDs</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Quick FAQs */}
+            <div className="p-6 sm:p-7 rounded-2xl bg-card border border-border space-y-4 shadow-sm">
+              <div className="space-y-1">
+                <h2 className="text-xl font-black text-foreground">
+                  Common Questions
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Quick answers to immediate platform inquiries.
+                </p>
+              </div>
+
+              <div className="space-y-2.5">
+                {faqs.map((faq, i) => (
+                  <div
+                    key={faq.q}
+                    className="border border-border rounded-xl overflow-hidden transition-colors"
+                  >
+                    <button
+                      type="button"
+                      className="w-full text-left px-4 py-3 flex items-center justify-between text-xs font-bold text-foreground hover:bg-muted/40 transition-colors cursor-pointer"
+                      onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                      aria-expanded={openFaq === i}
+                    >
+                      <span className="pr-3">{faq.q}</span>
+                      <ChevronDown
+                        className={`w-4 h-4 text-muted-foreground shrink-0 transition-transform duration-200 ${
+                          openFaq === i ? "rotate-180 text-primary" : ""
+                        }`}
+                      />
+                    </button>
+                    {openFaq === i && (
+                      <div className="px-4 pb-3.5 text-xs text-muted-foreground leading-relaxed border-t border-border/60 pt-2.5">
+                        {faq.a}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </div>
+  );
 }
-

@@ -422,7 +422,7 @@ function ToggleSwitch({
     >
       <span
         aria-hidden="true"
-        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-sm ring-0 transition duration-200 ease-in-out ${
           checked ? "translate-x-4" : "translate-x-0"
         }`}
       />

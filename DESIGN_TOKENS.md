@@ -240,6 +240,16 @@ All primitive components consume `@base-ui/react` (v1.8.0) and export via `@/com
 - **`DealProgressStepper.tsx`**: Visual multi-state milestone stepper rendering active, completed, and pending contract milestones.
 - **`DealActionsBar.tsx`**: Contextual bottom action toolbar with dual-coded state buttons (Submit Content, Request Revision, Release Escrow, Open Dispute).
 
+### 6.10 Admin Operations & Moderation Console (`src/components/admin/` & `src/app/admin/`)
+- **`AdminFrame.tsx`**: Master administrative shell:
+  - Persistent sidebar with dedicated Lucide iconography per route (`LayoutDashboard`, `Wallet`, `ShieldCheck`, `FileText`, `Scale`, `Users`, `Banknote`, `ScrollText`, `AlertTriangle`, `Mail`).
+  - Active route highlighting: `bg-primary/10 text-primary border border-primary/20` with right chevron indicator.
+  - Mobile responsive slide-out drawer with `bg-background/80 backdrop-blur-sm` backdrop overlay.
+  - Admin credentials card displaying user name, email, initials avatar, and immediate sign-out action.
+- **`VerificationQueue.tsx`**: High-priority KYC queue rendering tokenized applicant identity cards, dual-coded PAN/tax status badges, document count indicators, and review triggers.
+- **High-Contrast Confirmation Modals**: Dialog backdrops using `fixed inset-0 bg-background/80 backdrop-blur-sm` with centered elevated cards (`bg-card border border-border shadow-2xl rounded-2xl`), utilized across Razorpay payout approvals and account ban forms.
+- **High-Density Operations Tables**: Semantic table structures utilizing `divide-y divide-border`, uppercase tracking-wider headers (`text-muted-foreground`), hover row highlights (`hover:bg-muted/20`), and horizontal overflow scroll boundaries.
+
 ---
 
 ## 7. Advanced UI & Interaction Patterns

@@ -85,16 +85,33 @@ export function DashboardStoriesBar({
         >
           <div className="relative">
             {/* Instagram-style active ring */}
-            <div
-              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full p-0.5 ring-2 ${story.ringColor} transition-transform duration-200 group-hover:scale-105 flex items-center justify-center bg-card`}
-            >
-              <div className="w-full h-full rounded-full bg-muted/60 flex items-center justify-center transition-colors group-hover:bg-muted">
-                {story.icon}
+            {story.hasPulse ? (
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full p-[2.5px] transition-transform duration-200 group-hover:scale-105 flex items-center justify-center overflow-hidden shadow-xs">
+                {/* Rotating gradient ring */}
+                <div
+                  className="absolute inset-[-50%] rounded-full bg-gradient-to-tr from-primary via-purple-500 to-pink-500 animate-spin"
+                  style={{ animationDuration: "6s" }}
+                  aria-hidden="true"
+                />
+                {/* Card background gap */}
+                <div className="relative w-full h-full rounded-full p-[2px] bg-card flex items-center justify-center">
+                  <div className="w-full h-full rounded-full bg-muted/60 flex items-center justify-center transition-colors group-hover:bg-muted">
+                    {story.icon}
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div
+                className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full p-0.5 ring-2 ${story.ringColor} transition-transform duration-200 group-hover:scale-105 flex items-center justify-center bg-card`}
+              >
+                <div className="w-full h-full rounded-full bg-muted/60 flex items-center justify-center transition-colors group-hover:bg-muted">
+                  {story.icon}
+                </div>
+              </div>
+            )}
             {story.hasPulse && (
               <span
-                className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-primary border-2 border-card animate-pulse"
+                className="absolute top-0 right-0 w-3.5 h-3.5 rounded-full bg-primary border-2 border-card animate-pulse shadow-xs"
                 aria-hidden="true"
               />
             )}

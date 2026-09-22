@@ -1,278 +1,397 @@
 import prisma from "@/lib/db";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import {
-approveUser,
-rejectUser,
-approveDocument,
-rejectDocument,
+  approveUser,
+  rejectUser,
+  approveDocument,
+  rejectDocument,
 } from "../../actions";
-import { getSignedUrl } from "@/lib/storage";
 import EmptyState from "@/components/ui/EmptyState";
-import { Button, Input } from "@/components/ui";
+import { Badge, Button, Input } from "@/components/ui";
 import { formatDate } from "@/lib/utils-client";
 import { z } from "zod";
+import {
+  ShieldCheck,
+  ArrowLeft,
+  User,
+  Receipt,
+  FileText,
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 
 const verificationRejectSchema = z.object({
-reason: z.string().min(5, "Reason must be at least 5 characters").max(100),
+  reason: z.string().min(5, "Reason must be at least 5 characters").max(100),
 });
 
 export const dynamic = "force-dynamic";
 
-function getDocBadgeClass(status: string): string {
-if (status === "VERIFIED") return "badge-success";
-if (status === "REJECTED") return "badge-danger";
-return "badge-warning";
+function getDocBadgeVariant(status: string): "success" | "danger" | "warning" {
+  if (status === "VERIFIED") return "success";
+  if (status === "REJECTED") return "danger";
+  return "warning";
 }
 
 export default async function VerificationDetailPage({
-params,
+  params,
 }: {
-readonly params: Promise<{ readonly id: string }>;
+  readonly params: Promise<{ readonly id: string }>;
 }) {
-const { id } = await params;
-const user = await prisma.user.findUnique({
-where: { id },
-include: {
-influencerProfile: true,
-brandProfile: true,
-taxCompliance: true,
-verificationDocs: true,
-badges: { include: { badge: true } },
-},
-});
+  const { id } = await params;
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: {
+      influencerProfile: true,
+      brandProfile: true,
+      taxCompliance: true,
+      verificationDocs: true,
+      badges: { include: { badge: true } },
+    },
+  });
 
-if (!user) notFound();
+  if (!user) notFound();
 
-// Regenerate presigned URLs for all KYC documents on load.
-// Verification documents in S3/R2 are private and require presigned URLs.
-const docsWithRefreshedUrls = await Promise.all(
-user.verificationDocs.map(async (doc: typeof user.verificationDocs[number]) => {
-if (!doc.documentUrl) return doc;
-// If local filesystem path, serve as-is
-if (doc.documentUrl.startsWith("/uploads/")) {
-return doc;
-}
-// Extract S3 key if documentUrl is a full S3/CDN URL
-let key = doc.documentUrl;
-const verificationIdx = key.indexOf("verification/");
-if (verificationIdx !== -1) {
-key = key.substring(verificationIdx);
-// Strip any existing query params if already presigned
-key = key.split("?")[0]!;
-}
-const signedUrl = await getSignedUrl(key, 3600);
-return { ...doc, documentUrl: signedUrl || doc.documentUrl };
-}),
-);
+  // Regenerate presigned URLs for all KYC documents on load.
+  const docsWithRefreshedUrls = await Promise.all(
+    user.verificationDocs.map(async (doc: typeof user.verificationDocs[number]) => {
+      if (!doc.documentUrl) return doc;
+      if (doc.documentUrl.startsWith("/uploads/")) {
+        return doc;
+      }
+      let key = doc.documentUrl;
+      const verificationIdx = key.indexOf("verification/");
+      if (verificationIdx !== -1) {
+        key = key.substring(verificationIdx);
+        const queryIdx = key.indexOf("?");
+        if (queryIdx !== -1) {
+          key = key.substring(0, queryIdx);
+        }
+      }
+      try {
+        const { getSignedUrl } = await import("@/lib/storage");
+        const freshUrl = await getSignedUrl(key, 3600);
+        return { ...doc, documentUrl: freshUrl };
+      } catch {
+        return doc;
+      }
+    })
+  );
 
-const name =
-user.influencerProfile?.displayName ||
-user.brandProfile?.companyName ||
-"Unknown";
-const activeSince = formatDate(user.createdAt);
+  const activeSince = formatDate(user.createdAt);
+  const displayName =
+    user.influencerProfile?.displayName ||
+    user.brandProfile?.companyName ||
+    user.email ||
+    "User Profile";
 
-return (
-<div className="admin-page admin-page-narrow">
-<header className="mb-8">
-<h1 className="gradient-text mb-2 text-3xl font-extrabold">
-Review: {name}
-</h1>
-<p className="text-secondary text-sm">
-Critical KYC and Trust Verification Review Process
-</p>
-</header>
+  return (
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Top Breadcrumb Navigation */}
+      <div className="flex items-center gap-2">
+        <Button
+          href="/admin/verifications"
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Verification Queue
+        </Button>
+      </div>
 
-<div className="grid-2 gap-6 items-start">
-{/* Profile Info */}
-<section className="card">
-<h2 className="text-lg font-bold mb-5 flex items-center gap-2">
-Profile Detail
-</h2>
-<div className="flex flex-col gap-3">
-{[
-{ label: "Internal ID", value: user.id, colorClass: "" },
-{ label: "Email Address", value: user.email, colorClass: "" },
-{ label: "Phone Contact", value: user.phone || "Not provided", colorClass: "" },
-{ label: "Account Type", value: user.userType, colorClass: "" },
-{ label: "Registration", value: activeSince, colorClass: "" },
-{ label: "Trust Score", value: user.trustScore, colorClass: user.trustScore >= 50 ? "text-emerald" : "text-amber" },
-].map((item) => (
-<div key={item.label} className="flex justify-between items-center p-3 bg-tertiary rounded-md border-card">
-<span className="text-xs text-secondary font-semibold uppercase">
-{item.label}
-</span>
-<span className={`text-sm font-bold ${item.colorClass}`}>
-{item.value}
-</span>
-</div>
-))}
-</div>
-</section>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 rounded-2xl bg-card border border-border">
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-verified/10 border border-verified-border flex items-center justify-center font-black text-verified text-xl">
+            {displayName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-2xl font-black text-foreground">
+                {displayName}
+              </h1>
+              <Badge variant="primary" className="text-xs uppercase">
+                {user.userType}
+              </Badge>
+              <Badge
+                variant={
+                  user.status === "ACTIVE"
+                    ? "success"
+                    : user.status === "PENDING_VERIFICATION"
+                    ? "warning"
+                    : "danger"
+                }
+                className="text-xs"
+              >
+                {user.status.replaceAll("_", " ")}
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              User ID: <code className="text-xs font-mono">{user.id}</code> &bull; Registered {activeSince}
+            </p>
+          </div>
+        </div>
 
-<section className="card">
-<h2 className="text-lg font-bold mb-5 flex items-center gap-2">
-India Tax Readiness
-</h2>
-<div className="flex flex-col gap-3">
-{[
-{
-label: "PAN",
-value: user.taxCompliance?.panLast4
-? `****${user.taxCompliance.panLast4}`
-: "Missing",
-},
-{
-label: "GSTIN",
-value: user.taxCompliance?.gstinLast4
-? `****${user.taxCompliance.gstinLast4}`
-: user.taxCompliance?.gstRegistrationType || "Not declared",
-},
-{
-label: "ITR acknowledgement",
-value: user.taxCompliance?.itrAcknowledgementLast4
-? `****${user.taxCompliance.itrAcknowledgementLast4}`
-: "Not provided",
-},
-{
-label: "Assessment year",
-value: user.taxCompliance?.itrAssessmentYear || "Not provided",
-},
-{
-label: "E-invoice",
-value: user.taxCompliance?.eInvoiceApplicable ? "Applicable" : "Not marked",
-},
-{
-label: "Tax status",
-value: user.taxCompliance?.status || "ACTION_REQUIRED",
-},
-].map((item) => (
-<div key={item.label} className="flex justify-between items-center p-3 bg-tertiary rounded-md border-card">
-<span className="text-xs text-secondary font-semibold uppercase">
-{item.label}
-</span>
-<span className="text-sm font-bold">
-{item.value}
-</span>
-</div>
-))}
-</div>
-</section>
+        <div className="flex items-center gap-3">
+          <div className="px-4 py-2 rounded-xl bg-muted/40 border border-border text-right">
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Trust Score
+            </div>
+            <div className={`text-lg font-black ${user.trustScore >= 50 ? "text-verified" : "text-warning"}`}>
+              {user.trustScore} / 900
+            </div>
+          </div>
+        </div>
+      </div>
 
-{/* Docs */}
-<section className="card">
-<h2 className="text-lg font-bold mb-5 flex items-center gap-2">
-Proof Documents
-</h2>
-{docsWithRefreshedUrls.length === 0 ? (
-<EmptyState
-emoji=""
-title="No Documents Uploaded"
-description="No verification documents have been submitted by this user."
-compact
-/>
-) : (
-<div className="flex flex-col gap-4">
-{docsWithRefreshedUrls.map((doc) => (
-<div
-key={doc.id}
-className="p-4 bg-tertiary rounded-lg border-card"
->
-<div className="flex justify-between items-start mb-3">
-<div>
-<div className="font-extrabold text-sm flex items-center gap-2 uppercase text-primary">
-{doc.type.replaceAll("_", " ")}
-<span className={`badge ${getDocBadgeClass(doc.status)}`}>
-{doc.status}
-</span>
-</div>
-<div className="text-muted mt-1 text-xs">
-ID: {doc.id.slice(0, 8)}... {formatDate(doc.createdAt)}
-</div>
-</div>
-{doc.documentUrl && (
-<a
-href={doc.documentUrl}
-target="_blank"
-rel="noopener noreferrer"
-className="btn btn-sm btn-secondary px-3-py-1"
->
-Review Attachment
-</a>
-)}
-</div>
+      {/* Information Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Profile Info */}
+        <section className="p-6 rounded-2xl bg-card border border-border space-y-4">
+          <div className="flex items-center gap-2.5 pb-2 border-b border-border">
+            <User className="w-4 h-4 text-primary" />
+            <h2 className="text-base font-bold text-foreground">
+              Profile Details
+            </h2>
+          </div>
 
-{doc.status === "PENDING" && (
-<div className="flex mt-4 border-t border-card gap-2.5 pt-4">
-<form action={approveDocument.bind(null, doc.id, user.id)} className="flex-1">
-<Button variant="success" size="sm" className="w-full">
-Approve
-</Button>
-</form>
-<form
-action={async (formData) => {
-"use server";
-const rawReason = formData.get("reason") as string;
-const { reason } = verificationRejectSchema.parse({ reason: rawReason });
-await rejectDocument(doc.id, user.id, reason);
-}}
-className="flex gap-2 flex-2"
->
-<Input
-name="reason"
-placeholder="Reason..."
-required
-className="flex-1 text-xs px-3 py-2"
-/>
-<Button type="submit" variant="danger" size="sm">
-Reject
-</Button>
-</form>
-</div>
-)}
-</div>
-))}
-</div>
-)}
-</section>
-</div>
+          <div className="space-y-2.5">
+            {[
+              { label: "Email Address", value: user.email },
+              { label: "Phone Contact", value: user.phone || "Not provided" },
+              { label: "Account Role", value: user.userType },
+              { label: "Member Since", value: activeSince },
+              {
+                label: "Verification Status",
+                value: user.status.replaceAll("_", " "),
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/60 text-sm"
+              >
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {item.label}
+                </span>
+                <span className="font-bold text-foreground truncate max-w-[240px]">
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-{/* Global Actions Bar */}
-<footer className="flex flex-col gap-6 p-8 bg-secondary rounded-xl border-card mt-10">
-<div>
-<h3 className="text-base font-bold mb-1">Decision Engine</h3>
-<p className="text-secondary text-sm">Finalize user status. This will trigger system-wide webhooks and emails.</p>
-</div>
+        {/* Tax Readiness */}
+        <section className="p-6 rounded-2xl bg-card border border-border space-y-4">
+          <div className="flex items-center gap-2.5 pb-2 border-b border-border">
+            <Receipt className="w-4 h-4 text-primary" />
+            <h2 className="text-base font-bold text-foreground">
+              India Tax Compliance
+            </h2>
+          </div>
 
-<div className="flex gap-4 flex-wrap items-center">
-<form action={approveUser.bind(null, user.id)}>
-<Button variant="success" size="lg" className="min-w-220">
-Full Verification Pass
-</Button>
-</form>
+          <div className="space-y-2.5">
+            {[
+              {
+                label: "PAN",
+                value: user.taxCompliance?.panLast4
+                  ? `****${user.taxCompliance.panLast4}`
+                  : "Missing",
+                status: user.taxCompliance?.panLast4 ? "verified" : "missing",
+              },
+              {
+                label: "GSTIN",
+                value: user.taxCompliance?.gstinLast4
+                  ? `****${user.taxCompliance.gstinLast4}`
+                  : user.taxCompliance?.gstRegistrationType || "Not declared",
+                status: user.taxCompliance?.gstinLast4 ? "verified" : "neutral",
+              },
+              {
+                label: "ITR Ack",
+                value: user.taxCompliance?.itrAcknowledgementLast4
+                  ? `****${user.taxCompliance.itrAcknowledgementLast4}`
+                  : "Not provided",
+                status: "neutral",
+              },
+              {
+                label: "E-Invoice Applicable",
+                value: user.taxCompliance?.eInvoiceApplicable ? "Yes" : "No",
+                status: "neutral",
+              },
+              {
+                label: "Compliance Status",
+                value: user.taxCompliance?.status || "ACTION_REQUIRED",
+                status: user.taxCompliance?.status === "READY" ? "verified" : "warning",
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border/60 text-sm"
+              >
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  {item.label}
+                </span>
+                <span
+                  className={`font-bold ${
+                    item.status === "verified"
+                      ? "text-verified"
+                      : item.status === "missing"
+                      ? "text-disputed"
+                      : item.status === "warning"
+                      ? "text-warning"
+                      : "text-foreground"
+                  }`}
+                >
+                  {item.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </div>
 
-<div className="vertical-separator" />
+      {/* KYC Proof Documents */}
+      <section className="p-6 rounded-2xl bg-card border border-border space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-border">
+          <div className="flex items-center gap-2.5">
+            <FileText className="w-4 h-4 text-primary" />
+            <h2 className="text-base font-bold text-foreground">
+              Submitted KYC Documents ({docsWithRefreshedUrls.length})
+            </h2>
+          </div>
+        </div>
 
-<form
-action={async (formData) => {
-"use server";
-const rawReason = formData.get("reason") as string;
-const { reason } = verificationRejectSchema.parse({ reason: rawReason });
-await rejectUser(user.id, reason);
-}}
-className="flex gap-3 flex-wrap flex-basis-300"
->
-<Input
-name="reason"
-placeholder="Final rejection context..."
-required
-className="h-13 flex-basis-200"
-/>
-<Button type="submit" variant="danger" size="lg" className="min-w-180">
-Hard Reject
-</Button>
-</form>
-</div>
-</footer>
-</div>
-);
+        {docsWithRefreshedUrls.length === 0 ? (
+          <EmptyState
+            emoji="📄"
+            title="No Documents Uploaded"
+            description="No verification documents have been submitted by this user yet."
+            compact
+          />
+        ) : (
+          <div className="space-y-4">
+            {docsWithRefreshedUrls.map((doc) => (
+              <div
+                key={doc.id}
+                className="p-5 rounded-xl bg-muted/20 border border-border space-y-3"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-foreground uppercase tracking-wide">
+                          {doc.type.replaceAll("_", " ")}
+                        </span>
+                        <Badge variant={getDocBadgeVariant(doc.status)} className="text-[10px] uppercase">
+                          {doc.status}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5 font-mono">
+                        Doc ID: {doc.id.slice(0, 12)}... &bull; {formatDate(doc.createdAt)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {doc.documentUrl && (
+                    <Button
+                      href={doc.documentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      variant="secondary"
+                      size="sm"
+                      className="gap-1.5"
+                    >
+                      <span>View Document</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Button>
+                  )}
+                </div>
+
+                {doc.status === "PENDING" && (
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 pt-3 border-t border-border">
+                    <form action={approveDocument.bind(null, doc.id, user.id)} className="sm:w-auto">
+                      <Button variant="success" size="sm" className="w-full gap-1 font-bold">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Approve Document
+                      </Button>
+                    </form>
+                    <form
+                      action={async (formData) => {
+                        "use server";
+                        const rawReason = formData.get("reason") as string;
+                        const { reason } = verificationRejectSchema.parse({ reason: rawReason });
+                        await rejectDocument(doc.id, user.id, reason);
+                      }}
+                      className="flex-1 flex gap-2 items-center"
+                    >
+                      <Input
+                        name="reason"
+                        placeholder="Rejection reason for this doc..."
+                        required
+                        className="flex-1 text-xs"
+                      />
+                      <Button type="submit" variant="danger" size="sm" className="gap-1 shrink-0 font-bold">
+                        <XCircle className="w-3.5 h-3.5" />
+                        Reject
+                      </Button>
+                    </form>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Global Decision Engine Bar */}
+      <footer className="p-6 sm:p-8 rounded-2xl bg-card border border-border space-y-4">
+        <div>
+          <h3 className="text-lg font-black text-foreground">
+            Verification Decision Engine
+          </h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Finalize user status. Passing verification enables escrow withdrawals, deal bidding, and public listing.
+          </p>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 pt-2">
+          <form action={approveUser.bind(null, user.id)} className="shrink-0">
+            <Button variant="success" size="lg" className="w-full md:w-auto gap-2 font-bold px-6 shadow-sm">
+              <ShieldCheck className="w-5 h-5" />
+              Approve & Verify Account
+            </Button>
+          </form>
+
+          <div className="hidden md:block w-px h-10 bg-border" />
+
+          <form
+            action={async (formData) => {
+              "use server";
+              const rawReason = formData.get("reason") as string;
+              const { reason } = verificationRejectSchema.parse({ reason: rawReason });
+              await rejectUser(user.id, reason);
+            }}
+            className="flex-1 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center"
+          >
+            <Input
+              name="reason"
+              placeholder="Provide reason for account rejection..."
+              required
+              className="flex-1"
+            />
+            <Button type="submit" variant="danger" size="lg" className="shrink-0 gap-2 font-bold px-6">
+              <AlertCircle className="w-4 h-4" />
+              Reject Account
+            </Button>
+          </form>
+        </div>
+      </footer>
+    </div>
+  );
 }

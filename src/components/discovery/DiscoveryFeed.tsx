@@ -229,7 +229,7 @@ export default function DiscoveryFeed({
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Filters</span>
             {activeFilterCount > 0 && (
-              <span className="w-4 h-4 rounded-full bg-white text-primary text-[10px] font-bold flex items-center justify-center">
+              <span className="w-4 h-4 rounded-full bg-primary-foreground text-primary text-[10px] font-bold flex items-center justify-center">
                 {activeFilterCount}
               </span>
             )}

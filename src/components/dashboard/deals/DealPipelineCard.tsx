@@ -100,6 +100,37 @@ function getDeliverableLabel(type: string): string {
   }
 }
 
+export function getDealProgressStep(status: string): { step: number; total: number; label: string } {
+  const total = 8;
+  switch (status.toUpperCase()) {
+    case "PENDING_SIGNATURE":
+      return { step: 1, total, label: "Contract Signing" };
+    case "ACTIVE":
+      return { step: 2, total, label: "Deal Active" };
+    case "PAYMENT_HELD":
+      return { step: 3, total, label: "Escrow Funded" };
+    case "CONTENT_SUBMITTED":
+      return { step: 4, total, label: "Content Submitted" };
+    case "REVISION_REQUESTED":
+      return { step: 4, total, label: "Revision Requested" };
+    case "CONTENT_APPROVED":
+      return { step: 5, total, label: "Content Approved" };
+    case "POSTED":
+      return { step: 6, total, label: "Content Live" };
+    case "VERIFICATION_PENDING":
+      return { step: 7, total, label: "Verifying Reach" };
+    case "VERIFIED":
+    case "COMPLETED":
+      return { step: 8, total, label: "Completed & Released" };
+    case "DISPUTED":
+      return { step: 4, total, label: "Disputed" };
+    case "CANCELLED":
+      return { step: 0, total, label: "Cancelled" };
+    default:
+      return { step: 1, total, label: "In Progress" };
+  }
+}
+
 export function DealPipelineCard({
   deal,
   isSelected,
@@ -107,6 +138,7 @@ export function DealPipelineCard({
   isInfluencer,
 }: Readonly<DealPipelineCardProps>) {
   const statusInfo = getDealStatusInfo(deal.status);
+  const progress = getDealProgressStep(deal.status);
   const isBrand = !isInfluencer;
 
   const canSubmitContent =
@@ -223,6 +255,31 @@ export function DealPipelineCard({
                 {isSelected ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* Milestone Progress Bar (Collabr / Upwork pattern) */}
+        <div className="mt-3 pt-3 border-t border-border/40 space-y-1.5">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="font-semibold text-muted-foreground flex items-center gap-1.5">
+              <span>Pipeline:</span>
+              <span className="text-foreground font-medium">{progress.label}</span>
+            </span>
+            <span className="font-mono font-bold text-muted-foreground">
+              Step {progress.step} of {progress.total} ({Math.round((progress.step / progress.total) * 100)}%)
+            </span>
+          </div>
+          <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${
+                deal.status === "DISPUTED"
+                  ? "bg-disputed"
+                  : deal.status === "COMPLETED" || deal.status === "VERIFIED"
+                  ? "bg-verified"
+                  : "bg-primary"
+              }`}
+              style={{ width: `${Math.max(6, (progress.step / progress.total) * 100)}%` }}
+            />
           </div>
         </div>
       </div>

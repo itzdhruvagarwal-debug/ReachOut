@@ -1,64 +1,45 @@
 /**
-* Route-level Suspense skeleton for Admin Users page.
-* Mirrors: search toolbar + status filter + user table with 7 columns.
-*/
+ * Route-level Suspense skeleton for Admin Users page.
+ */
 export default function AdminUsersLoading() {
-return (
-<div className="admin-page" aria-hidden="true">
-{/* Header + toolbar */}
-<div className="admin-toolbar mb-6">
-<div>
-<div className="skeleton h-9 w-40 rounded-md mb-2" />
-<div className="skeleton h-4 w-64 rounded-sm" />
-</div>
-<div className="flex gap-3 flex-wrap">
-<div className="skeleton h-9 w-56 rounded-md" />
-<div className="skeleton h-9 w-40 rounded-md" />
-<div className="skeleton h-9 w-40 rounded-md" />
-</div>
-</div>
-{/* Table */}
-<div className="card overflow-hidden p-0">
-<div className="admin-table-wrap">
-<table className="w-full border-collapse">
-<thead>
-<tr className="bg-secondary">
-{["User", "Type", "Status", "Joined", "Trust", "Badges", "Actions"].map((col) => (
-<th key={col} className="text-left border-b border-card p-4">
-<div className={`skeleton h-3 rounded-sm ${col === "User" ? "w-10" : "w-14"}`} />
-</th>
-))}
-</tr>
-</thead>
-<tbody>
-{Array.from({ length: 8 }).map((_, i) => (
-<tr key={i} className="border-b border-card">
-<td className="p-card">
-<div className="flex items-center gap-3">
-<div className="skeleton rounded-full flex-shrink-0 w-9 h-9" />
-<div>
-<div className="skeleton h-4 w-36 rounded-sm mb-1" />
-<div className="skeleton h-3 w-44 rounded-sm" />
-</div>
-</div>
-</td>
-<td className="p-card"><div className="skeleton h-6 w-20 rounded-md" /></td>
-<td className="p-card"><div className="skeleton h-6 w-24 rounded-md" /></td>
-<td className="p-card"><div className="skeleton h-4 w-20 rounded-sm" /></td>
-<td className="p-card"><div className="skeleton h-4 w-12 rounded-sm" /></td>
-<td className="p-card"><div className="skeleton h-4 w-16 rounded-sm" /></td>
-<td className="p-card">
-<div className="flex gap-2">
-<div className="skeleton h-8 w-16 rounded-md" />
-<div className="skeleton h-8 w-20 rounded-md" />
-</div>
-</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
-</div>
-</div>
-);
+  return (
+    <div className="max-w-6xl mx-auto space-y-6" aria-hidden="true">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-2">
+          <div className="h-8 w-48 bg-muted rounded-xl animate-pulse" />
+          <div className="h-4 w-72 bg-muted rounded-md animate-pulse" />
+        </div>
+        <div className="h-12 w-44 bg-muted rounded-xl animate-pulse" />
+      </div>
+
+      {/* Filter toolbar skeleton */}
+      <div className="p-4 rounded-2xl bg-card border border-border flex gap-3">
+        <div className="h-10 flex-1 bg-muted rounded-lg animate-pulse" />
+        <div className="h-10 w-36 bg-muted rounded-lg animate-pulse" />
+        <div className="h-10 w-44 bg-muted rounded-lg animate-pulse" />
+      </div>
+
+      {/* Table */}
+      <div className="rounded-2xl bg-card border border-border overflow-hidden p-4 space-y-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div
+            key={`skeleton-user-${i}`}
+            className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/40 animate-pulse"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-muted" />
+              <div className="space-y-1.5">
+                <div className="h-4 w-36 bg-muted rounded" />
+                <div className="h-3 w-48 bg-muted rounded" />
+              </div>
+            </div>
+            <div className="h-6 w-20 bg-muted rounded" />
+            <div className="h-6 w-20 bg-muted rounded hidden sm:block" />
+            <div className="h-8 w-24 bg-muted rounded" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

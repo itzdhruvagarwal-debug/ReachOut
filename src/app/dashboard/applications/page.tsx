@@ -1,427 +1,816 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState, useMemo } from "react";
 import useSWR from "swr";
-import { fetcher, createSchemaFetcher } from "@/lib/fetcher";
+import Image from "next/image";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import {
-  type ApplicationItem as Application,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  XCircle,
+  AlertCircle,
+  ArrowUpRight,
+  Search,
+  Layers,
+  Briefcase,
+  TrendingUp,
+  Send,
+  FileText,
+  ChevronRight,
+  X,
+  LayoutGrid,
+  List,
+} from "lucide-react";
+import { createSchemaFetcher } from "@/lib/fetcher";
+import {
+  type ApplicationItem,
   type ApplicationsResponse,
   applicationsResponseSchema,
 } from "@/lib/schemas";
-import Image from "next/image";
-import { useSession } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { formatCurrency, formatDate } from "@/lib/utils-client";
 import EmptyState from "@/components/ui/EmptyState";
-import { Badge, Button, Skeleton, Spinner } from "@/components/ui";
+import { Button, Spinner } from "@/components/ui";
 
+type FilterTab = "ALL" | "REVIEW" | "OFFERS" | "ARCHIVED";
+type ViewMode = "cards" | "table";
 
-
-function getStatusVariant(status: string): "success" | "danger" | "warning" {
-  switch (status.toUpperCase()) {
+/** Maps application status to UI labels, semantic token styles, and Lucide icons */
+function getStatusMeta(status: string) {
+  const s = status.toUpperCase();
+  switch (s) {
     case "SELECTED":
     case "ACCEPTED":
-      return "success";
-    case "REJECTED":
-    case "WITHDRAWN":
-      return "danger";
+      return {
+        label: "Offer Accepted",
+        badgeClass: "bg-verified-muted text-verified border-verified-border",
+        icon: CheckCircle2,
+        stageIndex: 3,
+      };
     case "SHORTLISTED":
+      return {
+        label: "Shortlisted",
+        badgeClass: "bg-pending-muted text-pending border-pending-border",
+        icon: Sparkles,
+        stageIndex: 2,
+      };
+    case "REJECTED":
+      return {
+        label: "Not Selected",
+        badgeClass: "bg-disputed-muted text-disputed border-disputed-border",
+        icon: XCircle,
+        stageIndex: -1,
+      };
+    case "WITHDRAWN":
+      return {
+        label: "Withdrawn",
+        badgeClass: "bg-muted text-muted-foreground border-border",
+        icon: XCircle,
+        stageIndex: -1,
+      };
     case "PENDING":
     default:
-      return "warning";
+      return {
+        label: "Under Review",
+        badgeClass: "bg-muted text-foreground border-border",
+        icon: Clock,
+        stageIndex: 1,
+      };
   }
 }
 
-function getApplicationStatusLabel(status: string): string {
-  const s = status.toUpperCase();
-  if (s === "SELECTED" || s === "ACCEPTED") return "Approved";
-  if (s === "REJECTED") return "Rejected";
-  if (s === "WITHDRAWN") return "Expired / Withdrawn";
-  if (s === "SHORTLISTED") return "Shortlisted";
-  if (s === "PENDING") return "Pending";
-  return status;
-}
-
-/** Skeleton placeholder matching the 6-column applications table layout. */
-function ApplicationsTableSkeleton() {
-return (
-<>
-<div className="hidden sm:block card overflow-hidden p-0" aria-hidden="true">
-<div className="overflow-x-auto">
-<table className="w-full text-left border-collapse">
-<thead>
-<tr className="border-b border-card bg-tertiary">
-{["CAMPAIGN", "PROPOSED RATE", "FINAL RATE", "SUBMITTED ON", "STATUS", "ACTION"].map((col) => (
-<th key={col} scope="col" className="p-4">
-<Skeleton height={10} width={col === "CAMPAIGN" ? 72 : 56} borderRadius={4} />
-</th>
-))}
-</tr>
-</thead>
-<tbody>
-{[1, 2, 3, 4, 5, 6].map((i) => (
-<tr key={i} className="border-b border-card">
-<td className="p-4">
-<div className="flex items-center gap-3">
-<Skeleton width={36} height={36} borderRadius={4} />
-<div>
-<Skeleton height={14} width={160} borderRadius={4} className="mb-1-5" />
-<Skeleton height={11} width={100} borderRadius={4} />
-</div>
-</div>
-</td>
-<td className="p-4"><Skeleton height={14} width={72} borderRadius={4} /></td>
-<td className="p-4"><Skeleton height={14} width={72} borderRadius={4} /></td>
-<td className="p-4"><Skeleton height={14} width={80} borderRadius={4} /></td>
-<td className="p-4"><Skeleton height={24} width={72} borderRadius={6} /></td>
-<td className="p-4 text-right"><Skeleton height={32} width={108} borderRadius={6} className="ml-auto" /></td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
-</div>
-
-<div className="block sm:hidden space-y-3" aria-hidden="true">
-  {[1, 2, 3, 4].map((i) => (
-    <div key={i} className="card p-4 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Skeleton width={36} height={36} borderRadius={4} />
-          <div>
-            <Skeleton height={14} width={120} borderRadius={4} className="mb-1-5" />
-            <Skeleton height={10} width={80} borderRadius={4} />
-          </div>
-        </div>
-        <Skeleton height={20} width={60} borderRadius={6} />
-      </div>
-      <div className="grid grid-cols-3 gap-2 py-2 border-t border-b border-card-light">
-        {[1, 2, 3].map((j) => (
-          <div key={j} className="flex flex-col gap-1">
-            <Skeleton height={8} width={40} borderRadius={3} />
-            <Skeleton height={12} width={50} borderRadius={3} />
+/** Skeleton placeholder matching proposal cards & table view */
+function ApplicationsSkeleton() {
+  return (
+    <div className="space-y-6" aria-label="Loading proposals" aria-busy="true">
+      {/* Metric strip skeleton */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-card border border-border p-4 rounded-2xl animate-pulse space-y-2">
+            <div className="h-4 w-24 bg-muted rounded" />
+            <div className="h-7 w-28 bg-muted rounded-md" />
+            <div className="h-3 w-36 bg-muted rounded" />
           </div>
         ))}
       </div>
-      <Skeleton height={32} width="100%" borderRadius={6} />
+
+      {/* Cards skeleton */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="bg-card border border-border p-5 rounded-2xl animate-pulse space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-muted rounded-xl" />
+                <div className="space-y-1.5">
+                  <div className="h-4 w-40 bg-muted rounded" />
+                  <div className="h-3 w-24 bg-muted rounded" />
+                </div>
+              </div>
+              <div className="h-6 w-24 bg-muted rounded-full" />
+            </div>
+            <div className="h-10 bg-muted/60 rounded-xl" />
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="h-8 bg-muted rounded" />
+              <div className="h-8 bg-muted rounded" />
+              <div className="h-8 bg-muted rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
-  ))}
-</div>
-</>
-);
+  );
 }
 
 export default function ApplicationsPage() {
-const { data: session } = useSession();
-const [page, setPage] = useState(1);
-const limit = 10;
+  const { data: session } = useSession();
+  const [page, setPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<FilterTab>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<ViewMode>("cards");
+  const limit = 10;
 
-const applicationsFetcher = createSchemaFetcher(applicationsResponseSchema);
-const { data: payload, isLoading: loading, error: fetchErr } = useSWR<ApplicationsResponse>(
-session?.user ? `/api/applications?page=${page}&limit=${limit}` : null,
-applicationsFetcher
-);
+  const applicationsFetcher = createSchemaFetcher(applicationsResponseSchema);
+  const {
+    data: payload,
+    isLoading: loading,
+    error: fetchErr,
+  } = useSWR<ApplicationsResponse>(
+    session?.user ? `/api/applications?page=${page}&limit=${limit}` : null,
+    applicationsFetcher
+  );
 
-const applications = payload?.data?.applications || payload?.applications || [];
-const totalPages = payload?.data?.totalPages || payload?.totalPages || 1;
-let error = "";
-if (fetchErr) {
-error = "Failed to fetch applications";
-} else if (payload && !payload.success) {
-error = payload.message || "Failed to load applications";
-}
+  const applications = useMemo(
+    () => payload?.data?.applications || payload?.applications || [],
+    [payload]
+  );
+  const totalPages = payload?.data?.totalPages || payload?.totalPages || 1;
 
-if (!session) {
-return (
-<div className="flex items-center justify-center min-h-screen">
-<Spinner size="lg" />
-</div>
-);
-}
+  // Compute KPI summary figures
+  const kpis = useMemo(() => {
+    let underReviewCount = 0;
+    let approvedOffersCount = 0;
+    let totalProposedPaise = 0;
 
-// Brands don't submit applications — they receive them on their campaign pages
-if (session.user?.userType === "BRAND") {
-return (
-<DashboardShell user={session.user}>
-<div className="mx-auto max-w-1000 p-40-20 text-center flex flex-col items-center gap-4 py-20">
-<svg width={48} height={48} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="text-muted opacity-60">
-<path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-<polyline points="14 2 14 8 20 8" />
-<line x1="16" x2="8" y1="13" y2="13" />
-<line x1="16" x2="8" y1="17" y2="17" />
-</svg>
-<h1 className="text-2xl font-extrabold">Influencer Applications</h1>
-<p className="text-secondary max-w-md">
-As a brand, influencers apply to your campaigns. View and manage applications from your campaign detail pages.
-</p>
-<Button href="/dashboard/campaigns" variant="primary">Go to My Campaigns</Button>
-</div>
-</DashboardShell>
-);
-}
+    applications.forEach((app) => {
+      const s = app.status.toUpperCase();
+      if (s === "PENDING" || s === "SHORTLISTED") {
+        underReviewCount++;
+      } else if (s === "SELECTED" || s === "ACCEPTED") {
+        approvedOffersCount++;
+      }
+      totalProposedPaise += app.proposedRate || 0;
+    });
 
-let applicationsList;
-if (loading) {
-applicationsList = <ApplicationsTableSkeleton />;
-} else if (error) {
-applicationsList = (
-<div className="text-center text-rose p-10">
-{error}
-</div>
-);
-} else if (applications.length === 0) {
-applicationsList = (
-<EmptyState
-emoji=""
-title="No Applications Found"
-description="You haven't submitted any campaign applications yet."
-actionLabel="Discover Campaigns"
-actionHref="/dashboard/campaigns"
-/>
-);
-} else {
-applicationsList = (
-<>
-{/* Desktop View */}
-<div className="hidden sm:block card overflow-hidden p-0">
-<div className="overflow-x-auto w-full">
-<table className="w-full text-left border-collapse min-w-600" style={{ minWidth: "600px" }} aria-label="My campaign applications">
-<thead>
-<tr className="border-b border-card bg-tertiary">
-<th scope="col" className="p-4 text-xs font-bold text-secondary">CAMPAIGN</th>
-<th scope="col" className="p-4 text-xs font-bold text-secondary">PROPOSED RATE</th>
-<th scope="col" className="p-4 text-xs font-bold text-secondary">FINAL RATE</th>
-<th scope="col" className="p-4 text-xs font-bold text-secondary">SUBMITTED ON</th>
-<th scope="col" className="p-4 text-xs font-bold text-secondary">STATUS</th>
-<th scope="col" className="p-4 text-xs font-bold text-secondary text-right">ACTION</th>
-</tr>
-</thead>
-<tbody>
-          {applications.map((app) => {
-            let displayRate = "—";
-            if (app.finalRate) {
-              displayRate = formatCurrency(app.finalRate);
-            } else if (app.status === "SELECTED") {
-              displayRate = formatCurrency(app.proposedRate);
-            }
+    return {
+      total: applications.length,
+      underReview: underReviewCount,
+      offers: approvedOffersCount,
+      totalPitchValue: totalProposedPaise,
+    };
+  }, [applications]);
 
-            return (
-              <tr key={app.id} className="border-b border-card">
-                <td className="p-4">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex items-center justify-center text-xs font-bold flex-shrink-0 overflow-hidden relative rounded-sm text-white w-36 h-36 bg-gradient-card"
-                    >
-                      {app.campaign.brand?.logo ? (
-                        <Image
-                          src={app.campaign.brand.logo}
-                          alt={app.campaign.brand?.companyName ?? "Brand logo"}
-                          fill
-                          unoptimized
-                          className="object-cover"
-                        />
-                      ) : (
-                        (app.campaign.brand?.companyName || "DC").slice(0, 2).toUpperCase()
-                      )}
-                    </div>
-                    <div>
-                      <div className="font-bold text-sm">
-                        {app.campaign.title}
-                      </div>
-                      <div className="text-secondary text-xs">
-                        by {app.campaign.brand?.companyName || "Unknown Brand"}
-                      </div>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-4 font-bold">{formatCurrency(app.proposedRate)}</td>
-                <td className="p-4 font-bold text-indigo-light">
-                  {displayRate}
-                </td>
-                <td className="p-4 text-secondary text-sm">
-                  {formatDate(app.createdAt)}
-                </td>
-                <td className="p-4">
-                  <Badge variant={getStatusVariant(app.status)} className="text-xs font-extrabold">
-                    {getApplicationStatusLabel(app.status)}
-                  </Badge>
-                  {app.rejectionReason && (
-                    <span className="text-2xs text-rose-400 block mt-1 max-w-xs truncate" title={app.rejectionReason}>
-                      {app.rejectionReason}
-                    </span>
-                  )}
-                </td>
-                <td className="p-4 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    {app.status === "SELECTED" && app.dealId && (
-                      <Button
-                        href={`/dashboard/deals/${app.dealId}`}
-                        variant="primary"
-                        size="sm"
-                      >
-                        ✍️ Sign Contract
-                      </Button>
-                    )}
-                    <Button
-                      href={`/dashboard/campaigns/${app.campaign.id}`}
-                      variant="ghost"
-                      size="sm"
-                      aria-label={`View campaign: ${app.campaign.title}`}
-                    >
-                      View Campaign
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            );
-          })}
-</tbody>
-</table>
-</div>
-</div>
+  // Client-side filtering by tab and search
+  const filteredApplications = useMemo(() => {
+    return applications.filter((app) => {
+      const s = app.status.toUpperCase();
+      // Tab filter
+      if (activeTab === "REVIEW" && s !== "PENDING" && s !== "SHORTLISTED") return false;
+      if (activeTab === "OFFERS" && s !== "SELECTED" && s !== "ACCEPTED") return false;
+      if (activeTab === "ARCHIVED" && s !== "REJECTED" && s !== "WITHDRAWN") return false;
 
-{/* Mobile View */}
-<div className="block sm:hidden space-y-3">
-  {applications.map((app) => {
-    let displayRate = "—";
-    if (app.finalRate) {
-      displayRate = formatCurrency(app.finalRate);
-    } else if (app.status === "SELECTED") {
-      displayRate = formatCurrency(app.proposedRate);
-    }
+      // Search query filter
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const titleMatch = app.campaign?.title?.toLowerCase().includes(query);
+        const brandMatch = app.campaign?.brand?.companyName?.toLowerCase().includes(query);
+        if (!titleMatch && !brandMatch) return false;
+      }
 
+      return true;
+    });
+  }, [applications, activeTab, searchQuery]);
+
+  let error = "";
+  if (fetchErr) {
+    error = "Failed to fetch applications. Please check your network connection.";
+  } else if (payload && !payload.success) {
+    error = payload.message || "Failed to load applications.";
+  }
+
+  if (!session) {
     return (
-      <div key={app.id} className="card p-4 flex flex-col gap-3">
-        {/* Brand & Campaign Title */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center text-xs font-bold flex-shrink-0 overflow-hidden relative rounded-sm text-white w-9 h-9 bg-gradient-card">
-              {app.campaign.brand?.logo ? (
-                <Image
-                  src={app.campaign.brand.logo}
-                  alt={app.campaign.brand?.companyName ?? "Brand logo"}
-                  fill
-                  unoptimized
-                  className="object-cover"
-                />
-              ) : (
-                (app.campaign.brand?.companyName || "DC").slice(0, 2).toUpperCase()
-              )}
-            </div>
-            <div>
-              <div className="font-bold text-sm line-clamp-1">
-                {app.campaign.title}
-              </div>
-              <div className="text-secondary text-xs">
-                by {app.campaign.brand?.companyName || "Unknown Brand"}
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <Badge variant={getStatusVariant(app.status)} className="text-2xs font-extrabold px-2.5 py-0.5">
-              {getApplicationStatusLabel(app.status)}
-            </Badge>
-            {app.rejectionReason && (
-              <span className="text-2xs text-rose-400 max-w-140 truncate" title={app.rejectionReason}>
-                {app.rejectionReason}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Rates and Dates grid */}
-        <div className="grid grid-cols-3 gap-2 py-2 border-t border-b border-card-light text-xs">
-          <div>
-            <div className="text-secondary text-2xs mb-0.5">PROPOSED</div>
-            <div className="font-bold text-white">{formatCurrency(app.proposedRate)}</div>
-          </div>
-          <div>
-            <div className="text-secondary text-2xs mb-0.5">FINAL RATE</div>
-            <div className="font-bold text-indigo-light">{displayRate}</div>
-          </div>
-          <div>
-            <div className="text-secondary text-2xs mb-0.5">SUBMITTED ON</div>
-            <div className="font-medium text-secondary">
-              {formatDate(app.createdAt)}
-            </div>
-          </div>
-        </div>
-
-        {/* Action Button */}
-        <div className="flex flex-col gap-2 pt-1">
-          {app.status === "SELECTED" && app.dealId && (
-            <Button
-              href={`/dashboard/deals/${app.dealId}`}
-              variant="primary"
-              size="sm"
-              className="w-full text-center py-1.5"
-            >
-              ✍️ Sign Contract & View Deal
-            </Button>
-          )}
-          <Button
-            href={`/dashboard/campaigns/${app.campaign.id}`}
-            variant="secondary"
-            size="sm"
-            className="w-full text-center py-1.5"
-            aria-label={`View campaign: ${app.campaign.title}`}
-          >
-            View Campaign
-          </Button>
-        </div>
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <Spinner size="lg" />
       </div>
     );
-  })}
-</div>
-</>
-);
-}
+  }
 
-return (
-<DashboardShell user={session.user}>
-<div className="mx-auto max-w-1000 p-40-20">
-{/* Header */}
-<div className="mb-8">
-<h1 className="font-extrabold text-3xl">My Applications</h1>
-<p className="text-secondary text-sm mt-1">
-Track the status of your pitches and proposals submitted to campaigns.
-</p>
-</div>
+  // Brands don't submit applications — they receive them on their campaign pages
+  if (session.user?.userType === "BRAND") {
+    return (
+      <DashboardShell user={session.user}>
+        <div className="max-w-4xl mx-auto px-4 py-16 text-center flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-6">
+            <FileText className="w-8 h-8" />
+          </div>
+          <h1 className="text-3xl font-extrabold text-foreground tracking-tight mb-3">
+            Campaign Submissions & Pitches
+          </h1>
+          <p className="text-muted-foreground max-w-lg mb-8 leading-relaxed">
+            As a brand, creators apply directly to your campaigns. You can review, shortlist, and approve pitches from your campaign management dashboard.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button href="/dashboard/campaigns" variant="primary">
+              View Active Campaigns
+            </Button>
+            <Button href="/dashboard/campaigns/new" variant="secondary">
+              Create New Campaign
+            </Button>
+          </div>
+        </div>
+      </DashboardShell>
+    );
+  }
 
-{error && (
-<div
-className="card p-4 mb-6 rounded-md text-rose bg-rose-subtle border-rose-subtle"
->
-{error}
-</div>
-)}
+  return (
+    <DashboardShell user={session.user}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-border pb-6">
+          <div>
+            <div className="flex items-center gap-2.5 mb-1.5">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
+                <Briefcase className="w-3.5 h-3.5" />
+                Creator Pitches
+              </span>
+              <span className="text-xs text-muted-foreground">
+                Kofluence / Upwork Workflow
+              </span>
+            </div>
+            <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
+              My Applications & Proposals
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Track your pitch statuses, negotiate terms, sign escrow contracts, and unlock deal rooms.
+            </p>
+          </div>
 
-{applicationsList}
+          <div className="flex items-center gap-3">
+            <Button
+              href="/dashboard/campaigns"
+              variant="primary"
+              className="inline-flex items-center gap-2 shadow-sm font-medium"
+            >
+              <Search className="w-4 h-4" />
+              Discover Campaigns
+            </Button>
+          </div>
+        </div>
 
-{totalPages > 1 && (
-  <div className="deals-pagination flex justify-center items-center gap-4 mt-6">
-    <Button
-      variant="secondary"
-      disabled={page <= 1}
-      onClick={() => setPage((p) => Math.max(1, p - 1))}
-      className="min-w-100"
-    >
-      Previous
-    </Button>
-    <span className="text-sm text-secondary">
-      Page {page} of {totalPages}
-    </span>
-    <Button
-      variant="secondary"
-      disabled={page >= totalPages}
-      onClick={() => setPage((p) => p + 1)}
-      className="min-w-100"
-    >
-      Next
-    </Button>
-  </div>
-)}
-</div>
-</DashboardShell>
-);
+        {/* Error Alert */}
+        {error && (
+          <div className="p-4 rounded-xl border border-disputed-border bg-disputed-muted text-disputed flex items-start gap-3 text-sm">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 font-medium">{error}</div>
+          </div>
+        )}
+
+        {/* KPI Strip */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-card border border-border p-4 rounded-2xl shadow-xs">
+            <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider">Total Pitches</span>
+              <Send className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-2xl font-extrabold text-foreground tabular-nums">
+              {kpis.total}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Proposals submitted</p>
+          </div>
+
+          <div className="bg-card border border-border p-4 rounded-2xl shadow-xs">
+            <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider">Under Review</span>
+              <Clock className="w-4 h-4 text-pending" />
+            </div>
+            <div className="text-2xl font-extrabold text-pending tabular-nums">
+              {kpis.underReview}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Pending or shortlisted</p>
+          </div>
+
+          <div className="bg-card border border-border p-4 rounded-2xl shadow-xs">
+            <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider">Contract Offers</span>
+              <CheckCircle2 className="w-4 h-4 text-verified" />
+            </div>
+            <div className="text-2xl font-extrabold text-verified tabular-nums">
+              {kpis.offers}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Ready for contract signing</p>
+          </div>
+
+          <div className="bg-card border border-border p-4 rounded-2xl shadow-xs">
+            <div className="flex items-center justify-between text-muted-foreground mb-1.5">
+              <span className="text-xs font-semibold uppercase tracking-wider">Pitched Value</span>
+              <TrendingUp className="w-4 h-4 text-primary" />
+            </div>
+            <div className="text-2xl font-extrabold text-foreground tabular-nums">
+              {formatCurrency(kpis.totalPitchValue)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Total prospective pipeline</p>
+          </div>
+        </div>
+
+        {/* Filter Bar & Controls */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border p-3 sm:p-4 rounded-2xl shadow-xs">
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
+            {(
+              [
+                { id: "ALL", label: "All Proposals", count: applications.length },
+                { id: "REVIEW", label: "Under Review", count: kpis.underReview },
+                { id: "OFFERS", label: "Offers", count: kpis.offers },
+                {
+                  id: "ARCHIVED",
+                  label: "Archived",
+                  count: applications.filter(
+                    (a) =>
+                      a.status.toUpperCase() === "REJECTED" ||
+                      a.status.toUpperCase() === "WITHDRAWN"
+                  ).length,
+                },
+              ] as const
+            ).map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 whitespace-nowrap ${
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
+                >
+                  {tab.label}
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-2xs font-bold ${
+                      isActive
+                        ? "bg-primary-foreground/20 text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search & View Mode Toggle */}
+          <div className="flex items-center gap-3">
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search campaign or brand..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-background border border-input rounded-xl pl-9 pr-8 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* View Mode Switcher */}
+            <div className="hidden md:flex items-center bg-muted p-1 rounded-xl border border-border">
+              <button
+                onClick={() => setViewMode("cards")}
+                aria-label="Card grid view"
+                className={`p-1.5 rounded-lg transition-all ${
+                  viewMode === "cards"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("table")}
+                aria-label="Table pipeline view"
+                className={`p-1.5 rounded-lg transition-all ${
+                  viewMode === "table"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content Section */}
+        {loading ? (
+          <ApplicationsSkeleton />
+        ) : applications.length === 0 ? (
+          <EmptyState
+            emoji=""
+            title="No Applications Submitted Yet"
+            description="You haven't pitched to any campaigns yet. Browse live verified campaigns and submit your proposal to earn escrow-guaranteed payouts."
+            actionLabel="Discover Verified Campaigns"
+            actionHref="/dashboard/campaigns"
+          />
+        ) : filteredApplications.length === 0 ? (
+          <div className="bg-card border border-border p-12 text-center rounded-2xl">
+            <Layers className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-60" />
+            <h3 className="text-lg font-bold text-foreground">No matching proposals found</h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
+              No applications match the current tab filter or search query. Try clearing your filters to see more.
+            </p>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                setActiveTab("ALL");
+                setSearchQuery("");
+              }}
+              className="mt-4"
+            >
+              Reset Filters
+            </Button>
+          </div>
+        ) : viewMode === "cards" ? (
+          /* Card Grid View (Kofluence Style) */
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {filteredApplications.map((app) => {
+              const meta = getStatusMeta(app.status);
+              const StatusIcon = meta.icon;
+              const isApproved =
+                app.status.toUpperCase() === "SELECTED" ||
+                app.status.toUpperCase() === "ACCEPTED";
+              const isRejected = app.status.toUpperCase() === "REJECTED";
+
+              let displayRate = "—";
+              if (app.finalRate) {
+                displayRate = formatCurrency(app.finalRate);
+              } else if (isApproved) {
+                displayRate = formatCurrency(app.proposedRate);
+              }
+
+              return (
+                <div
+                  key={app.id}
+                  className="bg-card border border-border rounded-2xl p-5 hover:border-primary/40 transition-all shadow-xs flex flex-col justify-between group"
+                >
+                  {/* Card Header: Brand & Status */}
+                  <div>
+                    <div className="flex items-start justify-between gap-3 mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-muted border border-border flex items-center justify-center font-bold text-sm text-foreground overflow-hidden relative flex-shrink-0">
+                          {app.campaign.brand?.logo ? (
+                            <Image
+                              src={app.campaign.brand.logo}
+                              alt={app.campaign.brand?.companyName ?? "Brand logo"}
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          ) : (
+                            (app.campaign.brand?.companyName || "VM").slice(0, 2).toUpperCase()
+                          )}
+                        </div>
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground">
+                            {app.campaign.brand?.companyName || "Verified Brand"}
+                          </div>
+                          <Link
+                            href={`/dashboard/campaigns/${app.campaign.id}`}
+                            className="font-bold text-base text-foreground group-hover:text-primary transition-colors line-clamp-1 inline-flex items-center gap-1"
+                          >
+                            {app.campaign.title}
+                            <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </Link>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border flex-shrink-0 ${meta.badgeClass}`}
+                      >
+                        <StatusIcon className="w-3.5 h-3.5" />
+                        {meta.label}
+                      </span>
+                    </div>
+
+                    {/* Upwork/Kofluence Pipeline Stepper */}
+                    <div className="bg-muted/40 border border-border/80 rounded-xl p-3 mb-4">
+                      <div className="flex items-center justify-between text-2xs font-semibold text-muted-foreground mb-2">
+                        <span>PIPELINE PROGRESS</span>
+                        <span className="tabular-nums">
+                          Submitted on {formatDate(app.createdAt)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {/* Step 1: Pitch */}
+                        <div className="flex flex-col gap-1">
+                          <div className="h-1.5 rounded-full bg-verified" />
+                          <span className="text-2xs font-semibold text-verified truncate">
+                            1. Pitch Sent
+                          </span>
+                        </div>
+
+                        {/* Step 2: Review/Shortlist */}
+                        <div className="flex flex-col gap-1">
+                          <div
+                            className={`h-1.5 rounded-full ${
+                              isRejected
+                                ? "bg-disputed"
+                                : meta.stageIndex >= 2
+                                ? "bg-verified"
+                                : "bg-border"
+                            }`}
+                          />
+                          <span
+                            className={`text-2xs font-semibold truncate ${
+                              isRejected
+                                ? "text-disputed"
+                                : meta.stageIndex >= 2
+                                ? "text-verified"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            {isRejected ? "Not Selected" : "2. Shortlist"}
+                          </span>
+                        </div>
+
+                        {/* Step 3: Deal Contract */}
+                        <div className="flex flex-col gap-1">
+                          <div
+                            className={`h-1.5 rounded-full ${
+                              isApproved ? "bg-verified" : "bg-border"
+                            }`}
+                          />
+                          <span
+                            className={`text-2xs font-semibold truncate ${
+                              isApproved ? "text-verified" : "text-muted-foreground"
+                            }`}
+                          >
+                            3. Escrow Deal
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Rejection Reason Alert if Applicable */}
+                    {app.rejectionReason && (
+                      <div className="mb-4 p-3 rounded-xl bg-disputed-muted border border-disputed-border text-disputed text-xs flex items-start gap-2.5">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold block mb-0.5">Brand Feedback:</span>
+                          <span>{app.rejectionReason}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Financial Terms Grid */}
+                    <div className="grid grid-cols-3 gap-3 p-3 rounded-xl bg-muted/60 border border-border text-xs mb-4">
+                      <div>
+                        <span className="text-2xs text-muted-foreground block font-medium mb-0.5">
+                          YOUR PITCH
+                        </span>
+                        <span className="font-extrabold text-foreground tabular-nums">
+                          {formatCurrency(app.proposedRate)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xs text-muted-foreground block font-medium mb-0.5">
+                          BUDGET CAP
+                        </span>
+                        <span className="font-medium text-muted-foreground tabular-nums">
+                          {app.campaign.perInfluencerBudget > 0
+                            ? formatCurrency(app.campaign.perInfluencerBudget)
+                            : "Open"}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xs text-muted-foreground block font-medium mb-0.5">
+                          FINAL RATE
+                        </span>
+                        <span
+                          className={`font-extrabold tabular-nums ${
+                            isApproved ? "text-verified" : "text-foreground"
+                          }`}
+                        >
+                          {displayRate}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
+                    <Link
+                      href={`/dashboard/campaigns/${app.campaign.id}`}
+                      className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-muted transition-colors"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      View Campaign Brief
+                    </Link>
+
+                    <div className="flex items-center gap-2">
+                      {isApproved && app.dealId ? (
+                        <Button
+                          href={`/dashboard/deals/${app.dealId}`}
+                          variant="primary"
+                          size="sm"
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 font-bold shadow-sm"
+                        >
+                          ✍️ Sign Contract & Deal Room
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          href={`/dashboard/campaigns/${app.campaign.id}`}
+                          variant="secondary"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                        >
+                          Details
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* Table / Pipeline List View (Upwork Style) */
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse" aria-label="Applications table">
+                <thead>
+                  <tr className="border-b border-border bg-muted/50 text-2xs font-bold text-muted-foreground uppercase tracking-wider">
+                    <th scope="col" className="p-4">
+                      Campaign & Brand
+                    </th>
+                    <th scope="col" className="p-4">
+                      Your Pitch
+                    </th>
+                    <th scope="col" className="p-4">
+                      Final Agreed Rate
+                    </th>
+                    <th scope="col" className="p-4">
+                      Submitted
+                    </th>
+                    <th scope="col" className="p-4">
+                      Status
+                    </th>
+                    <th scope="col" className="p-4 text-right">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border text-sm">
+                  {filteredApplications.map((app) => {
+                    const meta = getStatusMeta(app.status);
+                    const StatusIcon = meta.icon;
+                    const isApproved =
+                      app.status.toUpperCase() === "SELECTED" ||
+                      app.status.toUpperCase() === "ACCEPTED";
+
+                    let displayRate = "—";
+                    if (app.finalRate) {
+                      displayRate = formatCurrency(app.finalRate);
+                    } else if (isApproved) {
+                      displayRate = formatCurrency(app.proposedRate);
+                    }
+
+                    return (
+                      <tr key={app.id} className="hover:bg-muted/30 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-muted border border-border flex items-center justify-center font-bold text-xs text-foreground overflow-hidden relative flex-shrink-0">
+                              {app.campaign.brand?.logo ? (
+                                <Image
+                                  src={app.campaign.brand.logo}
+                                  alt={app.campaign.brand?.companyName ?? "Brand logo"}
+                                  fill
+                                  unoptimized
+                                  className="object-cover"
+                                />
+                              ) : (
+                                (app.campaign.brand?.companyName || "VM").slice(0, 2).toUpperCase()
+                              )}
+                            </div>
+                            <div>
+                              <Link
+                                href={`/dashboard/campaigns/${app.campaign.id}`}
+                                className="font-bold text-foreground hover:text-primary transition-colors block line-clamp-1"
+                              >
+                                {app.campaign.title}
+                              </Link>
+                              <span className="text-xs text-muted-foreground">
+                                {app.campaign.brand?.companyName || "Verified Brand"}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4 font-bold text-foreground tabular-nums">
+                          {formatCurrency(app.proposedRate)}
+                        </td>
+                        <td className="p-4 font-bold tabular-nums">
+                          <span className={isApproved ? "text-verified" : "text-muted-foreground"}>
+                            {displayRate}
+                          </span>
+                        </td>
+                        <td className="p-4 text-xs text-muted-foreground">
+                          {formatDate(app.createdAt)}
+                        </td>
+                        <td className="p-4">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${meta.badgeClass}`}
+                          >
+                            <StatusIcon className="w-3.5 h-3.5" />
+                            {meta.label}
+                          </span>
+                          {app.rejectionReason && (
+                            <span
+                              className="text-2xs text-disputed block mt-1 max-w-xs truncate"
+                              title={app.rejectionReason}
+                            >
+                              Feedback: {app.rejectionReason}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {isApproved && app.dealId && (
+                              <Button
+                                href={`/dashboard/deals/${app.dealId}`}
+                                variant="primary"
+                                size="sm"
+                                className="font-bold"
+                              >
+                                ✍️ Deal Room
+                              </Button>
+                            )}
+                            <Button
+                              href={`/dashboard/campaigns/${app.campaign.id}`}
+                              variant="secondary"
+                              size="sm"
+                              aria-label={`View campaign: ${app.campaign.title}`}
+                            >
+                              Brief
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Pagination Bar */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-border pt-6">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="font-medium"
+            >
+              Previous Page
+            </Button>
+            <span className="text-xs font-semibold text-muted-foreground">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              className="font-medium"
+            >
+              Next Page
+            </Button>
+          </div>
+        )}
+      </div>
+    </DashboardShell>
+  );
 }

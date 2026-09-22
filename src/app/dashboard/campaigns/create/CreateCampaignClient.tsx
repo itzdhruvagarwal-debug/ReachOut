@@ -19,7 +19,6 @@ import { ALL_CATEGORIES } from "@/lib/categories";
 import { type DraftCampaignData, type DraftCampaignResponse } from "@/lib/schemas";
 import {
   CheckCircle2,
-  ChevronRight,
   ArrowLeft,
   ArrowRight,
   Sparkles,
@@ -29,6 +28,12 @@ import {
   FileText,
   AlertCircle,
   Users,
+  Target,
+  PenLine,
+  ListChecks,
+  MapPin,
+  Plus,
+  X,
 } from "lucide-react";
 
 const INITIAL_FORM_DATA: CampaignFormData = {
@@ -113,6 +118,29 @@ function computeCampaignBudgets(
     : perInfluencer;
   return { perInfluencer, total };
 }
+
+const CATEGORY_EMOJI: Record<string, string> = {
+  Fashion: "👗",
+  Beauty: "💄",
+  Lifestyle: "✨",
+  Food: "🍜",
+  Travel: "✈️",
+  Fitness: "💪",
+  Technology: "💻",
+  Gaming: "🎮",
+  Entertainment: "🎬",
+  Education: "📚",
+  Business: "💼",
+  Finance: "📈",
+  Health: "🫀",
+  Parenting: "👶",
+  Pets: "🐾",
+  Sports: "⚽",
+  Music: "🎵",
+  Art: "🎨",
+  Automotive: "🚗",
+  "Real Estate": "🏠",
+};
 
 type WizardStep = 1 | 2 | 3;
 
@@ -438,95 +466,162 @@ export default function CreateCampaignClient() {
             )}
 
             <form onSubmit={(e) => handleSubmit(e, false)}>
-              {/* -------------------- STEP 1: OVERVIEW & BRAND NICHE -------------------- */}
+              {/* -------------------- STEP 1: CAMPAIGN BRIEF & CATEGORIES -------------------- */}
               {currentStep === 1 && (
-                <div className="space-y-5 animate-in fade-in-50 duration-200">
-                  <div className="border-b border-border pb-3">
-                    <h2 className="text-base sm:text-lg font-black text-foreground flex items-center gap-2">
-                      <FileText className="w-5 h-5 text-primary" />
-                      <span>Step 1: Campaign Brief & Categories</span>
-                    </h2>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Tell creators what your campaign is about and who should apply.
-                    </p>
+                <div className="space-y-6 animate-in fade-in-50 duration-200">
+
+                  {/* ── Section Header ── */}
+                  <div className="flex items-start gap-3 pb-4 border-b border-border">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <FileText className="w-4.5 h-4.5 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-base sm:text-lg font-black text-foreground leading-tight">
+                        Campaign Brief & Categories
+                      </h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Tell creators what your campaign is about, what you expect, and who should apply.
+                      </p>
+                    </div>
                   </div>
 
-                  <Input
-                    label="Campaign Title"
-                    id="campaign-title"
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    required
-                    placeholder="e.g. Summer Skincare Glow Routine Reel & Launch"
-                    error={fieldErrors.title}
-                    fullWidth
-                  />
-
-                  <Textarea
-                    label="Overview / Creative Brief"
-                    id="campaign-description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    required
-                    placeholder="Describe your brand story, campaign goals, key messaging pillars, and target aesthetic..."
-                    error={fieldErrors.description}
-                    fullWidth
-                    rows={3}
-                  />
-
-                  <Textarea
-                    label="Creator Requirements & Guidelines"
-                    id="campaign-requirements"
-                    value={formData.requirements}
-                    onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
-                    required
-                    placeholder="Specific requirements (e.g. 'Must show product packaging in first 3 seconds', 'Include link sticker with coupon code GLOW20', 'No competitor mentions')..."
-                    error={fieldErrors.requirements}
-                    fullWidth
-                    rows={3}
-                  />
-
-                  {/* Category Chips */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-foreground" htmlFor="custom-category-input">
-                        Target Categories (Select up to 5)
-                      </label>
-                      <span className="text-[11px] font-medium text-muted-foreground tabular-nums">
-                        {formData.targetCategories.length}/5 Selected
-                      </span>
+                  {/* ── A: Campaign Identity Card ── */}
+                  <div className="space-y-4 p-5 rounded-2xl bg-muted/30 border border-border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <PenLine className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Campaign Identity</span>
                     </div>
 
-                    <div className="flex flex-wrap gap-1.5">
+                    <Input
+                      label="Campaign Title"
+                      id="campaign-title"
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      required
+                      placeholder="e.g. Summer Skincare Glow Routine Reel & Launch"
+                      error={fieldErrors.title}
+                      fullWidth
+                    />
+
+                    <Textarea
+                      label="Overview / Creative Brief"
+                      id="campaign-description"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      required
+                      placeholder="Describe your brand story, campaign goals, key messaging pillars, and target aesthetic..."
+                      error={fieldErrors.description}
+                      fullWidth
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* ── B: Creator Guidelines Card ── */}
+                  <div className="space-y-4 p-5 rounded-2xl bg-muted/30 border border-border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <ListChecks className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Creator Guidelines</span>
+                    </div>
+
+                    <Textarea
+                      label="Requirements & Do's / Don'ts"
+                      id="campaign-requirements"
+                      value={formData.requirements}
+                      onChange={(e) => setFormData({ ...formData, requirements: e.target.value })}
+                      required
+                      placeholder={`Specific requirements, e.g.\n• Must show product packaging in first 3 seconds\n• Include link sticker with coupon code GLOW20\n• No competitor brand mentions`}
+                      error={fieldErrors.requirements}
+                      fullWidth
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* ── C: Niche & Category Selector ── */}
+                  <div className="space-y-4 p-5 rounded-2xl bg-muted/30 border border-border">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Target className="w-3.5 h-3.5 text-primary" />
+                        <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Target Niche</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {/* 5-dot slot visual */}
+                        {[1, 2, 3, 4, 5].map((slot) => (
+                          <div
+                            key={slot}
+                            className={`w-2 h-2 rounded-full transition-all duration-200 ${
+                              slot <= formData.targetCategories.length
+                                ? "bg-primary scale-110"
+                                : "bg-border"
+                            }`}
+                          />
+                        ))}
+                        <span className="text-[11px] font-semibold text-muted-foreground tabular-nums ml-1">
+                          {formData.targetCategories.length}/5
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Selected pills preview */}
+                    {formData.targetCategories.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {formData.targetCategories.map((cat) => (
+                          <span
+                            key={cat}
+                            className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full text-xs font-semibold bg-primary text-primary-foreground"
+                          >
+                            {CATEGORY_EMOJI[cat] ?? "🏷️"} {cat}
+                            <button
+                              type="button"
+                              onClick={() => handleCategoryToggle(cat)}
+                              className="w-4 h-4 rounded-full flex items-center justify-center bg-primary-foreground/20 hover:bg-primary-foreground/40 transition-colors ml-0.5"
+                              aria-label={`Remove ${cat}`}
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Category grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                       {categories.map((cat) => {
                         const isSelected = formData.targetCategories.includes(cat);
+                        const isDisabled = !isSelected && formData.targetCategories.length >= 5;
                         return (
                           <button
                             key={cat}
                             type="button"
-                            onClick={() => handleCategoryToggle(cat)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                            onClick={() => !isDisabled && handleCategoryToggle(cat)}
+                            disabled={isDisabled}
+                            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all border text-left ${
                               isSelected
-                                ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                                : "bg-muted text-foreground border-border hover:border-primary/50"
+                                ? "bg-primary/10 text-primary border-primary/40 shadow-xs ring-1 ring-primary/20"
+                                : isDisabled
+                                ? "bg-muted/30 text-muted-foreground border-border opacity-40 cursor-not-allowed"
+                                : "bg-card text-foreground border-border hover:border-primary/40 hover:bg-primary/5"
                             }`}
                           >
-                            {cat}
+                            <span className="text-base leading-none">{CATEGORY_EMOJI[cat] ?? "🏷️"}</span>
+                            <span className="truncate">{cat}</span>
+                            {isSelected && (
+                              <CheckCircle2 className="w-3.5 h-3.5 text-primary ml-auto shrink-0" />
+                            )}
                           </button>
                         );
                       })}
                     </div>
 
-                    {/* Custom Category Input */}
-                    <div className="flex gap-2 items-center pt-2">
+                    {/* Custom Category Adder */}
+                    <div className="flex gap-2 items-center pt-1 border-t border-border/60">
                       <Input
                         id="custom-category-input"
                         type="text"
-                        placeholder="Add custom niche category..."
+                        placeholder="Add a custom niche..."
                         value={customCategory}
                         onChange={(e) => setCustomCategory(e.target.value)}
-                        className="max-w-xs text-xs"
+                        className="text-xs flex-1"
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
@@ -539,17 +634,24 @@ export default function CreateCampaignClient() {
                         variant="secondary"
                         size="sm"
                         onClick={handleAddCustomCategory}
-                        className="text-xs font-bold"
+                        className="inline-flex items-center gap-1 text-xs font-bold shrink-0"
                       >
+                        <Plus className="w-3.5 h-3.5" />
                         Add
                       </Button>
                     </div>
                   </div>
 
-                  {/* Demographic Targeting */}
-                  <div className="pt-2 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* ── D: Audience Demographics ── */}
+                  <div className="space-y-4 p-5 rounded-2xl bg-muted/30 border border-border">
+                    <div className="flex items-center gap-2 mb-1">
+                      <MapPin className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Audience Demographics</span>
+                      <span className="ml-auto text-[10px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">Optional</span>
+                    </div>
+
                     <Input
-                      label="Target Cities (Optional, Comma-Separated)"
+                      label="Target Cities"
                       id="target-cities"
                       type="text"
                       placeholder="e.g. Mumbai, Bengaluru, Delhi NCR"
@@ -566,59 +668,59 @@ export default function CreateCampaignClient() {
                       fullWidth
                     />
 
-                    <Select
-                      label="Target Audience Gender"
-                      id="target-gender"
-                      value={formData.targetGender}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          targetGender: e.target.value,
-                        })
-                      }
-                      fullWidth
-                    >
-                      <option value="ANY">Any Gender</option>
-                      <option value="FEMALE">Female Focused</option>
-                      <option value="MALE">Male Focused</option>
-                    </Select>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <Select
+                        label="Target Gender"
+                        id="target-gender"
+                        value={formData.targetGender}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            targetGender: e.target.value,
+                          })
+                        }
+                        fullWidth
+                      >
+                        <option value="ANY">Any Gender</option>
+                        <option value="FEMALE">Female Focused</option>
+                        <option value="MALE">Male Focused</option>
+                      </Select>
+
+                      <Input
+                        label="Min Age"
+                        id="target-age-min"
+                        type="number"
+                        placeholder="e.g. 18"
+                        value={formData.targetAgeMin || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            targetAgeMin: e.target.value ? Number.parseInt(e.target.value, 10) : null,
+                          })
+                        }
+                        min={13}
+                        fullWidth
+                      />
+                      <Input
+                        label="Max Age"
+                        id="target-age-max"
+                        type="number"
+                        placeholder="e.g. 35"
+                        value={formData.targetAgeMax || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            targetAgeMax: e.target.value ? Number.parseInt(e.target.value, 10) : null,
+                          })
+                        }
+                        min={13}
+                        fullWidth
+                      />
+                    </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Min Target Age"
-                      id="target-age-min"
-                      type="number"
-                      placeholder="e.g. 18"
-                      value={formData.targetAgeMin || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          targetAgeMin: e.target.value ? Number.parseInt(e.target.value, 10) : null,
-                        })
-                      }
-                      min={13}
-                      fullWidth
-                    />
-                    <Input
-                      label="Max Target Age"
-                      id="target-age-max"
-                      type="number"
-                      placeholder="e.g. 35"
-                      value={formData.targetAgeMax || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          targetAgeMax: e.target.value ? Number.parseInt(e.target.value, 10) : null,
-                        })
-                      }
-                      min={13}
-                      fullWidth
-                    />
-                  </div>
-
-                  {/* Step 1 Navigation */}
-                  <div className="flex justify-between items-center pt-4 border-t border-border">
+                  {/* ── Step 1 Navigation ── */}
+                  <div className="flex justify-between items-center pt-2 border-t border-border">
                     <Button
                       type="button"
                       variant="secondary"

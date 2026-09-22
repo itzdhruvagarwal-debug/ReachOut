@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useRef } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
+import React, { useState, useMemo } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -12,6 +11,9 @@ import {
   AlertTriangle,
   Building2,
   HelpCircle,
+  RotateCcw,
+  Lock,
+  Receipt,
 } from "lucide-react";
 import { Input, Card } from "@/components/ui";
 import { formatCurrency, formatDateTime } from "@/lib/utils-client";
@@ -29,6 +31,69 @@ interface VirtualizedTransactionListProps {
 const CREDIT_TYPES = new Set(["CREDIT", "REFUND"]);
 const DEBIT_TYPES = new Set(["DEBIT", "WITHDRAWAL", "PLATFORM_FEE", "CLAWBACK", "CHARGEBACK"]);
 
+function getDateLabel(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (d.toDateString() === todayStr) return "Today";
+    if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
+    return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return "Older";
+  }
+}
+
+function getCategoryIcon(type: string): React.ReactNode {
+  switch (type) {
+    case "CREDIT":
+      return (
+        <div className="w-9 h-9 rounded-full bg-verified-muted text-verified flex items-center justify-center shrink-0 border border-verified-border">
+          <ArrowDownLeft className="w-4 h-4" />
+        </div>
+      );
+    case "REFUND":
+      return (
+        <div className="w-9 h-9 rounded-full bg-verified-muted text-verified flex items-center justify-center shrink-0 border border-verified-border">
+          <RotateCcw className="w-4 h-4" />
+        </div>
+      );
+    case "WITHDRAWAL":
+      return (
+        <div className="w-9 h-9 rounded-full bg-escrow-muted text-escrow flex items-center justify-center shrink-0 border border-escrow-border">
+          <Building2 className="w-4 h-4" />
+        </div>
+      );
+    case "PLATFORM_FEE":
+      return (
+        <div className="w-9 h-9 rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0 border border-border">
+          <Receipt className="w-4 h-4" />
+        </div>
+      );
+    case "ESCROW_RELEASE":
+      return (
+        <div className="w-9 h-9 rounded-full bg-escrow-muted text-escrow flex items-center justify-center shrink-0 border border-escrow-border">
+          <Lock className="w-4 h-4" />
+        </div>
+      );
+    case "CLAWBACK":
+    case "CHARGEBACK":
+      return (
+        <div className="w-9 h-9 rounded-full bg-disputed-muted text-disputed flex items-center justify-center shrink-0 border border-disputed-border">
+          <AlertTriangle className="w-4 h-4" />
+        </div>
+      );
+    default:
+      return (
+        <div className="w-9 h-9 rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0 border border-border">
+          <ArrowUpRight className="w-4 h-4" />
+        </div>
+      );
+  }
+}
+
 export function VirtualizedTransactionList({
   transactions,
   isLoading,
@@ -40,12 +105,9 @@ export function VirtualizedTransactionList({
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
-      // Filter tab
       if (activeFilter === "CREDIT" && !CREDIT_TYPES.has(tx.type)) return false;
       if (activeFilter === "DEBIT" && !DEBIT_TYPES.has(tx.type)) return false;
       if (activeFilter === "PENDING" && tx.status !== "PENDING") return false;
-
-      // Search query
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const descMatch = (tx.description || "").toLowerCase().includes(query);
@@ -53,19 +115,27 @@ export function VirtualizedTransactionList({
         const typeMatch = tx.type.toLowerCase().includes(query);
         return descMatch || idMatch || typeMatch;
       }
-
       return true;
     });
   }, [transactions, activeFilter, searchQuery]);
 
-  const parentRef = useRef<HTMLDivElement>(null);
-
-  const rowVirtualizer = useVirtualizer({
-    count: filteredTransactions.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 80,
-    overscan: 6,
-  });
+  // Group by date label for CRED/Jupiter pattern
+  const groupedTransactions = useMemo(() => {
+    const groups: { label: string; items: TransactionItem[] }[] = [];
+    const seen = new Map<string, number>();
+    for (const tx of filteredTransactions) {
+      const label = getDateLabel(tx.createdAt);
+      const existingIdx = seen.get(label);
+      if (existingIdx !== undefined) {
+        const group = groups[existingIdx];
+        if (group) group.items.push(tx);
+      } else {
+        seen.set(label, groups.length);
+        groups.push({ label, items: [tx] });
+      }
+    }
+    return groups;
+  }, [filteredTransactions]);
 
   return (
     <Card className="p-5 sm:p-6 rounded-2xl border border-border bg-card shadow-sm flex flex-col h-full">
@@ -192,113 +262,88 @@ export function VirtualizedTransactionList({
           </p>
         </div>
       ) : (
-        <div
-          ref={parentRef}
-          className="h-[480px] overflow-auto relative rounded-xl border border-border divide-y divide-border"
-        >
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
-          >
-            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const tx = filteredTransactions[virtualRow.index];
-              if (!tx) return null;
-              const isCredit = CREDIT_TYPES.has(tx.type);
-              const formattedAmount = formatCurrency(tx.amount);
-
-              let statusBadge = (
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-verified-muted text-verified border border-verified-border">
-                  <CheckCircle2 className="w-3 h-3" /> Completed
+        /* ── CRED/Jupiter date-grouped ledger ──────────────────────────── */
+        <div className="h-[480px] overflow-auto rounded-xl border border-border" aria-label="Transaction history">
+          {groupedTransactions.map((group) => (
+            <div key={group.label}>
+              {/* Sticky date group header */}
+              <div className="sticky top-0 z-10 px-4 py-1.5 bg-muted/80 backdrop-blur-sm border-b border-border flex items-center gap-2">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  {group.label}
                 </span>
-              );
+                <span className="text-[10px] text-muted-foreground/60 font-mono">
+                  · {group.items.length} {group.items.length === 1 ? "txn" : "txns"}
+                </span>
+              </div>
 
-              if (tx.status === "PENDING") {
-                statusBadge = (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pending-muted text-pending border border-pending-border">
-                    <Clock className="w-3 h-3" /> Pending
-                  </span>
-                );
-              } else if (tx.status === "FAILED" || tx.status === "REVERSED") {
-                statusBadge = (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-disputed-muted text-disputed border border-disputed-border">
-                    <AlertTriangle className="w-3 h-3" /> {tx.status}
-                  </span>
-                );
-              }
+              {/* Transactions in this group */}
+              <div className="divide-y divide-border">
+                {group.items.map((tx) => {
+                  const isCredit = CREDIT_TYPES.has(tx.type);
+                  const formattedAmount = formatCurrency(tx.amount);
 
-              let typeIcon = (
-                <div className="w-9 h-9 rounded-full bg-verified-muted text-verified flex items-center justify-center shrink-0 border border-verified-border">
-                  <ArrowDownLeft className="w-4 h-4" />
-                </div>
-              );
+                  let statusBadge = (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-verified-muted text-verified border border-verified-border">
+                      <CheckCircle2 className="w-3 h-3" /> Completed
+                    </span>
+                  );
 
-              if (tx.type === "WITHDRAWAL") {
-                typeIcon = (
-                  <div className="w-9 h-9 rounded-full bg-escrow-muted text-escrow flex items-center justify-center shrink-0 border border-escrow-border">
-                    <Building2 className="w-4 h-4" />
-                  </div>
-                );
-              } else if (DEBIT_TYPES.has(tx.type)) {
-                typeIcon = (
-                  <div className="w-9 h-9 rounded-full bg-muted text-muted-foreground flex items-center justify-center shrink-0 border border-border">
-                    <ArrowUpRight className="w-4 h-4" />
-                  </div>
-                );
-              }
+                  if (tx.status === "PENDING") {
+                    statusBadge = (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pending-muted text-pending border border-pending-border">
+                        <Clock className="w-3 h-3" /> Pending
+                      </span>
+                    );
+                  } else if (tx.status === "FAILED" || tx.status === "REVERSED") {
+                    statusBadge = (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-disputed-muted text-disputed border border-disputed-border">
+                        <AlertTriangle className="w-3 h-3" /> {tx.status}
+                      </span>
+                    );
+                  }
 
-              return (
-                <div
-                  key={tx.id}
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    width: "100%",
-                    height: `${virtualRow.size}px`,
-                    transform: `translateY(${virtualRow.start}px)`,
-                  }}
-                  onClick={() => onSelectTransaction?.(tx)}
-                  className="flex items-center justify-between p-3.5 hover:bg-muted/40 transition-colors cursor-pointer"
-                >
-                  {/* Left: Direction Icon & Description */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    {typeIcon}
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-semibold truncate text-foreground">
-                          {tx.description || tx.type.replaceAll("_", " ")}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <span>{formatDateTime(tx.createdAt)}</span>
-                        <span>•</span>
-                        <span className="font-mono text-[10px]">
-                          Ref: {tx.id.slice(0, 10)}...
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Amount & Status Badge */}
-                  <div className="text-right shrink-0 pl-3">
+                  return (
                     <div
-                      className={`text-sm sm:text-base font-bold font-mono tabular-nums tracking-tight ${
-                        isCredit
-                          ? "text-verified"
-                          : "text-foreground"
-                      }`}
+                      key={tx.id}
+                      onClick={() => onSelectTransaction?.(tx)}
+                      className="flex items-center justify-between p-3.5 hover:bg-muted/40 transition-colors cursor-pointer"
                     >
-                      {isCredit ? `+ ${formattedAmount}` : `- ${formattedAmount}`}
+                      {/* Left: Category Icon & Description */}
+                      <div className="flex items-center gap-3 min-w-0">
+                        {getCategoryIcon(tx.type)}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs sm:text-sm font-semibold truncate text-foreground">
+                              {tx.description || tx.type.replaceAll("_", " ")}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span>{formatDateTime(tx.createdAt)}</span>
+                            <span>•</span>
+                            <span className="font-mono text-[10px]">
+                              Ref: {tx.id.slice(0, 10)}...
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Amount & Status Badge */}
+                      <div className="text-right shrink-0 pl-3">
+                        <div
+                          className={`text-sm sm:text-base font-bold font-mono tabular-nums tracking-tight ${
+                            isCredit ? "text-verified" : "text-foreground"
+                          }`}
+                        >
+                          {isCredit ? `+ ${formattedAmount}` : `- ${formattedAmount}`}
+                        </div>
+                        <div className="mt-0.5">{statusBadge}</div>
+                      </div>
                     </div>
-                    <div className="mt-0.5">{statusBadge}</div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </Card>

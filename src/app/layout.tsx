@@ -76,28 +76,29 @@ const headersList = await headers();
 const nonce = headersList.get("x-nonce") || undefined;
 
 return (
-<html
-  lang="en"
-  className={`${inter.variable} ${outfit.variable} ${plusJakartaSans.variable}`}
-  data-scroll-behavior="smooth"
->
-<head>
-<script
-  nonce={nonce}
-  dangerouslySetInnerHTML={{
-    __html: `
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        window.deferredPrompt = e;
-        window.dispatchEvent(new CustomEvent('deferredpromptready', { detail: e }));
-      });
-    `,
-  }}
-/>
-</head>
-<body className={inter.className}>
-<Providers>{children}</Providers>
-</body>
-</html>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${outfit.variable} ${plusJakartaSans.variable}`}
+      data-scroll-behavior="smooth"
+    >
+      <head>
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `
+              window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                window.deferredPrompt = e;
+                window.dispatchEvent(new CustomEvent('deferredpromptready', { detail: e }));
+              });
+            `,
+          }}
+        />
+      </head>
+      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
+        <Providers nonce={nonce}>{children}</Providers>
+      </body>
+    </html>
 );
 }

@@ -23,6 +23,29 @@ interface CreatorDiscoveryCardProps {
   showInviteButton?: boolean;
 }
 
+function getNicheGradient(niche?: string): string {
+  const n = (niche || "").toLowerCase();
+  if (n.includes("fashion") || n.includes("beauty") || n.includes("lifestyle")) {
+    return "from-pink-500 via-rose-500 to-purple-600";
+  }
+  if (n.includes("tech") || n.includes("gadget") || n.includes("crypto") || n.includes("dev")) {
+    return "from-blue-600 via-indigo-600 to-cyan-500";
+  }
+  if (n.includes("fitness") || n.includes("gym") || n.includes("health") || n.includes("sport")) {
+    return "from-orange-500 via-amber-500 to-red-600";
+  }
+  if (n.includes("food") || n.includes("cook") || n.includes("travel")) {
+    return "from-amber-400 via-orange-500 to-rose-500";
+  }
+  if (n.includes("finance") || n.includes("business") || n.includes("marketing")) {
+    return "from-emerald-500 via-teal-600 to-cyan-700";
+  }
+  if (n.includes("gaming") || n.includes("esport")) {
+    return "from-violet-600 via-purple-600 to-fuchsia-600";
+  }
+  return "from-primary via-verified/70 to-escrow";
+}
+
 export default function CreatorDiscoveryCard({
   creator,
   onToggleBookmark,
@@ -155,9 +178,25 @@ export default function CreatorDiscoveryCard({
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-muted/40 p-6 text-center">
-            <span className="text-3xl mb-2">📸</span>
-            <span className="text-sm font-bold text-foreground">{creator.niche} Creator</span>
+          <div
+            className={`w-full h-full flex flex-col items-center justify-center bg-gradient-to-br ${getNicheGradient(
+              creator.niche
+            )} p-6 text-center relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500`}
+          >
+            {/* Ambient pattern glow */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-black/20 blur-2xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col items-center">
+              <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white text-xl font-black font-heading shadow-lg mb-2.5">
+                {creator.name.substring(0, 2).toUpperCase()}
+              </div>
+              <span className="text-sm font-bold text-white tracking-wide drop-shadow-xs">
+                {creator.niche} Creator
+              </span>
+              <span className="text-[11px] text-white/80 font-medium mt-0.5">
+                @{creator.handle}
+              </span>
+            </div>
           </div>
         )}
 

@@ -1,153 +1,153 @@
-"use client";
-
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import type { Metadata } from "next";
+import { LegalLayout, LegalSection } from "@/components/legal/LegalLayout";
 import Link from "next/link";
+import { Clock, AlertCircle, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Button } from "@/components/ui";
+
+export const metadata: Metadata = {
+  title: "Refund & Cancellation Policy — VyaparMedia",
+  description:
+    "Comprehensive refund eligibility, cancellation protocols, and escrow return timelines for brand campaigns on VyaparMedia.",
+};
+
+const SECTIONS = [
+  { id: "overview", heading: "1. Escrow Protection Overview" },
+  { id: "brand-cancellations", heading: "2. Brand-Initiated Cancellations" },
+  { id: "creator-cancellations", heading: "3. Creator-Initiated Cancellations" },
+  { id: "non-refundable", heading: "4. Non-Refundable Fee Components" },
+  { id: "timelines", heading: "5. Processing Timelines & Methods" },
+  { id: "disputes", heading: "6. Dispute Adjudication Outcomes" },
+  { id: "how-to-initiate", heading: "7. How to File a Refund Request" },
+];
 
 export default function RefundPage() {
-const lastUpdated = "June 20, 2026";
+  return (
+    <LegalLayout
+      title="Refund & Cancellation Policy"
+      lastUpdated="June 20, 2026"
+      description="This policy defines the circumstances under which locked escrow funds, campaign deposits, and platform payments can be cancelled or refunded."
+      sections={SECTIONS}
+    >
+      {/* 1 */}
+      <LegalSection id="overview" heading="1. Escrow Protection Overview">
+        <p>
+          VyaparMedia operates an automated milestone escrow architecture designed to safeguard both brand investments and creator compensation. When a brand funds a campaign, the capital is locked in an RBI-regulated escrow account and is only disbursed to the creator once contractual milestones are fulfilled and verified.
+        </p>
+        <p>
+          Refund eligibility is determined strictly by the deal progression stage, submission timestamps, and verified deliverable compliance against the agreed Statement of Work (SOW).
+        </p>
+      </LegalSection>
 
-return (
-<div className="flex flex-col min-h-screen">
-<Navbar />
+      {/* 2 */}
+      <LegalSection id="brand-cancellations" heading="2. Brand-Initiated Cancellations" highlight>
+        <div className="space-y-4">
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 font-bold text-foreground text-sm mb-1">
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <span>Prior to Creator Offer Acceptance (100% Refundable)</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              If a campaign brief has not yet been accepted by selected creators, the brand may cancel immediately. 100% of the locked escrow capital is credited back to the Brand Wallet instantly.
+            </p>
+          </div>
 
-<main className="flex-1 pt-20">
-<section className="section">
-<div className="container max-w-880">
-<h1 className="section-title gradient-text mb-3 text-3xl font-extrabold">
-Refund and Cancellation Policy
-</h1>
-<p className="text-secondary font-semibold mb-10">
-Last updated: {lastUpdated}
-</p>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 font-bold text-foreground text-sm mb-1">
+              <Clock className="w-4 h-4 text-amber-500" />
+              <span>Active Workroom Phase (Mutual Consent Required)</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Once a creator accepts the deal and creative production begins, brand cancellation requires either creator consent or an administrative dispute claim detailing non-responsiveness or missed deadlines.
+            </p>
+          </div>
 
-<div className="text-secondary grid gap-8 leading-relaxed text-sm">
-<section>
-<h2 className="text-xl font-extrabold mb-14px text-primary">1. How protected payments work</h2>
-<p>
-VyaparMedia uses funded campaign budgets, payment holds, wallet ledgers, and
-deal status checks to protect both brands and influencers. Refund eligibility
-depends on the deal stage, evidence, platform fees, tax treatment, and whether
-work has already been approved or auto-approved.
-</p>
-<p>
-This policy covers platform-managed campaign payments. It does not override a
-signed deal, statutory rights, payment gateway rules, bank timelines, or an
-admin dispute decision.
-</p>
-</section>
+          <div className="rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-2 font-bold text-foreground text-sm mb-1">
+              <AlertCircle className="w-4 h-4 text-primary" />
+              <span>Post-Submission Phase (Revision Flow)</span>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Brands cannot cancel a deal unilaterally after draft deliverables have been submitted. Brands must review the assets and use their contractual revision requests or escalate to the Dispute Center with evidence of non-compliance.
+            </p>
+          </div>
+        </div>
+      </LegalSection>
 
-<section className="card refund-panel-rose">
-<h2 className="text-xl font-extrabold mb-14px text-primary">2. Brand cancellations</h2>
-<ul className="list-disc pl-6 space-y-3">
-<li>
-<strong>Before influencer selection:</strong> Uncommitted campaign funds may
-be returned to the brand wallet or original payment method, subject to gateway
-and statutory adjustments.
-</li>
-<li>
-<strong>After selection but before work starts:</strong> Cancellation may
-require creator consent or admin review if the creator has already accepted
-the deal.
-</li>
-<li>
-<strong>After content submission:</strong> Refunds are handled through the
-content review or dispute flow. Brands should request revisions or raise a
-dispute before approving content.
-</li>
-<li>
-<strong>After approval or auto-approval:</strong> Payments are generally final
-unless fraud, post deletion, contract breach, or a continuing obligation is
-proven.
-</li>
-<li>
-<strong>After payout release:</strong> Refunds may require clawback, wallet
-debt recovery, or manual review and may not be immediately recoverable from
-the influencer.
-</li>
-</ul>
-</section>
+      {/* 3 */}
+      <LegalSection id="creator-cancellations" heading="3. Creator-Initiated Cancellations">
+        <p>
+          Creators are expected to complete all accepted collaborations. In the event of documented emergencies, equipment failure, or brand contract breaches:
+        </p>
+        <ul className="list-disc pl-6 space-y-2 my-3">
+          <li>If the creator cancels prior to submitting deliverables, 100% of the locked escrow funds are returned to the brand immediately.</li>
+          <li>Unjustified creator cancellations or missed deadlines will incur DRS™ trust score penalties and may restrict participation in high-value campaigns.</li>
+          <li>If partial milestones were already submitted and approved by the brand, the creator is entitled to compensation for those approved milestones.</li>
+        </ul>
+      </LegalSection>
 
-<section>
-<h2 className="text-xl font-extrabold mb-14px text-primary">3. Influencer cancellations</h2>
-<p>
-Influencers should decline unsuitable work before signing. After signing, missed
-deadlines, non-delivery, copied content, misleading metrics, or unapproved
-substitutions may result in cancellation, partial payment, refund, strikes, or
-account restrictions.
-</p>
-<p>
-If a creator has already performed approved work, cancellation by the creator
-may still lead to partial payment where the brand received usable deliverables
-or licensed rights.
-</p>
-</section>
+      {/* 4 */}
+      <LegalSection id="non-refundable" heading="4. Non-Refundable Fee Components">
+        <p>The following items are strictly non-refundable:</p>
+        <ul className="list-disc pl-6 space-y-2 my-3">
+          <li>Third-party payment gateway transaction processing charges (Razorpay fees incurred on credit cards/net-banking).</li>
+          <li>Statutory taxes (such as GST or TDS) already deposited with the respective tax authorities for completed transactions.</li>
+          <li>Milestones where content was officially approved and payment was authorized to the creator&apos;s wallet.</li>
+          <li>Physical product samples shipped by brands directly to creators for gifting or review campaigns.</li>
+        </ul>
+      </LegalSection>
 
-<section>
-<h2 className="text-xl font-extrabold mb-14px text-primary">4. Non-refundable amounts</h2>
-<ul className="list-disc pl-6 space-y-2">
-<li>Gateway charges, bank charges, payout charges, or taxes already incurred.</li>
-<li>Platform service fees for completed or substantially performed work.</li>
-<li>Approved content, unless fraud or a material contract breach is established.</li>
-<li>Product samples, shipping, or third-party costs unless the deal terms state otherwise.</li>
-<li>TDS, GST, invoice adjustments, or statutory amounts already reported, unless reversal is legally and operationally possible.</li>
-</ul>
-</section>
+      {/* 5 */}
+      <LegalSection id="timelines" heading="5. Processing Timelines &amp; Methods">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-4">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h4 className="font-bold text-foreground text-sm mb-1">VyaparMedia Wallet Credit</h4>
+            <span className="text-xs font-mono font-bold text-emerald-500 block mb-2">Instant (0–5 Minutes)</span>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Approved refunds are credited to your platform wallet balance immediately, ready to be deployed on future creator campaigns.
+            </p>
+          </div>
 
-<section>
-<h2 className="text-xl font-extrabold mb-14px text-primary">5. Refund timing</h2>
-<p>
-Approved refunds are usually credited to the VyaparMedia wallet first. If a
-refund to the original payment method is supported, Razorpay or the banking
-partner may take 5 to 10 business days after processing. Timelines can vary
-based on bank holidays, payment method, KYC status, disputes, and compliance
-review.
-</p>
-<p>
-Wallet refunds are generally faster because they remain inside VyaparMedia.
-Original-source refunds and released pre-authorizations depend on Razorpay,
-card networks, UPI, banks, and settlement cut-offs.
-</p>
-</section>
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h4 className="font-bold text-foreground text-sm mb-1">Original Bank Account / Card</h4>
+            <span className="text-xs font-mono font-bold text-primary block mb-2">5–7 Business Days</span>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              If an original payment source reversal is requested, banking networks (UPI, IMPS, Visa, Mastercard) process the credit within standard settlement cycles.
+            </p>
+          </div>
+        </div>
+      </LegalSection>
 
-<section>
-<h2 className="text-xl font-extrabold mb-14px text-primary">6. Dispute outcomes and evidence</h2>
-<ul className="list-disc pl-6 space-y-2">
-<li>Full brand refund: usually applies to non-delivery, verified fraud, or major breach before accepted work.</li>
-<li>Partial split: may apply where some deliverables were usable, late, incomplete, or disputed in good faith.</li>
-<li>Full creator payout: usually applies where the brand missed the review window, approved content, or failed to show breach.</li>
-<li>Post-removal clawback: may apply if a live post is deleted, made private, materially edited, or loses required disclosures during the monitoring window.</li>
-</ul>
-</section>
+      {/* 6 */}
+      <LegalSection id="disputes" heading="6. Dispute Adjudication Outcomes">
+        <p>When an administrative dispute is adjudicated by platform mediators:</p>
+        <ul className="list-disc pl-6 space-y-2 my-3">
+          <li><strong className="text-foreground">Full Brand Refund:</strong> Issued when a creator fails to deliver within agreed deadlines, submits plagiarized content, or provides false analytics.</li>
+          <li><strong className="text-foreground">Full Creator Payout:</strong> Issued when deliverables satisfy the approved brief and the brand fails to provide valid objective grounds for rejection.</li>
+          <li><strong className="text-foreground">Split Compromise:</strong> Issued when work was partially completed and can be utilized with minor adjustments by the brand.</li>
+          <li><strong className="text-foreground">Post-Deletion Clawback:</strong> If a creator deletes a sponsored post before the agreed 30-day retention window, funds may be reclaimed from the creator&apos;s pending wallet balance.</li>
+        </ul>
+      </LegalSection>
 
-<section>
-<h2 className="text-xl font-extrabold mb-14px text-primary">7. How to request a refund</h2>
-<p>
-Use the deal or Dispute Center flow and include the campaign ID, deal ID,
-relevant screenshots, post URLs, chat evidence, deadline evidence, and the
-specific refund reason. Off-platform evidence may be considered but cannot be
-guaranteed if authenticity is unclear.
-</p>
-</section>
-
-<section className="text-center bg-secondary rounded-lg border-card p-6">
-<p className="text-sm text-muted">
-Need a refund review or dispute?
-<Link href="/dashboard/disputes" className="text-primary font-bold no-underline ml-1">
-Open Dispute Center
-</Link>
-</p>
-</section>
-</div>
-</div>
-</section>
-</main>
-
-<Footer />
-</div>
-);
+      {/* 7 */}
+      <LegalSection id="how-to-initiate" heading="7. How to File a Refund Request" highlight>
+        <p className="mb-4">
+          To initiate a refund or dispute a milestone deliverable, navigate to your active deal room or access the Resolution Center:
+        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/dashboard/disputes">
+            <Button variant="primary" className="cursor-pointer inline-flex items-center gap-2">
+              <span>Open Dispute Center</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+          <a
+            href="mailto:support@vyaparmedia.in"
+            className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Contact Billing Support →
+          </a>
+        </div>
+      </LegalSection>
+    </LegalLayout>
+  );
 }
-
-
-
-

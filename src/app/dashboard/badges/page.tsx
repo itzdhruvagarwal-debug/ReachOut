@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useState } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
@@ -11,51 +10,87 @@ import { BadgeDefinition } from "@/lib/badges";
 import EmptyState from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui";
 import { formatNumber } from "@/lib/utils-client";
-
-interface BadgeWithStatus extends BadgeDefinition {
-earned: boolean;
-earnedAt?: string;
-hasProgress?: boolean;
-currentProgress?: number;
-targetProgress?: number;
-}
-
 import {
-  type GamificationStats,
+  Trophy,
+  Star,
+  Zap,
+  Lock,
+  CheckCircle2,
+  TrendingUp,
+  Filter,
+} from "lucide-react";
+import {
   type BadgesResponse,
 } from "@/lib/schemas";
 
+interface BadgeWithStatus extends BadgeDefinition {
+  earned: boolean;
+  earnedAt?: string;
+  hasProgress?: boolean;
+  currentProgress?: number;
+  targetProgress?: number;
+}
 
 const CATEGORY_ITEMS = [
-  { id: "ALL", label: "All Badges", icon: "🎯" },
-  { id: "MILESTONE", label: "Milestone", icon: "🏆" },
-  { id: "ACHIEVEMENT", label: "Achievement", icon: "⭐" },
-  { id: "COMMUNITY", label: "Community", icon: "👥" },
-  { id: "SPECIAL", label: "Special", icon: "✨" },
-  { id: "VERIFICATION", label: "Verification", icon: "🛡️" },
-];
+  { id: "ALL",          label: "All Badges",    icon: <Trophy className="w-3.5 h-3.5" /> },
+  { id: "MILESTONE",    label: "Milestone",     icon: <TrendingUp className="w-3.5 h-3.5" /> },
+  { id: "ACHIEVEMENT",  label: "Achievement",   icon: <Star className="w-3.5 h-3.5" /> },
+  { id: "COMMUNITY",    label: "Community",     icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
+  { id: "SPECIAL",      label: "Special",       icon: <Zap className="w-3.5 h-3.5" /> },
+  { id: "VERIFICATION", label: "Verification",  icon: <Lock className="w-3.5 h-3.5" /> },
+] as const;
 
 const RARITY_ITEMS = [
-  { id: "ALL", label: "All Rarities", dot: "" },
-  { id: "COMMON", label: "Common", dot: "⚪" },
-  { id: "RARE", label: "Rare", dot: "🔵" },
-  { id: "EPIC", label: "Epic", dot: "🟣" },
-  { id: "LEGENDARY", label: "Legendary", dot: "🟡" },
-];
+  { id: "ALL",       label: "All Rarities", accent: "bg-muted text-muted-foreground border-border" },
+  { id: "COMMON",    label: "Common",       accent: "bg-muted text-muted-foreground border-border" },
+  { id: "RARE",      label: "Rare",         accent: "bg-escrow-muted text-escrow border-escrow-border" },
+  { id: "EPIC",      label: "Epic",         accent: "bg-pending-muted text-pending border-pending-border" },
+  { id: "LEGENDARY", label: "Legendary",    accent: "bg-verified-muted text-verified border-verified-border" },
+] as const;
+
+/** Map rarity → visual accent tokens */
+function rarityAccent(rarity: string): { border: string; glow: string; badge: string } {
+  switch (rarity) {
+    case "LEGENDARY":
+      return {
+        border: "border-verified-border",
+        glow: "shadow-verified/20",
+        badge: "bg-verified-muted text-verified border border-verified-border",
+      };
+    case "EPIC":
+      return {
+        border: "border-pending-border",
+        glow: "shadow-pending/20",
+        badge: "bg-pending-muted text-pending border border-pending-border",
+      };
+    case "RARE":
+      return {
+        border: "border-escrow-border",
+        glow: "shadow-escrow/20",
+        badge: "bg-escrow-muted text-escrow border border-escrow-border",
+      };
+    default:
+      return {
+        border: "border-border",
+        glow: "",
+        badge: "bg-muted text-muted-foreground border border-border",
+      };
+  }
+}
 
 export default function BadgesPage() {
   const { data: session } = useSession();
   const [activeCategory, setActiveCategory] = useState<string>("ALL");
   const [activeRarity, setActiveRarity] = useState<string>("ALL");
 
-  const { data, isLoading: loading, error: fetchErr } = useSWR<BadgesResponse>(
+  const { data, isLoading: loading, error: fetchErr, mutate } = useSWR<BadgesResponse>(
     "/api/gamification/badges",
     fetcher
   );
 
-  const badges = data?.badges || [];
+  const badges: BadgeWithStatus[] = (data?.badges || []) as unknown as BadgeWithStatus[];
   const stats = data?.stats || null;
-  const error = fetchErr ? "Failed to load your achievements. Please refresh the page." : "";
+  const hasError = Boolean(fetchErr);
 
   const filteredBadges = badges.filter((b) => {
     const categoryMatch = activeCategory === "ALL" || b.category === activeCategory;
@@ -63,235 +98,295 @@ export default function BadgesPage() {
     return categoryMatch && rarityMatch;
   });
 
-  if (!session)
-    return <div className="p-8 text-center text-muted">Loading...</div>;
+  const earnedCount = badges.filter((b) => b.earned).length;
+
+  if (!session) {
+    return (
+      <DashboardShell user={undefined}>
+        <div className="flex items-center justify-center h-48">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell user={session.user}>
-      <div className="mx-auto max-w-1000">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1
-            className="badges-title font-extrabold mb-2 text-3xl bg-gradient-amber-rose"
-          >
-            Badges & Achievements
-          </h1>
-          <p className="text-secondary text-base">
-            Collect badges, earn XP, and level up your profile!
-          </p>
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
+
+        {/* ── Page Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-card border border-border shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-pending/10 border border-pending-border flex items-center justify-center">
+              <Trophy className="w-5 h-5 text-pending" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
+                Badges &amp; Achievements
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Collect badges, earn XP, and level up your creator trust profile
+              </p>
+            </div>
+          </div>
+
+          {/* XP earned pill */}
+          {stats && (
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-verified-muted border border-verified-border text-verified text-xs font-bold">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {earnedCount} / {badges.length} Earned
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Stats Summary */}
+        {/* ── Stats KPI Strip ── */}
         {stats && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <StatCard
-              icon="⭐"
-              label="Current Level"
-              value={stats.level.toString()}
-              tone="blue"
-              delay={0}
-            />
-            <StatCard
-              icon="⚡"
-              label="Total XP"
-              value={formatNumber(stats.xp)}
-              tone="amber"
-              delay={0.1}
-            />
-            <StatCard
-              icon="🏆"
-              label="Badges Earned"
-              value={`${stats.totalBadges} / ${stats.availableBadges}`}
-              tone="emerald"
-              delay={0.2}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              {
+                icon: <Star className="w-5 h-5 text-pending" />,
+                label: "Current Level",
+                value: `Lv. ${stats.level}`,
+                bg: "bg-pending/10 border-pending-border",
+              },
+              {
+                icon: <Zap className="w-5 h-5 text-escrow" />,
+                label: "Total XP Earned",
+                value: formatNumber(stats.xp),
+                bg: "bg-escrow/10 border-escrow-border",
+              },
+              {
+                icon: <Trophy className="w-5 h-5 text-verified" />,
+                label: "Badges Earned",
+                value: `${stats.totalBadges} / ${stats.availableBadges}`,
+                bg: "bg-verified/10 border-verified-border",
+              },
+            ].map((kpi, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.08 }}
+                className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border shadow-sm"
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${kpi.bg}`}>
+                  {kpi.icon}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground font-medium">{kpi.label}</p>
+                  <p className="text-2xl font-extrabold text-foreground tabular-nums leading-tight">
+                    {kpi.value}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
           </div>
         )}
 
-        {/* Category Segmented Tabs */}
-        <div className="badges-tabs-container">
+        {/* ── Category Filter Tabs ── */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           {CATEGORY_ITEMS.map((cat) => {
-            const count = cat.id === "ALL"
-              ? badges.length
-              : badges.filter(b => b.category === cat.id).length;
+            const count =
+              cat.id === "ALL"
+                ? badges.length
+                : badges.filter((b) => b.category === cat.id).length;
+            const isActive = activeCategory === cat.id;
             return (
               <button
                 key={cat.id}
                 type="button"
                 onClick={() => setActiveCategory(cat.id)}
-                className="badges-tab-button"
-                data-active={activeCategory === cat.id}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 border ${
+                  isActive
+                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                    : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted/50"
+                }`}
               >
-                <span>{cat.icon}</span>
-                <span>{cat.label}</span>
+                {cat.icon}
+                {cat.label}
                 {count > 0 && (
-                  <span className="text-2xs opacity-75 font-mono">({count})</span>
+                  <span className="tabular-nums opacity-70">({count})</span>
                 )}
               </button>
             );
           })}
         </div>
 
-        {/* Sub-toolbar: Rarity Filters & Badges Count */}
-        <div className="badges-toolbar">
-          <div className="badges-rarity-group">
-            <span className="text-xs font-bold text-muted uppercase tracking-wider mr-1">
-              Rarity:
-            </span>
-            {RARITY_ITEMS.map((rarity) => (
+        {/* ── Rarity Sub-filter Row ── */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="flex items-center gap-1 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+            <Filter className="w-3.5 h-3.5" />
+            Rarity:
+          </span>
+          {RARITY_ITEMS.map((r) => {
+            const isActive = activeRarity === r.id;
+            return (
               <button
-                key={rarity.id}
+                key={r.id}
                 type="button"
-                onClick={() => setActiveRarity(rarity.id)}
-                className="badges-rarity-pill"
-                data-active={activeRarity === rarity.id}
+                onClick={() => setActiveRarity(r.id)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-all border ${
+                  isActive
+                    ? r.accent + " shadow-sm ring-1 ring-inset ring-current/20"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted/50"
+                }`}
               >
-                {rarity.dot && <span className="text-2xs">{rarity.dot}</span>}
-                <span>{rarity.label}</span>
+                {r.label}
               </button>
-            ))}
-          </div>
-
-          <div className="text-xs font-semibold text-secondary">
-            Showing <strong className="text-white">{filteredBadges.length}</strong> of {badges.length} badges
-          </div>
+            );
+          })}
+          <span className="ml-auto text-xs text-muted-foreground font-medium tabular-nums">
+            {filteredBadges.length} of {badges.length} badges
+          </span>
         </div>
 
-    {/* Loading / Error States */}
-    {loading && (
-      <div className="text-center p-10">
-        <div className="loading mx-auto w-40 h-40" />
-      </div>
-    )}
+        {/* ── Loading State ── */}
+        {loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-52 rounded-2xl bg-muted/40 border border-border animate-pulse"
+              />
+            ))}
+          </div>
+        )}
 
-    {error && (
-      <div className="text-center p-10 text-rose">
-        {error}
-        <Button
-          onClick={() => globalThis.location.reload()}
-          variant="secondary"
-          className="mt-4"
-        >
-          Try Again
-        </Button>
-      </div>
-    )}
+        {/* ── Error State ── */}
+        {hasError && !loading && (
+          <div className="flex flex-col items-center justify-center py-16 text-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-disputed-muted border border-disputed-border flex items-center justify-center">
+              <Trophy className="w-6 h-6 text-disputed" />
+            </div>
+            <p className="text-sm font-semibold text-foreground">
+              Failed to load achievements
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Please check your connection and try again.
+            </p>
+            <Button variant="secondary" size="sm" onClick={() => mutate()}>
+              Retry
+            </Button>
+          </div>
+        )}
 
-    {/* Badges Grid */}
-    {!loading && !error && (
-      <div className="grid gap-5 grid-auto-280">
-        <AnimatePresence mode="popLayout">
-          {filteredBadges.length === 0 ? (
-            <EmptyState
-              emoji=""
-              title="No Badges Found"
-              description="No achievements found matching the selected category."
-              compact
-              className="grid-full"
-            />
-          ) : (
-            filteredBadges.map((badge, index) => (
-              <motion.div
-                key={badge.id}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ delay: index * 0.04 }}
-                className="badge-card card hover-lift p-6 flex flex-col items-center text-center relative rounded-xl"
-                data-earned={badge.earned}
-              >
-                <div
-                  className="badge-card-icon mb-4 text-3xl"
-                  data-earned={badge.earned}
-                >
-                  {badge.icon}
+        {/* ── Badge Grid ── */}
+        {!loading && !hasError && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <AnimatePresence mode="popLayout">
+              {filteredBadges.length === 0 ? (
+                <div className="col-span-full">
+                  <EmptyState
+                    emoji=""
+                    title="No Badges Found"
+                    description="No achievements match the selected filters. Try adjusting the category or rarity."
+                    compact
+                  />
                 </div>
+              ) : (
+                filteredBadges.map((badge, index) => {
+                  const accent = rarityAccent(badge.rarity ?? "COMMON");
+                  const progressPct = badge.hasProgress && !badge.earned
+                    ? Math.min(100, Math.max(0,
+                        ((badge.currentProgress || 0) / (badge.targetProgress || 1)) * 100
+                      ))
+                    : 0;
 
-                {badge.earned && (
-                  <span className="badge-unlocked absolute font-extrabold rounded-2xl text-2xs px-2 py-1 text-white">
-                    UNLOCKED
-                  </span>
-                )}
+                  return (
+                    <motion.div
+                      key={badge.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.92 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.88 }}
+                      transition={{ delay: index * 0.04 }}
+                      className={`relative flex flex-col items-center text-center p-6 rounded-2xl bg-card border shadow-sm transition-all hover:shadow-md ${
+                        badge.earned
+                          ? `${accent.border} ${accent.glow}`
+                          : "border-border opacity-75"
+                      }`}
+                    >
+                      {/* Earned crown badge */}
+                      {badge.earned && (
+                        <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-verified-muted text-verified border border-verified-border text-[10px] font-extrabold uppercase tracking-wider">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          Earned
+                        </span>
+                      )}
 
-                <h3
-                  className="badge-card-name text-lg font-bold mb-2"
-                  data-earned={badge.earned}
-                >
-                  {badge.name}
-                </h3>
+                      {/* Locked overlay for unearned */}
+                      {!badge.earned && !badge.hasProgress && (
+                        <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border text-[10px] font-bold uppercase tracking-wider">
+                          <Lock className="w-2.5 h-2.5" />
+                          Locked
+                        </span>
+                      )}
 
-                <p
-                  className="badge-card-description text-sm text-secondary flex-1 leading-normal mb-4"
-                  data-has-progress={Boolean(badge.hasProgress && !badge.earned)}
-                >
-                  {badge.description}
-                </p>
+                      {/* Badge icon */}
+                      <div
+                        className={`text-4xl mb-4 transition-all ${
+                          badge.earned ? "" : "grayscale opacity-40"
+                        }`}
+                      >
+                        {badge.icon}
+                      </div>
 
-                {!badge.earned && badge.hasProgress && (
-                  <div className="w-full mb-4">
-                    <div className="flex justify-between font-bold text-secondary text-xs mb-1">
-                      <span>Progress</span>
-                      <span className="font-mono">
-                        {badge.id.startsWith("earn_") ? `${formatNumber(badge.currentProgress || 0)}` : (badge.currentProgress || 0)} / {badge.id.startsWith("earn_") ? `${formatNumber(badge.targetProgress || 1)}` : (badge.targetProgress || 1)}
-                      </span>
-                    </div>
-                    <progress
-                      className="badge-progress w-full"
-                      value={Math.min(100, Math.max(0, ((badge.currentProgress || 0) / (badge.targetProgress || 1)) * 100))}
-                      max={100}
-                      aria-label={`${badge.name} progress`}
-                    />
-                  </div>
-                )}
+                      {/* Badge name */}
+                      <h3
+                        className={`text-base font-bold mb-1.5 tracking-tight ${
+                          badge.earned ? "text-foreground" : "text-muted-foreground"
+                        }`}
+                      >
+                        {badge.name}
+                      </h3>
 
-                <div className="w-full flex justify-between items-center text-xs pt-3 mt-auto">
-                  <span className="font-semibold text-muted text-2xs uppercase tracking-wider">
-                    {badge.category}
-                  </span>
-                  <span className="font-bold text-primary bg-indigo-subtle px-2 py-0.5 rounded-md">
-                    +{badge.xpReward} XP
-                  </span>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </AnimatePresence>
+                      {/* Description */}
+                      <p className="text-xs text-muted-foreground leading-relaxed mb-4 flex-1">
+                        {badge.description}
+                      </p>
+
+                      {/* Progress bar for in-progress badges */}
+                      {!badge.earned && badge.hasProgress && (
+                        <div className="w-full mb-4">
+                          <div className="flex justify-between items-center text-xs mb-1.5">
+                            <span className="font-semibold text-muted-foreground">Progress</span>
+                            <span className="font-bold text-foreground tabular-nums">
+                              {badge.id.startsWith("earn_")
+                                ? `${formatNumber(badge.currentProgress || 0)} / ${formatNumber(badge.targetProgress || 1)}`
+                                : `${badge.currentProgress || 0} / ${badge.targetProgress || 1}`}
+                            </span>
+                          </div>
+                          <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${progressPct}%` }}
+                              transition={{ duration: 0.8, ease: "easeOut" }}
+                              className="h-full bg-primary rounded-full"
+                              aria-label={`${badge.name} progress: ${progressPct.toFixed(0)}%`}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Footer: category + XP */}
+                      <div className="w-full flex items-center justify-between pt-3 border-t border-border/60 mt-auto">
+                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${accent.badge}`}>
+                          {badge.rarity ?? "COMMON"}
+                        </span>
+                        <span className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full tabular-nums">
+                          +{badge.xpReward} XP
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
-    )}
-  </div>
-</DashboardShell>
-);
-}
-
-function StatCard({
-  icon,
-  label,
-  value,
-  tone,
-  delay,
-}: {
-  readonly icon: string;
-  readonly label: string;
-  readonly value: string;
-  readonly tone: "blue" | "amber" | "emerald" | "purple";
-  readonly delay: number;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.4 }}
-      className="badge-stat-card flex flex-col items-center justify-center p-5 text-center rounded-xl"
-      data-tone={tone}
-    >
-      <span className="text-2xl mb-1">{icon}</span>
-      <div className="badge-stat-value font-extrabold mb-1 text-3xl leading-tight">
-        {value}
-      </div>
-      <div className="text-xs font-bold text-secondary uppercase tracking-wider">
-        {label}
-      </div>
-    </motion.div>
+    </DashboardShell>
   );
 }

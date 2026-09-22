@@ -13,7 +13,7 @@ export function Logo({
 }> = {}) {
   const content = (
     <>
-      <div className="logo-mark p-1 flex items-center justify-center rounded-xl text-white flex-shrink-0 relative overflow-hidden bg-slate-900/60 border border-slate-700/50">
+      <div className="logo-mark p-1 flex items-center justify-center rounded-xl text-foreground flex-shrink-0 relative overflow-hidden bg-card border border-border">
         {/* Official VyaparMedia Logo Mark */}
         <Image
           src="/logo-vm.png"

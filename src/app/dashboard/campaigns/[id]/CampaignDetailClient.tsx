@@ -1,397 +1,657 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  ShieldCheck,
+  Star,
+  Calendar,
+  Lock,
+  Users,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  FileText,
+  Sparkles,
+  Download,
+  Rocket,
+  Check,
+  TrendingUp,
+  Tag,
+  MapPin,
+  Globe,
+} from "lucide-react";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils-client";
-import { Button, Input, Textarea, Modal, Skeleton } from "@/components/ui";
+import { Button, Input, Textarea, Modal, Skeleton, Spinner } from "@/components/ui";
 import { ApplicationsList } from "@/components/dashboard/campaigns/details/ApplicationsList";
 import { useCampaignDetail } from "@/components/dashboard/campaigns/details/useCampaignDetail";
 
 interface CampaignDetailClientProps {
-readonly user: { readonly id: string; readonly userType?: string };
-readonly influencerProfile?: {
-readonly id: string;
-readonly instagramFollowers: number | null;
-readonly instagramEngagementRate: number | null;
-readonly youtubeSubscribers: number | null;
-readonly youtubeEngagementRate: number | null;
-} | null;
+  readonly user: { readonly id: string; readonly userType?: string };
+  readonly influencerProfile?: {
+    readonly id: string;
+    readonly instagramFollowers: number | null;
+    readonly instagramEngagementRate: number | null;
+    readonly youtubeSubscribers: number | null;
+    readonly youtubeEngagementRate: number | null;
+  } | null;
 }
 
 export default function CampaignDetailClient({
-user,
-influencerProfile = null,
+  user,
+  influencerProfile = null,
 }: CampaignDetailClientProps) {
-const { id: campaignId } = useParams() as { id: string };
-const router = useRouter();
+  const { id: campaignId } = useParams() as { id: string };
+  const router = useRouter();
 
-const {
-loading,
-error,
-campaign,
-showApplyModal,
-setShowApplyModal,
-proposal,
-setProposal,
-proposedRate,
-setProposedRate,
-isSubmitting,
-applications,
-applicationsLoading,
-applicationActionId,
-notice,
-setNotice,
-hasApplied,
-applicationStatus,
-dealId,
-recommendedPayout,
-isOwner,
-canApply,
-handleApplicationAction,
-handleApply,
-handleCampaignAction,
-} = useCampaignDetail({
-campaignId,
-user,
-influencerProfile,
-router,
-});
+  const {
+    loading,
+    error,
+    campaign,
+    showApplyModal,
+    setShowApplyModal,
+    proposal,
+    setProposal,
+    proposedRate,
+    setProposedRate,
+    isSubmitting,
+    applications,
+    applicationsLoading,
+    applicationActionId,
+    notice,
+    setNotice,
+    hasApplied,
+    applicationStatus,
+    dealId,
+    recommendedPayout,
+    isOwner,
+    canApply,
+    handleApplicationAction,
+    handleApply,
+    handleCampaignAction,
+  } = useCampaignDetail({
+    campaignId,
+    user,
+    influencerProfile,
+    router,
+  });
 
-if (loading) {
-  return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6" aria-label="Loading campaign details">
-      <div className="flex items-center gap-4">
-        <Skeleton width={64} height={64} borderRadius={12} />
-        <div className="space-y-2 flex-1">
-          <Skeleton height={24} width="40%" />
-          <Skeleton height={16} width="25%" />
+  if (loading) {
+    return (
+      <div className="p-6 max-w-6xl mx-auto space-y-6" aria-label="Loading campaign details" aria-busy="true">
+        {/* Header Skeleton */}
+        <div className="bg-card border border-border p-6 rounded-2xl animate-pulse space-y-4">
+          <div className="h-4 w-32 bg-muted rounded" />
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-muted rounded-2xl" />
+            <div className="space-y-2 flex-1">
+              <div className="h-7 w-64 bg-muted rounded" />
+              <div className="h-4 w-40 bg-muted rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* 2-Column Skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 space-y-6">
+            <div className="bg-card border border-border p-6 rounded-2xl h-48 bg-muted/40 animate-pulse" />
+            <div className="bg-card border border-border p-6 rounded-2xl h-48 bg-muted/40 animate-pulse" />
+          </div>
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-card border border-border p-6 rounded-2xl h-64 bg-muted/40 animate-pulse" />
+          </div>
         </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Skeleton height={80} borderRadius={8} />
-        <Skeleton height={80} borderRadius={8} />
-        <Skeleton height={80} borderRadius={8} />
+    );
+  }
+
+  if (error || !campaign) {
+    return (
+      <div className="p-12 text-center max-w-md mx-auto">
+        <div className="w-16 h-16 rounded-2xl bg-disputed-muted text-disputed border border-disputed-border flex items-center justify-center mx-auto mb-4">
+          <AlertCircle className="w-8 h-8" />
+        </div>
+        <h2 className="font-extrabold text-2xl text-foreground mb-2">Campaign Not Found</h2>
+        <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
+          {error || "The requested campaign could not be found or has expired."}
+        </p>
+        <Button href="/dashboard/campaigns" variant="primary" className="font-semibold">
+          ← Back to Discovery Feed
+        </Button>
       </div>
-      <Skeleton height={140} borderRadius={12} />
-    </div>
-  );
-}
+    );
+  }
 
-if (error || !campaign) {
-return (
-<div className="p-6 text-center max-w-500 mx-auto">
-<div className="text-3xl mb-4 flex justify-center text-rose">
-  <svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="opacity-70">
-    <circle cx="12" cy="12" r="10" />
-    <line x1="12" y1="8" x2="12" y2="12" />
-    <line x1="12" y1="16" x2="12.01" y2="16" />
-  </svg>
-</div>
-<h2 className="font-bold text-xl mb-2 text-primary">Error Loading Campaign</h2>
-<p className="text-secondary mb-6">{error || "Campaign not found"}</p>
-<Link href="/dashboard/campaigns" className="btn btn-primary">
-Back to Campaigns
-</Link>
-</div>
-);
-}
+  // Calculate capacity percentage
+  const capacityPercent =
+    campaign.maxInfluencers && campaign.maxInfluencers > 0
+      ? Math.min(100, Math.round((campaign.acceptedCount / campaign.maxInfluencers) * 100))
+      : 0;
 
-return (
-<div className="grid gap-6 max-w-1000 mx-auto pb-16">
-{/* Header section */}
-      {/* Campaign Hero Card */}
-      <div className="card p-6 border border-card rounded-2xl bg-secondary shadow-lg">
-        {/* Top bar: Breadcrumb & Actions */}
-        <div className="flex justify-between items-center flex-wrap gap-3 mb-4">
-          <Link
-            href="/dashboard/campaigns"
-            className="text-xs font-semibold text-muted hover:text-white flex items-center gap-1.5 transition-colors"
-          >
-            <span>←</span>
-            <span>Back to Campaigns</span>
-          </Link>
+  return (
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+      {/* Top Navigation Bar & Owner Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <Link
+          href="/dashboard/campaigns"
+          className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Live Campaigns
+        </Link>
 
-          <div className="flex gap-2 flex-wrap items-center">
-            {isOwner && campaign.status === "DRAFT" && (
+        {isOwner && (
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {campaign.status === "DRAFT" && (
               <>
-                <Link href={`/dashboard/campaigns/create?edit=${campaign.id}`} className="btn btn-secondary btn-sm text-xs">
+                <Button
+                  href={`/dashboard/campaigns/create?edit=${campaign.id}`}
+                  variant="secondary"
+                  size="sm"
+                >
                   Edit Draft
-                </Link>
+                </Button>
                 <Button
                   type="button"
                   variant="primary"
                   size="sm"
                   onClick={() => handleCampaignAction("ACTIVATE")}
+                  className="inline-flex items-center gap-1.5 font-bold shadow-sm"
                 >
+                  <Rocket className="w-4 h-4" />
                   Launch Campaign
                 </Button>
               </>
             )}
-            {isOwner && campaign.status === "ACTIVE" && (
+            {campaign.status === "ACTIVE" && (
               <Button
                 type="button"
                 variant="danger"
                 size="sm"
                 onClick={() => handleCampaignAction("CANCEL")}
+                className="font-medium"
               >
                 Cancel Campaign
               </Button>
             )}
-            {isOwner && (campaign.status === "ACTIVE" || campaign.status === "COMPLETED") && (
+            {(campaign.status === "ACTIVE" || campaign.status === "COMPLETED") && (
               <a
                 href={`/api/reports/brand/campaign/${campaign.id}/roi?format=csv`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <Button variant="secondary" size="sm" className="cursor-pointer text-xs">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="inline-flex items-center gap-1.5 font-medium cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
                   ROI Report (CSV)
                 </Button>
               </a>
             )}
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Main Title & Brand Info */}
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Brand Logo Avatar */}
-          <div className="relative flex-shrink-0">
-            <div className="conversation-avatar" style={{ width: 54, height: 54, fontSize: 18 }}>
+      {/* Campaign Hero Card */}
+      <div className="bg-card border border-border p-6 sm:p-8 rounded-3xl shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+          <div className="flex items-start gap-4 sm:gap-5">
+            {/* Brand Logo Avatar */}
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-muted border border-border flex items-center justify-center font-bold text-xl text-foreground overflow-hidden relative flex-shrink-0 shadow-xs">
               {campaign.brand?.logo ? (
                 <Image
                   src={campaign.brand.logo}
                   alt={campaign.brand.companyName || "Brand Logo"}
                   fill
                   unoptimized
-                  className="object-cover rounded-full"
+                  className="object-cover"
                 />
               ) : (
-                (campaign.brand?.companyName || campaign.title || "B").charAt(0).toUpperCase()
+                (campaign.brand?.companyName || campaign.title || "B").slice(0, 2).toUpperCase()
               )}
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                  {campaign.brand?.companyName || "Verified Brand"}
+                </span>
+
+                {campaign.brand?.isGstVerified && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold bg-verified-muted text-verified border border-verified-border"
+                    title="GST Details legally verified for tax compliance"
+                  >
+                    <ShieldCheck className="w-3 h-3" />
+                    GST Verified
+                  </span>
+                )}
+
+                {campaign.brand?.averageRating && campaign.brand.averageRating > 0 ? (
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-pending">
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    {campaign.brand.averageRating.toFixed(1)}
+                  </span>
+                ) : null}
+              </div>
+
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight leading-tight">
+                {campaign.title}
+              </h1>
+
+              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap pt-1">
+                <span className="inline-flex items-center gap-1">
+                  <Users className="w-3.5 h-3.5 text-primary" />
+                  {campaign.totalApplications} Applicants
+                </span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                  Created on {formatDate(campaign.contentDeadline)}
+                </span>
+              </div>
             </div>
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-3 mb-1.5 flex-wrap">
-              <h1 className="font-extrabold text-2xl md:text-3xl tracking-tight text-white mb-0 leading-tight">
-                {campaign.title}
-              </h1>
-              {(() => {
-                const s = campaign.status?.toUpperCase();
-                let colorClasses = "bg-slate-500/20 text-slate-400 border-slate-500/30";
-                if (s === "ACTIVE") colorClasses = "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-                if (s === "CANCELLED") colorClasses = "bg-rose-500/20 text-rose-400 border-rose-500/30";
-                if (s === "COMPLETED") colorClasses = "bg-blue-500/20 text-blue-400 border-blue-500/30";
-                if (s === "DRAFT") colorClasses = "bg-amber-500/20 text-amber-400 border-amber-500/30";
+          {/* Campaign Status Badge */}
+          <div className="flex items-center gap-2 self-start">
+            {(() => {
+              const s = campaign.status?.toUpperCase();
+              let badgeStyle = "bg-muted text-foreground border-border";
+              let StatusIcon = Clock;
+              if (s === "ACTIVE") {
+                badgeStyle = "bg-verified-muted text-verified border-verified-border";
+                StatusIcon = CheckCircle2;
+              } else if (s === "COMPLETED") {
+                badgeStyle = "bg-escrow-muted text-escrow border-escrow-border";
+                StatusIcon = CheckCircle2;
+              } else if (s === "CANCELLED") {
+                badgeStyle = "bg-disputed-muted text-disputed border-disputed-border";
+                StatusIcon = AlertCircle;
+              } else if (s === "DRAFT") {
+                badgeStyle = "bg-pending-muted text-pending border-pending-border";
+                StatusIcon = Clock;
+              }
 
-                return (
-                  <span className={`text-2xs font-black uppercase tracking-wider px-2.5 py-1 rounded-full border ${colorClasses}`}>
-                    {campaign.status}
-                  </span>
-                );
-              })()}
-            </div>
-
-            {campaign.brand && (
-              <div className="flex items-center gap-3 text-xs text-secondary flex-wrap">
-                <span className="font-semibold text-white">{campaign.brand.companyName}</span>
-                {campaign.brand.averageRating > 0 && (
-                  <span className="flex items-center gap-1 text-amber-400 font-semibold">
-                    <span>★</span>
-                    <span>{(campaign.brand.averageRating).toFixed(1)}</span>
-                  </span>
-                )}
-                {campaign.brand.isGstVerified && (
-                  <span className="text-emerald-400 font-semibold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-md border border-emerald-500/20" title="GST details verified for legal compliance">
-                    <span>🛡️</span>
-                    <span>GST Verified</span>
-                  </span>
-                )}
-              </div>
-            )}
+              return (
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border uppercase tracking-wider ${badgeStyle}`}
+                >
+                  <StatusIcon className="w-3.5 h-3.5" />
+                  {campaign.status}
+                </span>
+              );
+            })()}
           </div>
         </div>
       </div>
 
-{notice && (
-<div className={`p-4 rounded-md border-card text-sm text-center ${notice.type === "success" ? "bg-emerald-subtle text-emerald border-emerald" : "bg-rose-subtle text-rose border-rose"}`}>
-{notice.message}
-</div>
-)}
+      {/* Global Notification Banner */}
+      {notice && (
+        <div
+          className={`p-4 rounded-2xl border text-sm font-medium flex items-center gap-3 ${
+            notice.type === "success"
+              ? "bg-verified-muted text-verified border-verified-border"
+              : "bg-disputed-muted text-disputed border-disputed-border"
+          }`}
+        >
+          {notice.type === "success" ? (
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0" />
+          ) : (
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+          )}
+          <span>{notice.message}</span>
+        </div>
+      )}
 
-{/* Grid container */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-{/* Left main info */}
-<div className="md:col-span-2 grid gap-6">
-<section className="card p-6">
-<h3 className="text-lg font-bold mb-3 text-primary">Campaign Details</h3>
-<p className="text-secondary text-sm leading-relaxed whitespace-pre-wrap">
-{campaign.description}
-</p>
-</section>
-
-<section className="card p-6">
-<h3 className="text-lg font-bold mb-3 text-primary">Requirements & Guidelines</h3>
-<p className="text-secondary text-sm leading-relaxed whitespace-pre-wrap">
-{campaign.requirements}
-</p>
-</section>
-
-{/* Applications list for campaign owner */}
-{isOwner && (
-<section className="card p-6">
-<h3 className="text-lg font-bold mb-4 text-primary">
-Applications ({campaign.totalApplications})
-</h3>
-<ApplicationsList
-loading={applicationsLoading}
-applications={applications}
-actionId={applicationActionId}
-onAction={handleApplicationAction}
-/>
-</section>
-)}
-</div>
-
-{/* Right sidebar */}
-<div className="grid gap-6 h-fit">
-<section className="card p-6">
-<h3 className="text-base font-bold mb-4 text-primary">Key Metrics</h3>
-<div className="grid gap-4">
-<div>
-<span className="text-xs text-muted block uppercase tracking-wider">Total Escrow Budget</span>
-<strong className="text-xl font-extrabold text-primary">
-{formatCurrency(campaign.totalBudget)}
-</strong>
-</div>
-
-{campaign.perInfluencerBudget !== null && (
-<div>
-<span className="text-xs text-muted block uppercase tracking-wider">Per Creator Payout</span>
-<strong className="text-base font-bold text-primary">
-{formatCurrency(campaign.perInfluencerBudget)}
-</strong>
-</div>
-)}
-
-<div>
-<span className="text-xs text-muted block uppercase tracking-wider">Target Followers</span>
-<strong className="text-sm font-semibold text-primary">
-{formatNumber(campaign.minFollowers)}
-{campaign.maxFollowers ? ` - ${formatNumber(campaign.maxFollowers)}` : "+"}
-</strong>
-</div>
-
-{campaign.maxInfluencers && (
-<div>
-<span className="text-xs text-muted block uppercase tracking-wider">Slots Filled</span>
-<strong className="text-sm font-semibold text-primary">
-{campaign.acceptedCount} / {campaign.maxInfluencers}
-</strong>
-</div>
-)}
-
-{campaign.applicationDeadline && (
-<div>
-<span className="text-xs text-muted block uppercase tracking-wider">Application Deadline</span>
-<strong className="text-sm font-semibold text-primary">
-{formatDate(campaign.applicationDeadline)}
-</strong>
-</div>
-)}
-
-<div>
-<span className="text-xs text-muted block uppercase tracking-wider">Posting Target Date</span>
-<strong className="text-sm font-semibold text-primary">
-{formatDate(campaign.postingDeadline)}
-</strong>
-</div>
-</div>
-
-{/* Application button for influencer */}
-{canApply && (
-<Button
-type="button"
-variant="primary"
-onClick={() => {
-setNotice(null);
-if (proposedRate <= 0 && campaign.perInfluencerBudget) {
-  setProposedRate(campaign.perInfluencerBudget);
-}
-setShowApplyModal(true);
-}}
-className="w-full mt-6"
->
-Apply to Campaign
-</Button>
-)}
-
-            {hasApplied && (
-              <div className="mt-6 p-4 bg-secondary rounded-xl text-center border border-card flex flex-col items-center gap-3">
-                <div>
-                  <span className="text-xs text-muted block mb-1">Your Application Status</span>
-                  <strong className={`text-sm font-bold uppercase ${applicationStatus === "SELECTED" ? "text-emerald" : "text-primary"}`}>
-                    {applicationStatus === "SELECTED" ? "Accepted / Selected 🎉" : (applicationStatus || "SUBMITTED")}
-                  </strong>
-                </div>
-                {dealId && (
-                  <Button href={`/dashboard/deals/${dealId}`} variant="primary" size="sm" className="w-full">
-                    ✍️ Sign Contract & View Deal
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {!isOwner && campaign.status === "CANCELLED" && (
-              <div className="mt-6 p-3.5 bg-rose-500/10 rounded-xl text-center border border-rose-500/25">
-                <span className="text-xs font-bold text-rose-400 block mb-0.5">Campaign Cancelled</span>
-                <span className="text-2xs text-secondary">This campaign has been cancelled by the brand.</span>
-              </div>
-            )}
-
-            {!isOwner && campaign.status === "COMPLETED" && (
-              <div className="mt-6 p-3.5 bg-secondary rounded-xl text-center border border-card">
-                <span className="text-xs font-bold text-muted block mb-0.5">Campaign Concluded</span>
-                <span className="text-2xs text-secondary">This campaign is now completed.</span>
-              </div>
-            )}
+      {/* 2-Column Upwork/Kofluence Workspace Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Column: Scope, Guidelines, Audience & Applications Roster (8 cols) */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Campaign Overview */}
+          <section className="bg-card border border-border p-6 rounded-3xl shadow-xs space-y-3">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              Campaign Overview & Brief
+            </h2>
+            <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+              {campaign.description}
+            </p>
           </section>
 
-{/* Deliverables card */}
-<section className="card p-6">
-<h3 className="text-base font-bold mb-3 text-primary">Deliverables Checklist</h3>
-<ul className="grid gap-2.5 list-none">
-{campaign.deliverables.map((item, idx) => (
-<li key={`${item.type}-${idx}`} className="flex items-start gap-2.5 text-sm text-secondary">
-<span className="flex-shrink-0 text-emerald"></span>
-<div>
-<span className="font-semibold text-primary">
-{item.count}x {item.type.replaceAll("_", " ").toLowerCase()}
-</span>
-{item.specs && (
-<p className="text-muted text-xs mt-0.5 leading-relaxed">{item.specs}</p>
-)}
-</div>
-</li>
-))}
-</ul>
-</section>
+          {/* Requirements & Guidelines */}
+          <section className="bg-card border border-border p-6 rounded-3xl shadow-xs space-y-3">
+            <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <ShieldCheck className="w-5 h-5 text-verified" />
+              Requirements & Editorial Guidelines
+            </h2>
+            <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap">
+              {campaign.requirements}
+            </p>
+          </section>
 
-{/* Target Niches */}
-{campaign.targetCategories.length > 0 && (
-<section className="card p-6">
-<h3 className="text-base font-bold mb-3 text-primary">Target Niches</h3>
-<div className="flex flex-wrap gap-1.5">
-{campaign.targetCategories.map((c) => (
-<span key={c} className="badge bg-tertiary">
-{c}
-</span>
-))}
-</div>
-</section>
-)}
-</div>
-</div>
+          {/* Target Audience & Niches */}
+          {(campaign.targetCategories.length > 0 ||
+            campaign.targetCities.length > 0 ||
+            campaign.targetLanguages.length > 0) && (
+            <section className="bg-card border border-border p-6 rounded-3xl shadow-xs space-y-4">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-pending" />
+                Target Audience & Niches
+              </h2>
+
+              <div className="space-y-3">
+                {campaign.targetCategories.length > 0 && (
+                  <div>
+                    <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5" />
+                      Content Niches
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {campaign.targetCategories.map((c) => (
+                        <span
+                          key={c}
+                          className="px-3 py-1 rounded-xl text-xs font-semibold bg-muted text-foreground border border-border"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {campaign.targetCities.length > 0 && (
+                  <div>
+                    <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" />
+                      Target Cities / Regions
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {campaign.targetCities.map((city) => (
+                        <span
+                          key={city}
+                          className="px-3 py-1 rounded-xl text-xs font-semibold bg-muted text-foreground border border-border"
+                        >
+                          {city}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {campaign.targetLanguages.length > 0 && (
+                  <div>
+                    <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5" />
+                      Content Languages
+                    </span>
+                    <div className="flex flex-wrap gap-2">
+                      {campaign.targetLanguages.map((lang) => (
+                        <span
+                          key={lang}
+                          className="px-3 py-1 rounded-xl text-xs font-semibold bg-muted text-foreground border border-border"
+                        >
+                          {lang}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* Applications Roster for Campaign Owner (Brand) */}
+          {isOwner && (
+            <section className="bg-card border border-border p-6 rounded-3xl shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" />
+                    Applicant Review Pipeline ({campaign.totalApplications})
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Review incoming creator proposals, evaluate match scores, and fund deals into escrow.
+                  </p>
+                </div>
+              </div>
+
+              <ApplicationsList
+                loading={applicationsLoading}
+                applications={applications}
+                actionId={applicationActionId}
+                onAction={handleApplicationAction}
+              />
+            </section>
+          )}
+        </div>
+
+        {/* Right Column: Sticky Budget, Timeline, Deliverables & Apply Card (4 cols) */}
+        <div className="lg:col-span-4 space-y-6 lg:sticky lg:top-6">
+          {/* Escrow Financial Safeguard Card */}
+          <div className="bg-card border border-border p-6 rounded-3xl shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Financial Safeguard
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-semibold bg-escrow-muted text-escrow border border-escrow-border">
+                <Lock className="w-3 h-3" />
+                RBI Escrow
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <span className="text-2xs text-muted-foreground uppercase tracking-wider block font-semibold mb-1">
+                  Total Campaign Escrow Budget
+                </span>
+                <div className="text-3xl font-black text-foreground tabular-nums tracking-tight">
+                  {formatCurrency(campaign.totalBudget)}
+                </div>
+              </div>
+
+              {campaign.perInfluencerBudget !== null && (
+                <div className="pt-2 border-t border-border">
+                  <span className="text-2xs text-muted-foreground uppercase tracking-wider block font-semibold mb-1">
+                    Per Creator Payout
+                  </span>
+                  <div className="text-xl font-bold text-verified tabular-nums">
+                    {formatCurrency(campaign.perInfluencerBudget)}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <p className="text-2xs text-muted-foreground leading-relaxed pt-2 border-t border-border">
+              🛡️ 100% Escrow Guarantee. Funds are held in a secure trust account and released only upon your milestone approval.
+            </p>
+          </div>
+
+          {/* Slots & Capacity Meter */}
+          {campaign.maxInfluencers && campaign.maxInfluencers > 0 ? (
+            <div className="bg-card border border-border p-5 rounded-2xl shadow-xs space-y-2.5">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <span className="text-muted-foreground">Creator Slots Filled</span>
+                <span className="text-foreground tabular-nums">
+                  {campaign.acceptedCount} of {campaign.maxInfluencers} Selected
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden">
+                <div
+                  className="bg-primary h-2.5 rounded-full transition-all duration-500"
+                  style={{ width: `${capacityPercent}%` }}
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {/* Timeline & Deadlines */}
+          <div className="bg-card border border-border p-6 rounded-3xl shadow-xs space-y-4">
+            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-primary" />
+              Campaign Timeline
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              {campaign.applicationDeadline && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Applications Close</span>
+                  <span className="font-bold text-foreground">
+                    {formatDate(campaign.applicationDeadline)}
+                  </span>
+                </div>
+              )}
+              {campaign.contentDeadline && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Draft Submission Due</span>
+                  <span className="font-bold text-foreground">
+                    {formatDate(campaign.contentDeadline)}
+                  </span>
+                </div>
+              )}
+              {campaign.postingDeadline && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Go-Live Posting Target</span>
+                  <span className="font-bold text-foreground">
+                    {formatDate(campaign.postingDeadline)}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <span className="text-muted-foreground">Audience Requirement</span>
+                <span className="font-bold text-foreground tabular-nums">
+                  {formatNumber(campaign.minFollowers)}+ Followers
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Deliverables Checklist Card */}
+          <div className="bg-card border border-border p-6 rounded-3xl shadow-xs space-y-3">
+            <h3 className="text-sm font-bold text-foreground uppercase tracking-wider flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-verified" />
+              Required Deliverables
+            </h3>
+
+            <ul className="space-y-2.5 list-none">
+              {campaign.deliverables.map((item, idx) => (
+                <li
+                  key={`${item.type}-${idx}`}
+                  className="flex items-start gap-2.5 text-xs text-foreground bg-muted/40 p-2.5 rounded-xl border border-border"
+                >
+                  <div className="w-4 h-4 rounded-full bg-verified-muted text-verified flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <Check className="w-2.5 h-2.5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold block">
+                      {item.count}x {item.type.replaceAll("_", " ").toLowerCase()}
+                    </span>
+                    {item.specs && (
+                      <span className="text-2xs text-muted-foreground block mt-0.5">
+                        {item.specs}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Creator Application Trigger */}
+          {canApply && (
+            <div className="bg-card border border-primary/30 p-6 rounded-3xl shadow-sm space-y-4">
+              <div>
+                <span className="text-xs font-bold text-primary block uppercase tracking-wider mb-1">
+                  Ready to Pitch?
+                </span>
+                <p className="text-xs text-muted-foreground">
+                  Submit your custom pitch and proposed rate to work with {campaign.brand?.companyName || "this brand"}.
+                </p>
+              </div>
+
+              {recommendedPayout > 0 && (
+                <div className="p-3 rounded-xl bg-verified-muted border border-verified-border text-verified text-xs flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 flex-shrink-0" />
+                  <span>
+                    Stats match: Recommended payout is <strong>{formatCurrency(recommendedPayout)}</strong>
+                  </span>
+                </div>
+              )}
+
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => {
+                  setNotice(null);
+                  if (proposedRate <= 0 && campaign.perInfluencerBudget) {
+                    setProposedRate(campaign.perInfluencerBudget);
+                  }
+                  setShowApplyModal(true);
+                }}
+                className="w-full py-2.5 font-bold shadow-sm"
+              >
+                Apply to Campaign
+              </Button>
+            </div>
+          )}
+
+          {/* Existing Application Status Card */}
+          {hasApplied && (
+            <div className="bg-card border border-border p-6 rounded-3xl shadow-xs text-center space-y-4">
+              <div>
+                <span className="text-xs text-muted-foreground block mb-1">
+                  Your Pitch Status
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                    applicationStatus === "SELECTED" || applicationStatus === "ACCEPTED"
+                      ? "bg-verified-muted text-verified border-verified-border"
+                      : "bg-pending-muted text-pending border-pending-border"
+                  }`}
+                >
+                  {applicationStatus === "SELECTED" || applicationStatus === "ACCEPTED"
+                    ? "Offer Accepted 🎉"
+                    : applicationStatus || "Pitch Submitted"}
+                </span>
+              </div>
+
+              {dealId && (
+                <Button
+                  href={`/dashboard/deals/${dealId}`}
+                  variant="primary"
+                  className="w-full font-bold shadow-sm"
+                >
+                  ✍️ Sign Contract & Deal Room
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Campaign Cancelled / Concluded notices */}
+          {!isOwner && campaign.status === "CANCELLED" && (
+            <div className="p-4 rounded-2xl bg-disputed-muted border border-disputed-border text-center space-y-1">
+              <span className="text-xs font-bold text-disputed block">Campaign Cancelled</span>
+              <span className="text-2xs text-muted-foreground">
+                This campaign was cancelled by the brand.
+              </span>
+            </div>
+          )}
+
+          {!isOwner && campaign.status === "COMPLETED" && (
+            <div className="p-4 rounded-2xl bg-muted border border-border text-center space-y-1">
+              <span className="text-xs font-bold text-muted-foreground block">Campaign Concluded</span>
+              <span className="text-2xs text-muted-foreground">
+                All deliverables for this campaign have been completed.
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Apply Modal */}
       <Modal
@@ -400,35 +660,36 @@ Apply to Campaign
         title="Apply to Campaign"
         maxWidth="500px"
       >
-        <div className="grid gap-4">
+        <div className="space-y-4">
           <Textarea
-            label="Proposal Description (Why should the brand hire you?)"
+            label="Proposal Pitch (Why is your audience the best fit?)"
             id="proposal"
-            placeholder="Write a professional proposal explaining your content ideas and fit for this campaign (Minimum 50 characters)..."
+            placeholder="Write a clear proposal explaining your content strategy, format ideas, and turnaround time (Minimum 50 characters)..."
             value={proposal}
             onChange={(e) => setProposal(e.target.value)}
             required
-            className="h-160"
+            className="h-32 text-sm"
           />
 
           <div>
             <Input
-              label="Your Proposed Payout (Rs)"
+              label="Your Proposed Payout (₹ INR)"
               id="proposed-rate"
               type="number"
-              placeholder="Rate in Rs"
+              placeholder="Rate in ₹"
               value={proposedRate || ""}
               onChange={(e) => setProposedRate(Number(e.target.value))}
               required
             />
             {recommendedPayout > 0 && (
-              <span className="text-muted text-2xs mt-1 block">
-                Recommended for your stats: {formatCurrency(recommendedPayout)}
+              <span className="text-muted-foreground text-2xs mt-1.5 block">
+                Suggested rate based on your verified audience metrics:{" "}
+                <strong className="text-foreground">{formatCurrency(recommendedPayout)}</strong>
               </span>
             )}
           </div>
 
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
             <Button
               type="button"
               variant="secondary"
@@ -442,8 +703,9 @@ Apply to Campaign
               variant="primary"
               onClick={handleApply}
               disabled={isSubmitting || proposedRate <= 0}
+              className="font-bold"
             >
-              {isSubmitting ? "..." : "Submit"}
+              {isSubmitting ? <Spinner size="sm" /> : "Submit Proposal"}
             </Button>
           </div>
         </div>

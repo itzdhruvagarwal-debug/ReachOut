@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
@@ -9,170 +8,176 @@ import ReferralList from "@/components/dashboard/referrals/ReferralList";
 import { Button, Modal, Skeleton } from "@/components/ui";
 import { copyToClipboard } from "@/lib/clipboard";
 import { formatCurrency } from "@/lib/utils-client";
+import useSWR from "swr";
+import { fetcher } from "@/lib/fetcher";
+import {
+  Users,
+  Gift,
+  Crown,
+  Copy,
+  CheckCheck,
+  Share2,
+  ArrowUpRight,
+  Zap,
+  TrendingUp,
+  ChevronRight,
+} from "lucide-react";
 
 interface ReferralStats {
-totalReferrals: number;
-activeReferrals: number;
-tier: { name: string; label: string; feeDiscount: number; revenueShare: number; min: number; commission: number };
-nextTier?: { min: number };
-earnings: number;
-referralCode: string;
+  totalReferrals: number;
+  activeReferrals: number;
+  tier: {
+    name: string;
+    label: string;
+    feeDiscount: number;
+    revenueShare: number;
+    min: number;
+    commission: number;
+  };
+  nextTier?: { min: number };
+  earnings: number;
+  referralCode: string;
 }
 
-// Share Modal
+/* ─────────────────────────── Share Modal ─────────────────────────────────── */
 
 interface ShareModalProps {
-readonly open: boolean;
-readonly onClose: () => void;
-readonly referralCode: string;
-readonly referralLink: string;
+  readonly open: boolean;
+  readonly onClose: () => void;
+  readonly referralCode: string;
+  readonly referralLink: string;
 }
 
 function ShareModal({ open, onClose, referralCode, referralLink }: ShareModalProps) {
-const [linkCopied, setLinkCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
-const shareText = `Join me on VyaparMedia India's most trusted influencer-brand deal platform! Use my referral code ${referralCode} and get started. `;
+  const shareText = `Join me on VyaparMedia — India's most trusted influencer-brand deal platform! Use my referral code ${referralCode} and get started. `;
 
-const handleCopyLink = useCallback(async () => {
-await copyToClipboard(referralLink);
-setLinkCopied(true);
-setTimeout(() => setLinkCopied(false), 2500);
-}, [referralLink]);
+  const handleCopyLink = useCallback(async () => {
+    await copyToClipboard(referralLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2500);
+  }, [referralLink]);
 
-const handleNativeShare = useCallback(async () => {
-if (navigator.share) {
-try {
-await navigator.share({ title: "Join VyaparMedia", text: shareText, url: referralLink });
-} catch {
-// User cancelled no-op
-}
-}
-}, [shareText, referralLink]);
+  const handleNativeShare = useCallback(async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Join VyaparMedia", text: shareText, url: referralLink });
+      } catch {
+        // user cancelled — no-op
+      }
+    }
+  }, [shareText, referralLink]);
 
-const whatsappText = shareText + "\n" + referralLink;
-const channels: { id: string; label: string; icon: string; color: string; bg: string; href: string }[] = [
-{
-id: "whatsapp",
-label: "WhatsApp",
-icon: "💬",
-color: "#25d366",
-bg: "rgba(37,211,102,0.12)",
-href: `https://wa.me/?text=${encodeURIComponent(whatsappText)}`,
-},
-{
-id: "twitter",
-label: "X (Twitter)",
-icon: "✕",
-color: "#e7e9ea",
-bg: "rgba(231,233,234,0.08)",
-href: `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(referralLink)}`,
-},
-{
-id: "linkedin",
-label: "LinkedIn",
-icon: "in",
-color: "#0a66c2",
-bg: "rgba(10,102,194,0.15)",
-href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`,
-},
-];
+  const whatsappText = shareText + "\n" + referralLink;
+
+  const channels = [
+    {
+      id: "whatsapp",
+      label: "WhatsApp",
+      emoji: "💬",
+      href: `https://wa.me/?text=${encodeURIComponent(whatsappText)}`,
+      style: "bg-verified-muted border-verified-border text-verified hover:bg-verified/20",
+    },
+    {
+      id: "twitter",
+      label: "X (Twitter)",
+      emoji: "✕",
+      href: `https://x.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(referralLink)}`,
+      style: "bg-muted border-border text-foreground hover:bg-muted/80",
+    },
+    {
+      id: "linkedin",
+      label: "LinkedIn",
+      emoji: "in",
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`,
+      style: "bg-escrow-muted border-escrow-border text-escrow hover:bg-escrow/20",
+    },
+  ] as const;
 
   return (
     <Modal open={open} onClose={onClose} title="Invite Your Network" maxWidth="480px">
       <div className="space-y-5">
-        <p className="text-xs text-secondary -mt-2">
+        <p className="text-xs text-muted-foreground -mt-2">
           Share your referral link with brands &amp; creators to earn commission.
         </p>
 
-        {/* Referral link */}
-        <div className="referral-link-box flex items-center gap-3 rounded-xl min-w-0 bg-glass-card p-3 border border-border">
+        {/* Referral link box */}
+        <div className="flex items-center gap-3 p-3.5 rounded-xl bg-muted/40 border border-border">
           <div className="flex-1 min-w-0">
-            <div className="font-bold text-muted mb-1 uppercase text-2xs tracking-wider">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">
               Your Referral Link
             </div>
-            <div className="text-sm font-semibold text-secondary overflow-hidden whitespace-nowrap font-mono text-ellipsis">
-              {referralLink}
-            </div>
+            <div className="text-sm font-mono text-foreground truncate">{referralLink}</div>
           </div>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
+          <Button
+            variant={linkCopied ? "secondary" : "primary"}
+            size="sm"
             onClick={handleCopyLink}
             aria-label="Copy referral link"
-            className="referral-copy-btn text-xs font-bold cursor-pointer flex-shrink-0 flex items-center border-none px-4 py-2 whitespace-nowrap text-white rounded-lg gap-1.5"
-            data-copied={linkCopied}
+            className="shrink-0 gap-1.5 text-xs font-bold"
           >
             {linkCopied ? (
               <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
+                <CheckCheck className="w-3.5 h-3.5" />
                 Copied!
               </>
             ) : (
               <>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
-                Copy Link
+                <Copy className="w-3.5 h-3.5" />
+                Copy
               </>
             )}
-          </motion.button>
+          </Button>
         </div>
 
         {/* Share channels */}
-        <div className="grid gap-3 grid-cols-3">
+        <div className="grid grid-cols-3 gap-3">
           {channels.map((ch) => (
-            <motion.a
+            <a
               key={ch.id}
               href={ch.href}
               target="_blank"
               rel="noopener noreferrer"
-              whileHover={{ y: -3, scale: 1.03 }}
-              whileTap={{ scale: 0.96 }}
-              className="referral-channel text-center flex flex-col items-center gap-2 cursor-pointer rounded-xl no-underline p-3 border border-border"
-              data-channel={ch.id}
+              className={`flex flex-col items-center gap-2 p-3 rounded-xl border text-center text-xs font-semibold transition-all hover:-translate-y-0.5 ${ch.style}`}
             >
-              <span className="referral-channel-icon font-extrabold leading-none text-xl">
-                {ch.icon}
-              </span>
-              <span className="font-bold text-secondary text-xs whitespace-nowrap">
-                {ch.label}
-              </span>
-            </motion.a>
+              <span className="text-xl leading-none">{ch.emoji}</span>
+              <span className="whitespace-nowrap">{ch.label}</span>
+            </a>
           ))}
         </div>
 
-        {/* Native share shown only on devices that support it */}
+        {/* Native share (mobile) */}
         {typeof navigator !== "undefined" && "share" in navigator && (
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
+          <Button
+            variant="secondary"
+            className="w-full gap-2 text-sm font-bold"
             onClick={handleNativeShare}
-            className="referral-native-share w-full text-sm font-bold cursor-pointer flex items-center justify-center gap-2 p-3.5 rounded-lg bg-indigo-12 text-indigo-light"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-              <polyline points="16 6 12 2 8 6" />
-              <line x1="12" y1="2" x2="12" y2="15" />
-            </svg>
+            <Share2 className="w-4 h-4" />
             Share via Device
-          </motion.button>
+          </Button>
         )}
       </div>
     </Modal>
   );
 }
 
-// Main Page
+/* ─────────────────────────── Tier definition ─────────────────────────────── */
 
-import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
+const TIERS = [
+  { name: "BRONZE",   label: "Bronze",   min: 10,   reward: "1%",      accent: "border-pending-border  bg-pending-muted  text-pending"  },
+  { name: "SILVER",   label: "Silver",   min: 50,   reward: "1.5%",    accent: "border-border          bg-muted          text-muted-foreground" },
+  { name: "GOLD",     label: "Gold",     min: 100,  reward: "2%",      accent: "border-pending-border  bg-pending-muted  text-pending"  },
+  { name: "PLATINUM", label: "Platinum", min: 500,  reward: "1% GMV",  accent: "border-escrow-border   bg-escrow-muted   text-escrow"   },
+  { name: "DIAMOND",  label: "Diamond",  min: 1000, reward: "2% GMV",  accent: "border-verified-border bg-verified-muted text-verified" },
+] as const;
+
+/* ─────────────────────────── Main Page ──────────────────────────────────── */
 
 export default function ReferralsPage() {
   const { data: session } = useSession();
-  const [copied, setCopied] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"overview" | "history">("overview");
@@ -182,28 +187,28 @@ export default function ReferralsPage() {
     fetcher
   );
 
-  const copyCode = () => {
+  const referralLink =
+    stats?.referralCode && typeof window !== "undefined"
+      ? `${window.location.origin}/register?ref=${stats.referralCode}`
+      : "";
+
+  const copyCode = useCallback(() => {
     if (stats?.referralCode) {
       copyToClipboard(stats.referralCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
     }
-  };
+  }, [stats?.referralCode]);
 
-  let referralLink = "";
-  if (stats?.referralCode) {
-    const origin = typeof window !== "undefined" ? window.location.origin : "";
-    referralLink = `${origin}/register?ref=${stats.referralCode}`;
-  }
-
-  const copyLink = () => {
+  const copyLink = useCallback(() => {
     if (referralLink) {
       copyToClipboard(referralLink);
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     }
-  };
+  }, [referralLink]);
 
+  /* Loading skeleton */
   if (loading || !session) {
     return (
       <DashboardShell user={session?.user}>
@@ -223,209 +228,284 @@ export default function ReferralsPage() {
   if (!stats?.tier) {
     return (
       <DashboardShell user={session.user}>
-        <div className="text-center py-20">
-          <div className="text-2xl font-bold mb-2 text-secondary">
-            Unavailable
-          </div>
-          <p className="text-muted">
-            Unable to load referral data at this time.
-          </p>
+        <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+          <Gift className="w-10 h-10 text-muted-foreground" />
+          <p className="text-base font-semibold text-foreground">Referral data unavailable</p>
+          <p className="text-sm text-muted-foreground">Unable to load referral data at this time.</p>
         </div>
       </DashboardShell>
     );
   }
 
-  const nextTierMin = stats.tier?.name === "DIAMOND" ? 1000 : stats.nextTier?.min || 10;
+  const nextTierMin = stats.tier.name === "DIAMOND" ? 1000 : (stats.nextTier?.min ?? 10);
   const progress = Math.min((stats.activeReferrals / nextTierMin) * 100, 100);
 
   return (
     <DashboardShell user={session.user}>
-      <div className="referrals-page mx-auto max-w-1000">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <h1 className="referrals-title mb-2 font-extrabold text-4xl bg-gradient-amber-rose">
-            Partner Network
-          </h1>
-          <p className="text-secondary text-base max-w-600 mx-auto">
-            Expand the VyaparMedia ecosystem and build a lifetime of passive rewards.
-          </p>
-        </motion.div>
+      <div className="max-w-5xl mx-auto space-y-6 pb-12">
 
-        {/* Segmented Pill Tabs */}
-        <div className="flex justify-center mb-8">
-          <div className="wallet-tabs-container">
-            <button
-              type="button"
-              onClick={() => setActiveTab("overview")}
-              className="wallet-tab-button"
-              data-active={activeTab === "overview"}
-            >
-              <span>📊</span>
-              <span>Overview</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("history")}
-              className="wallet-tab-button"
-              data-active={activeTab === "history"}
-            >
-              <span>📜</span>
-              <span>Referral History</span>
-              {stats.totalReferrals > 0 && (
-                <span className="text-2xs opacity-75 font-mono">({stats.totalReferrals})</span>
-              )}
-            </button>
+        {/* ── Page Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-card border border-border shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-pending/10 border border-pending-border flex items-center justify-center">
+              <Gift className="w-5 h-5 text-pending" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-foreground">
+                Partner Network
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Expand the VyaparMedia ecosystem and build lifetime passive rewards
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
+              TIERS.find((t) => t.name === stats.tier.name)?.accent ?? "bg-muted border-border text-muted-foreground"
+            }`}>
+              <Crown className="w-3.5 h-3.5" />
+              {stats.tier.label} Partner
+            </span>
           </div>
         </div>
 
+        {/* ── KPI Strip ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              icon: <Users className="w-5 h-5 text-escrow" />,
+              label: "Active Partners",
+              value: String(stats.activeReferrals),
+              bg: "bg-escrow/10 border-escrow-border",
+            },
+            {
+              icon: <Zap className="w-5 h-5 text-pending" />,
+              label: stats.tier.revenueShare > 0 ? "Revenue Share" : "Fee Discount",
+              value: stats.tier.revenueShare > 0
+                ? `${(stats.tier.revenueShare * 100).toFixed(1).replace(/\.0$/, "")}% GMV`
+                : `${stats.tier.feeDiscount}%`,
+              bg: "bg-pending/10 border-pending-border",
+            },
+            {
+              icon: <TrendingUp className="w-5 h-5 text-verified" />,
+              label: "Total Earnings",
+              value: formatCurrency(stats.earnings || 0),
+              bg: "bg-verified/10 border-verified-border",
+            },
+          ].map((kpi, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.08 }}
+              className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border shadow-sm"
+            >
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${kpi.bg}`}>
+                {kpi.icon}
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">{kpi.label}</p>
+                <p className="text-2xl font-extrabold text-foreground tabular-nums leading-tight">
+                  {kpi.value}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* ── Tab Toggle ── */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {(
+            [
+              { key: "overview", label: "Overview" },
+              {
+                key: "history",
+                label: `Referral History${stats.totalReferrals > 0 ? ` (${stats.totalReferrals})` : ""}`,
+              },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all shrink-0 border ${
+                activeTab === tab.key
+                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted/50"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Tab Content ── */}
         <AnimatePresence mode="wait">
           {activeTab === "overview" ? (
             <motion.div
               key="overview"
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.3 }}
+              exit={{ opacity: 0, x: 16 }}
+              transition={{ duration: 0.25 }}
+              className="space-y-6"
             >
-              {/* Code Card */}
-              <motion.div
-                className="referral-code-card text-center relative overflow-hidden mb-8"
-              >
-                <div className="referral-card-glow absolute rounded-full pointer-events-none" />
+              {/* ── Referral Code Card (CRED-style) ── */}
+              <div className="relative overflow-hidden rounded-2xl bg-card border border-primary/30 shadow-sm p-6 text-center">
+                {/* Subtle gradient accent strip */}
+                <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary/60 via-primary to-primary/60 rounded-t-2xl" />
 
-                <div className="text-xs font-extrabold mb-4 text-emerald uppercase tracking-widest flex items-center justify-center gap-2">
-                  <span>🎁</span>
-                  <span>Your Unique Invite Code</span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-verified-muted border border-verified-border text-verified text-[11px] font-extrabold uppercase tracking-wider mb-5">
+                  <Gift className="w-3 h-3" />
+                  Your Unique Invite Code
                 </div>
 
-                {/* Code box */}
-                <div className="flex flex-col items-center gap-3 mb-6">
-                  <div className="referral-code-box flex items-center gap-4 justify-between">
-                    <span className="referral-code-text">
+                {/* Large stylized code display */}
+                <div className="flex items-center justify-center gap-4 mb-6">
+                  <div className="flex items-center gap-3 px-6 py-4 rounded-xl bg-muted/60 border border-border">
+                    <span className="text-3xl font-extrabold tracking-[0.2em] text-foreground font-mono">
                       {stats.referralCode}
                     </span>
                     <button
                       type="button"
                       onClick={copyCode}
                       aria-label="Copy referral code"
-                      className="referral-code-copy border-none text-white flex items-center gap-1.5"
-                      data-copied={copied}
+                      className={`p-2 rounded-lg transition-all border text-xs font-bold flex items-center gap-1 ${
+                        codeCopied
+                          ? "bg-verified-muted border-verified-border text-verified"
+                          : "bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                      }`}
                     >
-                      {copied ? (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                          <span>Copied!</span>
-                        </>
+                      {codeCopied ? (
+                        <><CheckCheck className="w-4 h-4" /> Copied!</>
                       ) : (
-                        <>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                          </svg>
-                          <span>Copy</span>
-                        </>
+                        <><Copy className="w-4 h-4" /> Copy</>
                       )}
                     </button>
                   </div>
                 </div>
 
-                {/* Actions Row */}
-                <div className="flex justify-center items-center gap-3 flex-wrap mb-8">
-                  <button
-                    type="button"
+                {/* Action row */}
+                <div className="flex items-center justify-center gap-3 flex-wrap">
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={copyLink}
-                    className="referral-share-btn font-extrabold cursor-pointer inline-flex items-center border-none rounded-xl text-xs text-white gap-2 bg-gradient-primary"
+                    className="gap-1.5 font-bold text-xs"
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                    </svg>
+                    <Copy className="w-3.5 h-3.5" />
                     {linkCopied ? "Link Copied!" : "Copy Share Link"}
-                  </button>
-
-                  <button
-                    type="button"
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setShareOpen(true)}
                     id="share-referral-btn"
                     aria-label="Share referral link"
-                    className="referral-share-btn font-extrabold cursor-pointer inline-flex items-center border border-card rounded-xl text-xs text-secondary hover:text-white gap-2 bg-tertiary"
+                    className="gap-1.5 font-bold text-xs"
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="18" cy="5" r="3" />
-                      <circle cx="6" cy="12" r="3" />
-                      <circle cx="18" cy="19" r="3" />
-                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                    </svg>
+                    <Share2 className="w-3.5 h-3.5" />
                     Share via Socials
-                  </button>
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-                  <StatBox label="Current Rank" value={stats.tier.label} color="#10b981" icon="👑" />
-                  <StatBox
-                    label={stats.tier.revenueShare > 0 ? "Revenue Share" : "Fee Discount"}
-                    value={stats.tier.revenueShare > 0 ? `${(stats.tier.revenueShare * 100).toFixed(1).replace(/\.0$/, "")}% GMV` : `${stats.tier.feeDiscount}%`}
-                    color="#06b6d4" icon="⚡"
-                  />
-                  <StatBox
-                    label="Total Earnings"
-                    value={formatCurrency(stats.earnings || 0)}
-                    color="#f59e0b" icon="💰"
-                  />
-                </div>
-              </motion.div>
-
-              {/* Progress & Tiers */}
-              <div className="referral-progress-section">
-                <div className="flex justify-between items-end mb-4 flex-wrap gap-3">
-                  <h3 className="font-extrabold text-xl text-white">Milestone Progress</h3>
-                  <div className="font-bold text-secondary text-sm">
-                    <span className="text-lg text-emerald font-extrabold">{stats.activeReferrals}</span> / {nextTierMin} ACTIVE PARTNERS
-                  </div>
-                </div>
-                <div className="referral-progress-track overflow-hidden mb-6 rounded-2xl h-3-5-rem bg-glass-card">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progress}%` }}
-                    transition={{ duration: 1.2, ease: "circOut" }}
-                    className="referral-progress-fill h-full"
-                  />
-                </div>
-                <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
-                  <TierCard name="BRONZE" percent="1%" min="10" active={stats.tier.label === "Bronze"} color="#cd7f32" delay={0.05} />
-                  <TierCard name="SILVER" percent="1.5%" min="50" active={stats.tier.label === "Silver"} color="#c0c0c0" delay={0.1} />
-                  <TierCard name="GOLD" percent="2%" min="100" active={stats.tier.label === "Gold"} color="#ffd700" delay={0.15} />
-                  <TierCard name="PLATINUM" percent="1% GMV" min="500" active={stats.tier.label === "Platinum"} color="#e5e4e2" delay={0.2} />
-                  <TierCard name="DIAMOND" percent="2% GMV" min="1000" active={stats.tier.label === "Diamond"} color="#b9f2ff" delay={0.25} />
+                  </Button>
                 </div>
               </div>
 
-              {/* Steps */}
-              <div className="referral-roadmap p-8 rounded-2xl bg-secondary border border-card">
-                <h3 className="mb-6 text-center font-extrabold text-xl text-white">Partnership Roadmap</h3>
-                <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
-                  <StepCard num="01" title="Share Your Code" desc="Deploy your unique code or invite link across your socials and network." icon="📢" />
-                  <StepCard num="02" title="Network Activation" desc="Referrals join and complete their first verified deal on VyaparMedia." icon="🤝" />
-                  <StepCard num="03" title="Earn Lifetime Rewards" desc="Unlock scaling GMV revenue share and permanent platform fee discounts." icon="💸" />
+              {/* ── Milestone Progress ── */}
+              <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-extrabold text-foreground">Milestone Progress</h2>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    <span className="text-base font-extrabold text-verified">{stats.activeReferrals}</span>
+                    {" "}/ {nextTierMin} active partners
+                  </span>
+                </div>
+
+                {/* Progress track */}
+                <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${progress}%` }}
+                    transition={{ duration: 1.2, ease: "easeOut" }}
+                    className="h-full bg-gradient-to-r from-primary to-verified rounded-full"
+                  />
+                </div>
+
+                {/* Tier cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                  {TIERS.map((tier, i) => {
+                    const isActive = stats.tier.label === tier.label;
+                    return (
+                      <motion.div
+                        key={tier.name}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.06 }}
+                        className={`text-center p-3 rounded-xl border transition-all ${
+                          isActive
+                            ? `${tier.accent} shadow-sm ring-1 ring-inset ring-current/20`
+                            : "bg-card border-border text-muted-foreground hover:bg-muted/30"
+                        }`}
+                      >
+                        {isActive && (
+                          <Crown className="w-3.5 h-3.5 mx-auto mb-1 text-current" />
+                        )}
+                        <div className="text-xs font-extrabold uppercase tracking-wider">{tier.label}</div>
+                        <div className="text-base font-extrabold tabular-nums mt-0.5">{tier.reward}</div>
+                        <div className="text-[10px] font-medium opacity-70">{tier.min}+ active</div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Partnership Roadmap ── */}
+              <div className="p-5 rounded-2xl bg-card border border-border shadow-sm">
+                <h2 className="text-sm font-extrabold text-foreground mb-4 text-center">
+                  Partnership Roadmap
+                </h2>
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+                  {[
+                    {
+                      num: "01",
+                      title: "Share Your Code",
+                      desc: "Deploy your unique code or invite link across your socials and network.",
+                      icon: "📢",
+                    },
+                    {
+                      num: "02",
+                      title: "Network Activation",
+                      desc: "Referrals join and complete their first verified deal on VyaparMedia.",
+                      icon: "🤝",
+                    },
+                    {
+                      num: "03",
+                      title: "Earn Lifetime Rewards",
+                      desc: "Unlock scaling GMV revenue share and permanent platform fee discounts.",
+                      icon: "💸",
+                    },
+                  ].map((step) => (
+                    <div
+                      key={step.num}
+                      className="relative p-5 rounded-xl bg-muted/30 border border-border"
+                    >
+                      <div className="absolute top-4 right-4 text-3xl font-extrabold text-muted-foreground/20 select-none tabular-nums">
+                        {step.num}
+                      </div>
+                      <div className="text-2xl mb-3">{step.icon}</div>
+                      <h3 className="text-sm font-bold text-foreground mb-1">{step.title}</h3>
+                      <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             </motion.div>
           ) : (
             <motion.div
               key="history"
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 0, x: 16 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="referral-history"
+              exit={{ opacity: 0, x: -16 }}
+              transition={{ duration: 0.25 }}
             >
               <ReferralList onShareClick={() => setShareOpen(true)} />
             </motion.div>
@@ -441,75 +521,5 @@ export default function ReferralsPage() {
         referralLink={referralLink}
       />
     </DashboardShell>
-  );
-}
-
-// Sub-components
-
-interface StatBoxProps {
-  readonly label: string;
-  readonly value: string | number;
-  readonly color: string;
-  readonly icon: string;
-}
-function getStatTone(color: string) {
-  if (color === "#10b981") return "emerald";
-  if (color === "#06b6d4") return "cyan";
-  if (color === "#f59e0b") return "amber";
-  return "indigo";
-}
-
-function StatBox({ label, value, color, icon }: StatBoxProps) {
-  const tone = getStatTone(color);
-  return (
-    <div className="referral-stat-box text-center rounded-2xl" data-tone={tone}>
-      <div className="text-2xl mb-1.5">{icon}</div>
-      <div className="mb-1 font-extrabold text-2xl text-white">{value}</div>
-      <div className="referral-stat-label text-xs uppercase tracking-wider font-extrabold">{label}</div>
-    </div>
-  );
-}
-
-interface TierCardProps {
-  readonly name: string;
-  readonly percent: string;
-  readonly min: string;
-  readonly active: boolean;
-  readonly color: string;
-  readonly delay: number;
-}
-function TierCard({ name, percent, min, active, color: _color, delay }: TierCardProps) {
-  const tier = name.toLowerCase();
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      whileHover={{ y: -3 }}
-      className="referral-tier-card text-center rounded-2xl"
-      data-active={active}
-      data-tier={tier}
-    >
-      <div className="referral-tier-name text-xs font-extrabold mb-1.5">{name}</div>
-      <div className="referral-tier-percent mb-1 font-extrabold text-xl">{percent}</div>
-      <div className="font-bold text-muted text-2xs">{min}+ ACTIVE</div>
-    </motion.div>
-  );
-}
-
-interface StepCardProps {
-  readonly num: string;
-  readonly title: string;
-  readonly desc: string;
-  readonly icon: string;
-}
-function StepCard({ num, title, desc, icon }: StepCardProps) {
-  return (
-    <div className="referral-step-card p-6 relative rounded-2xl bg-tertiary border border-card">
-      <div className="referral-step-num absolute text-3xl font-extrabold">{num}</div>
-      <div className="mb-3 text-3xl">{icon}</div>
-      <div className="text-base font-extrabold mb-1.5 text-white">{title}</div>
-      <div className="text-xs text-secondary leading-relaxed">{desc}</div>
-    </div>
   );
 }

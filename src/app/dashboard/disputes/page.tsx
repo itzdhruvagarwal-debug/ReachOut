@@ -114,6 +114,21 @@ function TimelineStep({ label, isComplete, isActive, isLast = false }: TimelineS
   );
 }
 
+function getDisputeCountdown(createdAtStr: string): string {
+  try {
+    const created = new Date(createdAtStr).getTime();
+    const deadline = created + 48 * 60 * 60 * 1000;
+    const diffMs = deadline - Date.now();
+    if (diffMs <= 0) return "SLA Expired";
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
+  } catch {
+    return "48h window";
+  }
+}
+
 function DisputeTimeline({ status }: { status: string }) {
   const isResolvedOrClosed = status === "RESOLVED" || status === "CLOSED";
   const isTier2 = status === "TIER2_MEDIATION";
@@ -506,8 +521,8 @@ export default function DisputesPage() {
                         {/* Urgency Badge */}
                         {dispute.status === "OPEN" || dispute.status === "TIER1_AUTO" ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-pending bg-pending-muted px-2.5 py-1 rounded-full border border-pending-border">
-                            <Clock className="w-3 h-3" />
-                            Action: 48h Mutual Window
+                            <Clock className="w-3 h-3 animate-pulse" />
+                            Mutual Window: {getDisputeCountdown(dispute.createdAt)}
                           </span>
                         ) : dispute.status === "TIER2_MEDIATION" ? (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-disputed bg-disputed-muted px-2.5 py-1 rounded-full border border-disputed-border animate-pulse">
@@ -552,6 +567,22 @@ export default function DisputesPage() {
                         </span>
                         <span className="text-muted-foreground/60">
                           Deal #{dispute.deal?.id?.slice(-6)?.toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Party Claim Amounts (Upwork / Fiverr Dispute Benchmark) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/70 text-xs">
+                      <div className="flex items-center justify-between px-2 sm:border-r sm:border-border/60">
+                        <span className="text-muted-foreground text-[11px]">Brand Claim:</span>
+                        <span className="font-semibold font-mono text-pending">
+                          Full Refund ({formatCurrency(dispute.deal?.amount || 0)})
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between px-2">
+                        <span className="text-muted-foreground text-[11px]">Creator Claim:</span>
+                        <span className="font-semibold font-mono text-verified">
+                          Full Escrow Release ({formatCurrency(dispute.deal?.amount || 0)})
                         </span>
                       </div>
                     </div>

@@ -677,7 +677,7 @@ export function ContentSubmissionModal({
                             /* FILE UPLOADED STATE WITH PREVIEW */
                             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-xl bg-secondary/40 border border-border">
                               <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-12 h-12 rounded-lg bg-black/10 dark:bg-black/30 flex items-center justify-center overflow-hidden flex-shrink-0 border border-border">
+                                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0 border border-border">
                                   {isVideo ? (
                                     <Film className="w-6 h-6 text-primary" />
                                   ) : (
@@ -891,7 +891,7 @@ export function ContentSubmissionModal({
                 </div>
 
                 {/* Media Preview Box */}
-                <div className="relative aspect-square sm:aspect-video bg-black/90 flex items-center justify-center overflow-hidden">
+                <div className="relative aspect-square sm:aspect-video bg-background/90 flex items-center justify-center overflow-hidden">
                   {previewItem?.mediaType === "video" || previewItem?.url?.match(/\.(mp4|mov|webm)$/i) ? (
                     <video
                       src={previewItem.previewUrl || previewItem.url}

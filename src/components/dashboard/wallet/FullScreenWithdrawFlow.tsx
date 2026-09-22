@@ -193,7 +193,7 @@ export function FullScreenWithdrawFlow({
       role="dialog"
       aria-modal="true"
       aria-label="Deliberate Withdrawal Flow"
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200"
     >
       <div className="relative w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl bg-card border-0 sm:border border-border sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-foreground">
         {/* Header */}

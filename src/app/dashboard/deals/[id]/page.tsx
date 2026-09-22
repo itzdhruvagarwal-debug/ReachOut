@@ -4,7 +4,22 @@ import React from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { ArrowLeft, Building2, User } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  User,
+  Lock,
+  ShieldCheck,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Zap,
+  Calendar,
+  Layers,
+  FileCheck2,
+  Star,
+  ExternalLink,
+} from "lucide-react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { useTokenRefreshGuard } from "@/hooks/useTokenRefreshGuard";
 import { useDealDetail, computeDealDisplay } from "@/components/dashboard/deals/useDealDetail";
@@ -22,6 +37,133 @@ import { DealModals } from "@/components/dashboard/deals/DealModals";
 import { Button, Skeleton, Textarea, ToastContainer } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
+import { formatCurrency } from "@/lib/utils-client";
+
+// ─── Status Helpers ────────────────────────────────────────────────────────────
+
+function DealStatusBadge({ status }: { status: string }) {
+  const map: Record<string, { label: string; className: string; icon: React.ReactNode }> = {
+    PENDING_SIGNATURE: {
+      label: "Awaiting Signature",
+      className: "bg-pending-muted text-pending border-pending-border",
+      icon: <AlertCircle className="w-3.5 h-3.5" />,
+    },
+    PAYMENT_HELD: {
+      label: "Escrow Locked",
+      className: "bg-escrow-muted text-escrow border-escrow-border",
+      icon: <Lock className="w-3.5 h-3.5" />,
+    },
+    ACTIVE: {
+      label: "Active Deal",
+      className: "bg-escrow-muted text-escrow border-escrow-border",
+      icon: <Zap className="w-3.5 h-3.5" />,
+    },
+    CONTENT_SUBMITTED: {
+      label: "Under Review",
+      className: "bg-pending-muted text-pending border-pending-border",
+      icon: <AlertCircle className="w-3.5 h-3.5" />,
+    },
+    REVISION_REQUESTED: {
+      label: "Revision Requested",
+      className: "bg-pending-muted text-pending border-pending-border",
+      icon: <AlertCircle className="w-3.5 h-3.5" />,
+    },
+    CONTENT_APPROVED: {
+      label: "Content Approved",
+      className: "bg-verified-muted text-verified border-verified-border",
+      icon: <ShieldCheck className="w-3.5 h-3.5" />,
+    },
+    POSTED: {
+      label: "Live on Socials",
+      className: "bg-verified-muted text-verified border-verified-border",
+      icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+    },
+    VERIFICATION_PENDING: {
+      label: "Verifying Post",
+      className: "bg-pending-muted text-pending border-pending-border",
+      icon: <AlertCircle className="w-3.5 h-3.5" />,
+    },
+    VERIFIED: {
+      label: "Post Verified",
+      className: "bg-verified-muted text-verified border-verified-border",
+      icon: <ShieldCheck className="w-3.5 h-3.5" />,
+    },
+    COMPLETED: {
+      label: "Completed & Settled",
+      className: "bg-verified-muted text-verified border-verified-border",
+      icon: <CheckCircle2 className="w-3.5 h-3.5" />,
+    },
+    DISPUTED: {
+      label: "In Arbitration",
+      className: "bg-disputed-muted text-disputed border-disputed-border animate-pulse",
+      icon: <AlertCircle className="w-3.5 h-3.5" />,
+    },
+    CANCELLED: {
+      label: "Cancelled",
+      className: "bg-muted text-muted-foreground border-border",
+      icon: <XCircle className="w-3.5 h-3.5" />,
+    },
+  };
+
+  const config = map[status] ?? {
+    label: status.replace(/_/g, " "),
+    className: "bg-muted text-muted-foreground border-border",
+    icon: null,
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${config.className}`}
+    >
+      {config.icon}
+      {config.label}
+    </span>
+  );
+}
+
+// ─── Loading Skeleton ──────────────────────────────────────────────────────────
+
+function DealRoomSkeleton({ user }: { user?: unknown }) {
+  return (
+    <DashboardShell user={user as Parameters<typeof DashboardShell>[0]["user"]}>
+      <div className="max-w-6xl mx-auto space-y-6 pb-16 animate-pulse">
+        {/* Header skeleton */}
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-28 rounded-lg" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-72 sm:w-96 rounded-lg" />
+              <div className="flex gap-2">
+                <Skeleton className="h-6 w-24 rounded-full" />
+                <Skeleton className="h-6 w-32 rounded-full" />
+              </div>
+            </div>
+            <Skeleton className="h-12 w-48 rounded-xl" />
+          </div>
+        </div>
+
+        {/* Stepper skeleton */}
+        <Skeleton className="h-20 w-full rounded-2xl" />
+
+        {/* 2-column layout skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-7 space-y-5">
+            <Skeleton className="h-64 w-full rounded-2xl" />
+            <Skeleton className="h-56 w-full rounded-2xl" />
+            <Skeleton className="h-40 w-full rounded-2xl" />
+          </div>
+          <div className="lg:col-span-5 space-y-5">
+            <Skeleton className="h-56 w-full rounded-2xl" />
+            <Skeleton className="h-48 w-full rounded-2xl" />
+            <Skeleton className="h-36 w-full rounded-2xl" />
+          </div>
+        </div>
+      </div>
+    </DashboardShell>
+  );
+}
+
+// ─── Upwork / Collabr Workroom Page Component ─────────────────────────────────
 
 export default function DealDetailPage() {
   const { id } = useParams() as { id: string };
@@ -76,7 +218,7 @@ export default function DealDetailPage() {
     engagementDisclaimer,
   } = dealState;
 
-  // Supabase Realtime Subscription + Adaptive 2s Heartbeat
+  // Supabase Realtime Subscription + Adaptive Heartbeat
   const { justUpdated } = useDealRealtime({
     dealId: id,
     currentStatus: deal?.status,
@@ -87,50 +229,36 @@ export default function DealDetailPage() {
   });
 
   const ratingLabelMap: Record<number, string> = {
-    1: "Poor - Disappointed",
-    2: "Fair - Needs improvement",
-    3: "Good - Satisfactory",
-    4: "Very Good - Great work",
-    5: "Excellent - Outstanding!",
+    1: "Poor — Disappointed",
+    2: "Fair — Needs improvement",
+    3: "Good — Satisfactory",
+    4: "Very Good — Great work",
+    5: "Excellent — Outstanding!",
   };
 
   const isClient = session?.user?.userType === "BRAND";
   const isInfluencer = session?.user?.userType === "INFLUENCER";
 
-  if (loading) {
-    return (
-      <DashboardShell user={session?.user || undefined}>
-        <div className="max-w-6xl mx-auto space-y-6 py-4">
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-8 w-24 rounded-lg" />
-            <Skeleton className="h-8 w-48 rounded-lg" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 space-y-6">
-              <Skeleton className="h-44 w-full rounded-2xl" />
-              <Skeleton className="h-64 w-full rounded-2xl" />
-            </div>
-            <div className="space-y-6">
-              <Skeleton className="h-56 w-full rounded-2xl" />
-              <Skeleton className="h-40 w-full rounded-2xl" />
-            </div>
-          </div>
-        </div>
-      </DashboardShell>
-    );
-  }
+  // ── Loading State ──────────────────────────────────────────────────────────
+  if (loading) return <DealRoomSkeleton user={session?.user} />;
 
+  // ── Error / Not Found State ────────────────────────────────────────────────
   if (error || !deal) {
     return (
       <DashboardShell user={session?.user || undefined}>
-        <div className="text-center p-12 bg-card border border-border rounded-2xl max-w-lg mx-auto mt-8 shadow-sm">
-          <div className="text-disputed font-heading font-bold text-lg mb-2">Deal Not Found</div>
-          <div className="text-sm text-muted-foreground mb-6">
-            {String(error || "This deal could not be located or you don't have access.")}
+        <div className="flex flex-col items-center justify-center min-h-[50vh]">
+          <div className="max-w-md w-full p-8 rounded-2xl border border-disputed-border bg-card shadow-sm text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-disputed-muted text-disputed flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <h2 className="text-xl font-heading font-bold text-foreground">Collaboration Deal Not Found</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {String(error || "This deal workspace could not be located or your account doesn't have authorization.")}
+            </p>
+            <Button href="/dashboard/deals" variant="secondary" className="w-full">
+              Return to Deals Pipeline
+            </Button>
           </div>
-          <Button href="/dashboard/deals" variant="secondary">
-            Back to Deals
-          </Button>
         </div>
       </DashboardShell>
     );
@@ -150,216 +278,292 @@ export default function DealDetailPage() {
     "VERIFIED",
   ].includes(deal.status);
 
+  const counterpartyName = isClient
+    ? deal.influencer?.displayName || "Creator"
+    : deal.brand?.companyName || "Brand Partner";
+
   return (
     <DashboardShell user={session?.user || undefined}>
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
-      {/* Top Navigation & Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
+      <div className="max-w-6xl mx-auto space-y-6 pb-20 animate-fade-in">
+
+        {/* ── 1. WORKROOM HERO HEADER (UPWORK / COLLABR BENCHMARK) ─────────── */}
+        <div className="space-y-3 border-b border-border pb-5">
+          {/* Breadcrumb Navigation */}
           <Link
             href="/dashboard/deals"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-medium mb-1.5 transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground font-semibold transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            Back to All Deals
+            <span>All Deals Pipeline</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl sm:text-2xl font-heading font-black tracking-tight text-foreground">
-              {deal.campaign?.title || "Campaign Deal"}
-            </h1>
-            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border">
-              ID: {deal.id.slice(-6)}
-            </span>
-          </div>
-        </div>
 
-        {/* Counterparty Badge & Realtime Status */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-card border border-border text-xs shadow-sm">
-            {isClient ? (
-              <>
-                <User className="w-3.5 h-3.5 text-primary" />
-                <span className="text-muted-foreground">Creator:</span>
-                <span className="font-bold text-foreground">
-                  {deal.influencer?.displayName || "Influencer"}
+          {/* Title & Counterparty Row */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
+                  {deal.campaign?.title || "Campaign Collaboration"}
+                </h1>
+                <span className="font-mono text-xs font-bold px-2.5 py-0.5 rounded-md bg-muted text-foreground border border-border">
+                  #{deal.id.slice(-6).toUpperCase()}
                 </span>
-              </>
-            ) : (
-              <>
-                <Building2 className="w-3.5 h-3.5 text-primary" />
-                <span className="text-muted-foreground">Brand:</span>
-                <span className="font-bold text-foreground">
-                  {deal.brand?.companyName || "Brand Partner"}
+                <DealStatusBadge status={deal.status} />
+              </div>
+
+              {/* Sub-info: Quick Stats */}
+              <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-escrow" />
+                  <span>Escrow: <strong>{formatCurrency(deal.amount)}</strong></span>
                 </span>
-              </>
-            )}
-          </div>
+                <span>•</span>
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-primary" />
+                  <span>Created {new Date(deal.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</span>
+                </span>
+              </div>
+            </div>
 
-          {/* Real-time sync beacon */}
-          <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-muted text-[11px] font-medium text-muted-foreground border border-border"
-            title="Real-time live sync active"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-verified opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-verified" />
-            </span>
-            <span className="hidden sm:inline">Live Sync</span>
-          </div>
-        </div>
-      </div>
+            {/* Counterparty Dossier Chip + Realtime Sync */}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-3 p-2.5 px-3.5 rounded-2xl bg-card border border-border text-xs shadow-sm">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                  {isClient ? <User className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] text-muted-foreground block">
+                    {isClient ? "Counterparty Creator" : "Counterparty Brand"}
+                  </span>
+                  <span className="font-bold text-foreground text-sm truncate block max-w-[160px]">
+                    {counterpartyName}
+                  </span>
+                </div>
+              </div>
 
-      {/* 1. Progress Stepper */}
-      <DealProgressStepper status={deal.status} justUpdated={justUpdated} />
-
-      {/* 2. Escrow Amount Card */}
-      <EscrowTrustCard
-        amountInPaise={deal.amount}
-        totalAmountInPaise={deal.totalAmount}
-        platformFeeInPaise={deal.platformFee}
-        gatewayFeeInPaise={deal.gatewayFee}
-        creatorPayoutInPaise={typeof terms?.influencerPayout === "number" ? terms.influencerPayout : deal.influencerPayout || undefined}
-        isEscrowLocked={isEscrowLocked}
-        isCompleted={deal.status === "COMPLETED"}
-        isDisputed={deal.status === "DISPUTED"}
-        isCancelled={deal.status === "CANCELLED"}
-        brandCompanyName={deal.brand?.companyName || "Brand"}
-        creatorName={deal.influencer?.displayName || "Creator"}
-        isBrand={isClient}
-      />
-
-      {/* 3. Contextual Role-Based Action Engine */}
-      <DealContextualActions
-        dealStatus={deal.status}
-        dealId={deal.id}
-        isInfluencer={isInfluencer}
-        isBrand={isClient}
-        isSubmitting={isSubmitting}
-        canSubmitContent={canSubmitContent}
-        deal={deal}
-        handleSignContract={() => dealState.handleSignContract()}
-        handleRejectInvite={() => dealState.handleRejectInvite()}
-        handleCancelDeal={() => dealState.handleCancelDeal()}
-        handleAction={dealState.handleAction}
-        setItemizedUrls={setItemizedUrls}
-        setContentForm={setContentForm}
-        setShowSubmitModal={setShowSubmitModal}
-        setShowVerifyModal={setShowVerifyModal}
-        setItemizedReviews={setItemizedReviews}
-        setShowReviewModal={setShowReviewModal}
-      />
-
-      {/* 4. Dispute Entry Point / Active Dispute Alert */}
-      <DealDisputeSection
-        dealId={deal.id}
-        status={deal.status}
-        isBrand={isClient}
-      />
-
-      {/* 5. Deal Detail Content Layout */}
-      <div className="grid gap-6 grid-cols-1 lg:grid-cols-3">
-        <div className="lg:col-span-2 flex flex-col gap-6">
-          <DealContractCard
-            deal={deal}
-            isBrand={isClient}
-            isInfluencer={isInfluencer}
-            onOpenAddressModal={() => setShowAddressModal(true)}
-            onOpenDispatchModal={() => setShowDispatchModal(true)}
-            onConfirmReceived={() => handleProductAction({ action: "confirm_received" })}
-            isSubmitting={isSubmitting}
-          />
-
-          <ContentSubmissionsCard submissions={deal.contentSubmissions} />
-        </div>
-
-        <div className="flex flex-col gap-6">
-          <EngagementCard
-            engagement={engagement}
-            disclaimer={engagementDisclaimer}
-            isClient={isClient}
-          />
-        </div>
-      </div>
-
-      {/* 6. Post-Deal Review Card */}
-      {deal.status === "COMPLETED" && !reviewSubmitted && (
-        <div className="mt-6 p-6 rounded-2xl border border-border bg-card shadow-sm">
-          <h3 className="font-heading font-bold text-lg mb-1 text-foreground">Rate This Collaboration</h3>
-          <p className="text-xs sm:text-sm text-muted-foreground mb-4">
-            Your review and rating directly inform the user trust score on VyaparMedia.
-          </p>
-          <div className="flex items-center gap-1.5 mb-4">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                onClick={() => setReviewRating(star)}
-                onMouseEnter={() => setHoverRating(star)}
-                onMouseLeave={() => setHoverRating(0)}
-                aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
-                aria-pressed={(hoverRating || reviewRating) >= star ? "true" : "false"}
-                className={`text-2xl p-1 bg-transparent hover:bg-transparent transition-colors cursor-pointer ${
-                  (hoverRating || reviewRating) >= star
-                    ? "text-pending"
-                    : "text-muted-foreground/30"
-                }`}
+              {/* Live Sync Beacon */}
+              <div
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted/80 text-[11px] font-bold text-muted-foreground border border-border"
+                title="Live Supabase deal synchronization active"
               >
-                ★
-              </button>
-            ))}
-            {reviewRating > 0 && (
-              <span className="text-xs font-semibold text-primary ml-2">
-                {ratingLabelMap[reviewRating] || "Excellent"}
-              </span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-verified opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-verified" />
+                </span>
+                <span className="hidden sm:inline">Live Sync</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 2. ESCROW TRUST BANNER (COLLABR SAFEGUARD REASSURANCE) ────────── */}
+        <div className="p-3.5 px-4 rounded-2xl bg-escrow-muted/40 border border-escrow-border/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-escrow">
+          <div className="flex items-center gap-2.5">
+            <ShieldCheck className="w-4 h-4 shrink-0 text-escrow" />
+            <span>
+              <strong>100% Escrow Protection:</strong> Funds for this contract are securely locked in an RBI-compliant escrow account. Payout is released only upon milestone delivery and signoff.
+            </span>
+          </div>
+          <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-card border border-escrow-border shrink-0">
+            Indian Contract Act 1872
+          </span>
+        </div>
+
+        {/* ── 3. MILESTONE PROGRESS STEPPER (UPWORK WORKROOM PATTERN) ───────── */}
+        <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-sm">
+          <h2 className="text-sm font-heading font-bold uppercase tracking-wider text-muted-foreground mb-4 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-primary" />
+            Milestone Delivery Pipeline
+          </h2>
+          <DealProgressStepper status={deal.status} justUpdated={justUpdated} />
+        </div>
+
+        {/* ── 4. TWO-COLUMN SPLIT WORKROOM (7 COLS WORKSPACE / 5 COLS SIDEBAR) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+          {/* ── LEFT COLUMN (7 COLS): WORKSPACE & SUBMISSIONS ───────────────── */}
+          <div className="lg:col-span-7 flex flex-col gap-6">
+
+            {/* Contract & Deliverables Card */}
+            <DealContractCard
+              deal={deal}
+              isBrand={isClient}
+              isInfluencer={isInfluencer}
+              onOpenAddressModal={() => setShowAddressModal(true)}
+              onOpenDispatchModal={() => setShowDispatchModal(true)}
+              onConfirmReceived={() => handleProductAction({ action: "confirm_received" })}
+              isSubmitting={isSubmitting}
+            />
+
+            {/* Submissions & Draft Vault */}
+            <ContentSubmissionsCard submissions={deal.contentSubmissions} />
+
+            {/* Engagement & Live Socials Verification */}
+            <EngagementCard
+              engagement={engagement}
+              disclaimer={engagementDisclaimer}
+              isClient={isClient}
+            />
+
+            {/* Post-Deal Feedback & Review (Shown on COMPLETED deals before review) */}
+            {deal.status === "COMPLETED" && !reviewSubmitted && (
+              <div className="p-6 rounded-2xl border border-border bg-card shadow-sm space-y-4">
+                <div>
+                  <h3 className="font-heading font-bold text-base sm:text-lg text-foreground flex items-center gap-2">
+                    <Star className="w-4 h-4 text-pending fill-pending" />
+                    Rate Collaboration Performance
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                    Your feedback updates the counterparty&apos;s Dynamic Reliability Score (DRS™) on VyaparMedia.
+                  </p>
+                </div>
+
+                {/* 5-Star Interactive Selector */}
+                <div className="flex items-center gap-2 py-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setReviewRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
+                      aria-pressed={(hoverRating || reviewRating) >= star ? "true" : "false"}
+                      className={`text-3xl p-1 transition-transform hover:scale-110 cursor-pointer ${
+                        (hoverRating || reviewRating) >= star
+                          ? "text-pending fill-pending"
+                          : "text-muted-foreground/30"
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                  {reviewRating > 0 && (
+                    <span className="text-xs font-bold text-primary ml-2 px-2.5 py-1 rounded-md bg-primary/10">
+                      {ratingLabelMap[reviewRating] ?? "Excellent"}
+                    </span>
+                  )}
+                </div>
+
+                <Textarea
+                  placeholder="Share details on promptness, communication clarity, and deliverable quality..."
+                  aria-label="Share your feedback"
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  rows={3}
+                  className="text-sm rounded-xl"
+                />
+
+                <Button
+                  variant="primary"
+                  disabled={reviewRating === 0 || isSubmitting}
+                  onClick={async () => {
+                    setIsSubmitting(true);
+                    try {
+                      await apiClient.settings.submitReview({
+                        dealId: id,
+                        rating: reviewRating,
+                        ...(reviewComment.trim() ? { comment: reviewComment.trim() } : {}),
+                      });
+                      showToast("success", "Review submitted! Trust score updated.");
+                      setReviewSubmitted(true);
+                    } catch (err: unknown) {
+                      showToast(
+                        "error",
+                        formatUserError(err, "Failed to submit review. Please try again.")
+                      );
+                    } finally {
+                      setIsSubmitting(false);
+                    }
+                  }}
+                  className="font-bold"
+                >
+                  {isSubmitting ? "Submitting Review..." : "Submit Official Review"}
+                </Button>
+              </div>
+            )}
+
+            {/* Review Submitted Confirmation */}
+            {deal.status === "COMPLETED" && reviewSubmitted && (
+              <div className="flex items-center gap-3.5 p-4 rounded-2xl border border-verified-border bg-verified-muted text-verified">
+                <CheckCircle2 className="w-5 h-5 shrink-0" />
+                <div>
+                  <strong className="block text-sm font-semibold">Review Confirmed</strong>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {"★".repeat(Math.max(0, reviewRating))} Feedback recorded. Thank you for fostering trust in Bharat&apos;s creator commerce ecosystem.
+                  </p>
+                </div>
+              </div>
             )}
           </div>
-          <Textarea
-            placeholder="Share feedback on communication, turnaround, and content quality (optional)..."
-            aria-label="Share your experience"
-            value={reviewComment}
-            onChange={(e) => setReviewComment(e.target.value)}
-            rows={3}
-            className="mb-4 text-sm"
-          />
-          <Button
-            variant="primary"
-            disabled={reviewRating === 0 || isSubmitting}
-            onClick={async () => {
-              setIsSubmitting(true);
-              try {
-                await apiClient.settings.submitReview({
-                  dealId: id,
-                  rating: reviewRating,
-                  ...(reviewComment.trim() ? { comment: reviewComment.trim() } : {}),
-                });
-                showToast("success", "Review submitted! Thank you.");
-                setReviewSubmitted(true);
-              } catch (err: unknown) {
-                showToast("error", formatUserError(err, "Failed to submit review. Please try again."));
-              } finally {
-                setIsSubmitting(false);
-              }
-            }}
-          >
-            {isSubmitting ? "Submitting..." : "Submit Review"}
-          </Button>
-        </div>
-      )}
 
-      {deal.status === "COMPLETED" && reviewSubmitted && (
-        <div className="flex items-center gap-3 rounded-2xl mt-6 p-4 border border-verified-border bg-verified-muted text-verified">
-          <span className="text-2xl text-verified">✓</span>
-          <div>
-            <strong className="block text-sm font-semibold">Review Submitted</strong>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {"★".repeat(Math.max(0, reviewRating))} Thank you for helping build trust in our community.
-            </p>
+          {/* ── RIGHT COLUMN (5 COLS): FINANCIAL ESCROW & ACTIONS ───────────── */}
+          <div className="lg:col-span-5 flex flex-col gap-6 lg:sticky lg:top-6">
+
+            {/* Escrow Financial Source of Truth */}
+            <EscrowTrustCard
+              amountInPaise={deal.amount}
+              totalAmountInPaise={deal.totalAmount}
+              platformFeeInPaise={deal.platformFee}
+              gatewayFeeInPaise={deal.gatewayFee}
+              creatorPayoutInPaise={
+                typeof terms?.influencerPayout === "number"
+                  ? terms.influencerPayout
+                  : deal.influencerPayout || undefined
+              }
+              isEscrowLocked={isEscrowLocked}
+              isCompleted={deal.status === "COMPLETED"}
+              isDisputed={deal.status === "DISPUTED"}
+              isCancelled={deal.status === "CANCELLED"}
+              brandCompanyName={deal.brand?.companyName || "Brand"}
+              creatorName={deal.influencer?.displayName || "Creator"}
+              isBrand={isClient}
+            />
+
+            {/* Contextual Action Engine */}
+            <DealContextualActions
+              dealStatus={deal.status}
+              dealId={deal.id}
+              isInfluencer={isInfluencer}
+              isBrand={isClient}
+              isSubmitting={isSubmitting}
+              canSubmitContent={canSubmitContent}
+              deal={deal}
+              handleSignContract={() => dealState.handleSignContract()}
+              handleRejectInvite={() => dealState.handleRejectInvite()}
+              handleCancelDeal={() => dealState.handleCancelDeal()}
+              handleAction={dealState.handleAction}
+              setItemizedUrls={setItemizedUrls}
+              setContentForm={setContentForm}
+              setShowSubmitModal={setShowSubmitModal}
+              setShowVerifyModal={setShowVerifyModal}
+              setItemizedReviews={setItemizedReviews}
+              setShowReviewModal={setShowReviewModal}
+            />
+
+            {/* Collabr Anti-Leak Safety Chip */}
+            <div className="p-4 rounded-2xl bg-muted/40 border border-border text-xs text-muted-foreground space-y-1.5">
+              <span className="font-bold text-foreground flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-verified" />
+                Anti-Leak Deal Protection
+              </span>
+              <p className="text-[11px] leading-relaxed">
+                Never accept or make off-platform payments (UPI / cash). Off-platform payments void all escrow guarantees and legal dispute coverage.
+              </p>
+            </div>
+
+            {/* Dispute Resolution Center Gateway */}
+            <DealDisputeSection
+              dealId={deal.id}
+              status={deal.status}
+              isBrand={isClient}
+            />
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Modals for Reviews, Addresses, Verification, etc. */}
+      {/* ── Modals & Dialogs (Preserved 100% Contract Integrity) ─────────── */}
       <DealModals
         showAddressModal={showAddressModal}
         setShowAddressModal={setShowAddressModal}
@@ -385,7 +589,6 @@ export default function DealDetailPage() {
         setItemizedReviews={setItemizedReviews}
       />
 
-      {/* Multi-step Instagram-inspired Content Submission Modal */}
       {deal && (
         <ContentSubmissionModal
           isOpen={showSubmitModal}

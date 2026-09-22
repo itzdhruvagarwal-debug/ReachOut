@@ -4,10 +4,33 @@ import React, { useState } from "react";
 import EmptyState from "@/components/ui/EmptyState";
 import { Card } from "@/components/ui";
 import { formatContractDate, ContentSubmission, ContentUrlEntry } from "./DealDetailHelpers";
-import { History, ExternalLink, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
+import {
+  History,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Image as ImageIcon,
+  Video,
+  FileText,
+} from "lucide-react";
 
 interface ContentSubmissionsCardProps {
   readonly submissions?: ContentSubmission[] | undefined;
+}
+
+function isImageUrl(url?: string, type?: string): boolean {
+  if (!url) return false;
+  if (type?.toLowerCase().includes("image") || type?.toLowerCase().includes("photo") || type?.toLowerCase().includes("post")) return true;
+  return /\.(jpe?g|png|webp|gif|svg|avif)(\?.*)?$/i.test(url);
+}
+
+function isVideoUrl(url?: string, type?: string): boolean {
+  if (!url) return false;
+  if (type?.toLowerCase().includes("video") || type?.toLowerCase().includes("reel") || type?.toLowerCase().includes("story") || type?.toLowerCase().includes("short")) return true;
+  return /\.(mp4|webm|mov|mkv)(\?.*)?$/i.test(url);
 }
 
 export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissionsCardProps>) {
@@ -125,6 +148,106 @@ export function ContentSubmissionsCard({ submissions }: Readonly<ContentSubmissi
                       </p>
                     </div>
                   )}
+
+                  {/* Visual Proof-of-Work Media Preview Grid */}
+                  {(() => {
+                    const mediaItems =
+                      subUrls.length > 0
+                        ? subUrls.filter((u): u is ContentUrlEntry & { url: string } => Boolean(u.url))
+                        : sub.contentUrl
+                        ? [{ url: sub.contentUrl, type: "deliverable" }]
+                        : [];
+
+                    if (mediaItems.length === 0) return null;
+
+                    return (
+                      <div className="space-y-1.5 mb-2">
+                        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                          Deliverable Previews
+                        </span>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                          {mediaItems.map((item, itemIdx) => {
+                            const isImg = isImageUrl(item.url, item.type);
+                            const isVid = isVideoUrl(item.url, item.type);
+                            const label = item.type.replace(/_\d+$/, "").replaceAll("_", " ");
+
+                            if (isImg) {
+                              return (
+                                <a
+                                  key={`thumb-${itemIdx}-${item.url}`}
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group relative aspect-video rounded-xl overflow-hidden border border-border/80 bg-muted/40 shadow-xs hover:border-primary/60 transition-all block focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                                  title={`View ${label}`}
+                                >
+                                  <img
+                                    src={item.url}
+                                    alt={label}
+                                    loading="lazy"
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                  />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent opacity-85 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-2">
+                                    <div className="flex items-center justify-between gap-1 text-[11px] text-white">
+                                      <span className="font-medium truncate capitalize flex items-center gap-1">
+                                        <ImageIcon className="w-3 h-3 shrink-0" />
+                                        <span className="truncate">{label}</span>
+                                      </span>
+                                      <ExternalLink className="w-3 h-3 shrink-0 opacity-80 group-hover:opacity-100" />
+                                    </div>
+                                  </div>
+                                </a>
+                              );
+                            }
+
+                            if (isVid) {
+                              return (
+                                <a
+                                  key={`thumb-${itemIdx}-${item.url}`}
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="group relative aspect-video rounded-xl overflow-hidden border border-border/80 bg-muted/50 shadow-xs hover:border-primary/60 transition-all flex flex-col items-center justify-center p-2.5 text-center focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                                  title={`Watch ${label}`}
+                                >
+                                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-1 group-hover:scale-110 transition-transform">
+                                    <Video className="w-4 h-4" />
+                                  </div>
+                                  <span className="text-[11px] font-semibold text-foreground truncate max-w-full capitalize">
+                                    {label}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                    Watch Video <ExternalLink className="w-2.5 h-2.5" />
+                                  </span>
+                                </a>
+                              );
+                            }
+
+                            return (
+                              <a
+                                key={`thumb-${itemIdx}-${item.url}`}
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group relative aspect-video rounded-xl border border-border/80 bg-muted/40 shadow-xs hover:border-primary/60 transition-all flex flex-col items-center justify-center p-2.5 text-center focus:outline-hidden focus:ring-2 focus:ring-primary/40"
+                                title={`Open ${label}`}
+                              >
+                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center mb-1 text-muted-foreground group-hover:text-primary transition-colors">
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                                <span className="text-[11px] font-semibold text-foreground truncate max-w-full capitalize">
+                                  {label}
+                                </span>
+                                <span className="text-[10px] text-primary font-medium flex items-center gap-1 mt-0.5">
+                                  View Asset <ExternalLink className="w-2.5 h-2.5" />
+                                </span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Deliverable Items */}
                   <div className="space-y-2">

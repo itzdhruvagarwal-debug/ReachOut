@@ -1,469 +1,579 @@
 "use client";
 
-
-import { useState } from "react";
+import React, { useState } from "react";
 import useSWR from "swr";
-import { fetcher } from "@/lib/fetcher";
 import Image from "next/image";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession } from "next-auth/react";
+import {
+  Trophy,
+  Crown,
+  Flame,
+  Medal,
+  Sparkles,
+  MapPin,
+  Tag,
+  Star,
+  ShieldCheck,
+  Briefcase,
+  Users,
+  Building2,
+  Calendar,
+  CheckCircle2,
+  ChevronRight,
+  TrendingUp,
+} from "lucide-react";
+import { fetcher } from "@/lib/fetcher";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import EmptyState from "@/components/ui/EmptyState";
-import { Button, Select } from "@/components/ui";
+import { Button, Select, Skeleton } from "@/components/ui";
 import { formatNumber } from "@/lib/utils-client";
 import { ALL_CATEGORIES } from "@/lib/categories";
 
 interface LeaderboardUser {
-id: string;
-name: string;
-avatar: string;
-subtitle: string;
-city?: string;
-score: number;
-level: number;
-trustScore?: number;
-deals?: number;
-isWeeklyChampion?: boolean;
+  id: string;
+  name: string;
+  avatar: string;
+  subtitle: string;
+  city?: string;
+  score: number;
+  level: number;
+  trustScore?: number;
+  deals?: number;
+  isWeeklyChampion?: boolean;
 }
 
 interface HallOfFameUser {
-rank: number;
-id: string;
-name: string;
-avatar: string;
-xp: number;
-level: number;
-deals: number;
+  rank: number;
+  id: string;
+  name: string;
+  avatar: string;
+  xp: number;
+  level: number;
+  deals: number;
 }
 
-export default function LeaderboardPage() {
-const { data: session } = useSession();
-const [tab, setTab] = useState<"influencers" | "brands">("influencers");
-const [filter, setFilter] = useState<"all-time" | "weekly">("all-time");
-const [city, setCity] = useState("");
-const [category, setCategory] = useState("");
-
-const categories = ALL_CATEGORIES;
-const cities = [
-"Mumbai",
-"Delhi",
-"Bangalore",
-"Hyderabad",
-"Chennai",
-"Kolkata",
-"Pune",
-"Jaipur",
+const CITIES = [
+  "Mumbai",
+  "Delhi",
+  "Bangalore",
+  "Hyderabad",
+  "Chennai",
+  "Kolkata",
+  "Pune",
+  "Jaipur",
 ];
 
-const params = new URLSearchParams({ filter });
-if (city) params.set("city", city);
-if (category) params.set("category", category);
+export default function LeaderboardPage() {
+  const { data: session } = useSession();
+  const [tab, setTab] = useState<"influencers" | "brands">("influencers");
+  const [filter, setFilter] = useState<"all-time" | "weekly">("all-time");
+  const [city, setCity] = useState("");
+  const [category, setCategory] = useState("");
 
-const { data: leaderboardData, isLoading: loading, error: fetchErr } = useSWR<{ influencers?: LeaderboardUser[]; brands?: LeaderboardUser[]; hallOfFame?: HallOfFameUser[] }>(
-`/api/gamification/leaderboard?${params.toString()}`,
-fetcher
-);
+  const params = new URLSearchParams({ filter });
+  if (city) params.set("city", city);
+  if (category) params.set("category", category);
 
-const influencers: LeaderboardUser[] = leaderboardData?.influencers || [];
-const brands: LeaderboardUser[] = leaderboardData?.brands || [];
-const hallOfFame: HallOfFameUser[] = leaderboardData?.hallOfFame || [];
-const error = fetchErr ? "Failed to load leaderboard. Please try again later." : null;
+  const {
+    data: leaderboardData,
+    isLoading: loading,
+    error: fetchErr,
+  } = useSWR<{
+    influencers?: LeaderboardUser[];
+    brands?: LeaderboardUser[];
+    hallOfFame?: HallOfFameUser[];
+  }>(`/api/gamification/leaderboard?${params.toString()}`, fetcher);
 
-const activeList = tab === "influencers" ? influencers : brands;
-let scoreLabel = "";
-if (tab === "influencers") {
-scoreLabel = filter === "weekly" ? "Deals This Week" : "XP";
-} else {
-scoreLabel = filter === "weekly" ? "Deals This Week" : "Trust Score";
-}
+  const influencers: LeaderboardUser[] = leaderboardData?.influencers || [];
+  const brands: LeaderboardUser[] = leaderboardData?.brands || [];
+  const hallOfFame: HallOfFameUser[] = leaderboardData?.hallOfFame || [];
+  const error = fetchErr
+    ? "Failed to load leaderboard. Please check your network and refresh."
+    : null;
 
-let leaderboardContent;
-if (loading) {
-leaderboardContent = Array.from({ length: 5 }).map((_, idx) => (
-<div
-key={"skeleton-" + idx}
-className="leaderboard-skeleton rounded-lg bg-secondary opacity-50"
-/>
-));
-} else if (error) {
-leaderboardContent = (
-<div
-className="text-center p-10 text-rose"
->
-{error}
-<Button
-onClick={() => globalThis.location.reload()}
-variant="primary"
-className="mt-4 px-4-py-2"
->
-Retry
-</Button>
-</div>
-);
-} else if (activeList.length === 0) {
-leaderboardContent = (
-<EmptyState
-emoji=""
-title="No Rankings Found"
-description="No users match the selected leaderboard filters at the moment."
-compact
-/>
-);
-} else {
-leaderboardContent = activeList.map((user, index) => (
-<motion.div
-key={user.id}
-initial={{ opacity: 0, x: -20 }}
-animate={{ opacity: 1, x: 0 }}
-transition={{ delay: index * 0.03 }}
-className="leaderboard-row grid items-center cursor-pointer rounded-lg px-4 py-3"
-data-rank={index < 3 ? index + 1 : "default"}
-whileHover={{ x: 4 }}
->
-            {/* Rank */}
-            <span
-              className="leaderboard-rank font-extrabold"
-              data-rank={index < 3 ? index + 1 : "default"}
-            >
-              {index + 1}
-            </span>
+  const activeList = tab === "influencers" ? influencers : brands;
+  const scoreLabel =
+    tab === "influencers"
+      ? filter === "weekly"
+        ? "Deals This Week"
+        : "Total XP"
+      : filter === "weekly"
+      ? "Deals This Week"
+      : "Trust Score";
 
-{/* User Info */}
-<div
-className="flex items-center gap-3"
->
-                <div
-                  className="leaderboard-avatar relative flex items-center justify-center text-base font-bold overflow-hidden rounded-full text-white flex-shrink-0"
-                  data-tone={index % 6}
-                >
-                  {user.avatar ? (
-                    <Image
-                      src={user.avatar}
-                      alt={user.name + " avatar"}
-                      fill
-                      unoptimized
-                      className="object-cover rounded-full"
-                    />
-                  ) : (
-                    user.name?.charAt(0)?.toUpperCase() || "?"
-                  )}
-                </div>
-<div>
-<div
-className="font-semibold text-sm flex items-center gap-1.5"
->
-{user.name || "Anonymous"}
-{user.isWeeklyChampion && (
-<span
-className="leaderboard-hot-badge font-bold text-amber text-2xs px-2 py-0.5 rounded-md"
->
-HOT
-</span>
-)}
-</div>
-<div
-className="text-xs text-secondary"
->
-{user.subtitle}
-{user.city ? ` ${user.city}` : ""}
-</div>
-</div>
-</div>
+  const first = hallOfFame[0];
+  const second = hallOfFame[1];
+  const third = hallOfFame[2];
+  const weeklyChampion = influencers[0]?.isWeeklyChampion ? influencers[0] : null;
 
-{/* Score */}
-<div
-className="text-right font-bold text-sm text-primary"
->
-{typeof user.score === "number"
-? formatNumber(user.score)
-: user.score}
-</div>
+  if (!session) {
+    return (
+      <DashboardShell user={null}>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+        </div>
+      </DashboardShell>
+    );
+  }
 
-{/* Level */}
-<div className="text-right">
-<span
-className="leaderboard-level text-xs font-bold rounded-md px-2 py-1"
->
-Lv.{user.level}
-</span>
-</div>
-</motion.div>
-));
-}
-
-if (!session) {
-return (
-<DashboardShell user={null}>
-<div className="flex items-center justify-center min-h-60vh">
-<span className="loading" />
-</div>
-</DashboardShell>
-);
-}
-
-return (
-<DashboardShell user={session.user}>
-<div className="max-w-900 mx-auto">
-{/* Header */}
-<div className="text-center mb-8">
-<h1
-className="leaderboard-title font-extrabold text-3xl bg-gradient-amber-rose"
->
-Leaderboard
-</h1>
-<p className="text-secondary mt-2">
-Top performers on VyaparMedia
-</p>
-</div>
-
-{/* Filter Controls */}
-<div
-className="scrollable-tabs flex gap-3 mb-6 items-center pb-2"
->
-{/* Influencer/Brand Toggle */}
-<div
-className="flex bg-secondary rounded-lg p-1"
->
-{(["influencers", "brands"] as const).map((t) => (
-<Button
-key={t}
-onClick={() => setTab(t)}
-variant={tab === t ? "primary" : "ghost"}
-className="leaderboard-toggle font-semibold text-sm px-4-py-2 rounded-lg"
-data-active={tab === t}
->
-{t === "influencers" ? " Creators" : " Brands"}
-</Button>
-))}
-</div>
-
-{/* Weekly/All-time Toggle */}
-<div
-className="flex bg-secondary rounded-lg p-1"
->
-      {(["all-time", "weekly"] as const).map((f) => {
-        let btnVariant: "warning" | "primary" | "ghost" = "ghost";
-        if (filter === f) {
-          btnVariant = f === "weekly" ? "warning" : "primary";
-        }
-        return (
-<Button
-key={f}
-onClick={() => setFilter(f)}
-variant={btnVariant}
-className="leaderboard-toggle font-semibold text-sm px-4-py-2 rounded-lg"
-data-active={filter === f}
->
-{f === "weekly" ? " This Week" : " All-Time"}
-</Button>
-);
-})}
-</div>
-
-{/* City Filter */}
-<Select
-value={city}
-onChange={(e) => setCity(e.target.value)}
-className="leaderboard-select px-2 py-1"
->
-<option value=""> All Cities</option>
-{cities.map((c) => (
-<option key={c} value={c}>
-{c}
-</option>
-))}
-</Select>
-
-{/* Category Filter */}
-{tab === "influencers" && (
-<Select
-value={category}
-onChange={(e) => setCategory(e.target.value)}
-className="px-2 py-1 w-180"
->
-<option value=""> All Categories</option>
-{categories.map((c) => (
-<option key={c} value={c}>
-{c}
-</option>
-))}
-</Select>
-)}
-</div>
-
-{/* Hall of Fame Section (all-time only) */}
-{filter === "all-time" &&
-tab === "influencers" &&
-hallOfFame.length > 0 && (
-<motion.div
-initial={{ opacity: 0, y: 20 }}
-animate={{ opacity: 1, y: 0 }}
-className="leaderboard-podium flex justify-center items-end gap-4 flex-wrap mb-10 rounded-xl"
->
-{/* 2nd place */}
-{hallOfFame[1] && (
-<PodiumUser
-user={hallOfFame[1]}
-rank={2}
-color="#c0c0c0"
-height={100}
-delay={0.1}
-unit="XP"
-/>
-)}
-{/* 1st place */}
-{hallOfFame[0] && (
-<PodiumUser
-user={hallOfFame[0]}
-rank={1}
-color="#ffd700"
-height={130}
-delay={0}
-isFirst
-unit="XP"
-/>
-)}
-{/* 3rd place */}
-{hallOfFame[2] && (
-<PodiumUser
-user={hallOfFame[2]}
-rank={3}
-color="#cd7f32"
-height={80}
-delay={0.2}
-unit="XP"
-/>
-)}
-</motion.div>
-)}
-
-{/* Weekly Champion Banner */}
-{filter === "weekly" &&
-influencers[0]?.isWeeklyChampion &&
-tab === "influencers" && (
-<motion.div
-initial={{ opacity: 0, scale: 0.95 }}
-animate={{ opacity: 1, scale: 1 }}
-className="leaderboard-weekly-banner flex items-center gap-4 mb-6 flex-wrap p-5 rounded-xl"
->
-<div className="text-3xl flex items-center">
-  <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="text-amber-400 fill-amber-400/20">
-    <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
-    <path d="M5 20h14" />
-  </svg>
-</div>
-<div>
-<div
-className="font-bold text-xs text-amber uppercase tracking-wider"
->
-HOT CREATOR OF THE WEEK
-</div>
-<div
-className="text-xl font-extrabold mt-1 text-primary"
->
-{influencers[0].name}
-</div>
-<div
-className="text-sm text-secondary"
->
-{influencers[0].score} deals completed this week
-</div>
-</div>
-</motion.div>
-)}
-
-{/* Leaderboard List */}
-<div className="flex flex-col gap-2">
-        {/* Header Row */}
-        <div
-          className="leaderboard-header-row grid font-bold text-secondary text-xs uppercase px-4 py-2.5 items-center tracking-wider"
-        >
-          <span>#</span>
-          <span>Name</span>
-          <span className="text-right">{scoreLabel}</span>
-          <span className="text-right">Level</span>
+  return (
+    <DashboardShell user={session.user}>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+        {/* Page Header */}
+        <div className="text-center max-w-2xl mx-auto space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 mb-1">
+            <Trophy className="w-3.5 h-3.5" />
+            Bharat Creator Hall of Fame
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-foreground tracking-tight">
+            Top Performers & Leaderboard
+          </h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Recognizing India&apos;s most active creators and trusted brands based on completed escrow contracts, verified reviews, and DRS trust scores.
+          </p>
         </div>
 
-<AnimatePresence>
-{leaderboardContent}
-</AnimatePresence>
-</div>
-</div>
-</DashboardShell>
-);
-}
+        {/* Filter Toolbar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-3xl bg-card border border-border shadow-xs">
+          {/* Persona & Period Toggle */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Influencer / Brand Toggle */}
+            <div className="flex items-center bg-muted p-1 rounded-2xl border border-border">
+              <button
+                type="button"
+                onClick={() => setTab("influencers")}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+                  tab === "influencers"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                Creators
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("brands")}
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+                  tab === "brands"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                Brands
+              </button>
+            </div>
 
-interface PodiumUserProps {
-readonly user: HallOfFameUser;
-readonly rank: number;
-readonly color: string;
-readonly height: number;
-readonly delay: number;
-readonly isFirst?: boolean;
-readonly unit: string;
-}
+            {/* Timeframe Toggle */}
+            <div className="flex items-center bg-muted p-1 rounded-2xl border border-border">
+              <button
+                type="button"
+                onClick={() => setFilter("all-time")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  filter === "all-time"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All-Time
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilter("weekly")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1 ${
+                  filter === "weekly"
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Flame className="w-3 h-3" />
+                This Week
+              </button>
+            </div>
+          </div>
 
-function PodiumUser({
-user,
-rank,
-color: _color,
-height: _height,
-delay,
-isFirst,
-unit,
-}: PodiumUserProps) {
-return (
-<motion.div
-initial={{ opacity: 0, y: 30 }}
-animate={{ opacity: 1, y: 0 }}
-transition={{ delay, duration: 0.5 }}
-className="flex flex-col items-center gap-2"
->
-{isFirst && <div className="text-3xl flex justify-center">
-  <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="text-amber-400 fill-amber-400/20">
-    <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z" />
-    <path d="M5 20h14" />
-  </svg>
-</div>}
-      <div
-        className="podium-avatar relative flex items-center justify-center font-bold overflow-hidden rounded-full text-white flex-shrink-0"
-        data-rank={rank}
-        data-first={Boolean(isFirst)}
-      >
-        {user.avatar ? (
-          <Image
-            src={user.avatar}
-            alt={user.name || "avatar"}
-            fill
-            unoptimized
-            className="object-cover rounded-full"
-          />
-        ) : (
-          user.name?.charAt(0)?.toUpperCase() || "?"
+          {/* Location & Niche Selectors */}
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <Select
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="text-xs py-1.5 px-3 rounded-xl bg-background border-border text-foreground w-auto min-w-[130px]"
+            >
+              <option value="">All Cities</option>
+              {CITIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+
+            {tab === "influencers" && (
+              <Select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="text-xs py-1.5 px-3 rounded-xl bg-background border-border text-foreground w-auto min-w-[140px]"
+              >
+                <option value="">All Categories</option>
+                {ALL_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </div>
+        </div>
+
+        {/* Weekly Hot Creator Banner */}
+        {filter === "weekly" &&
+          weeklyChampion &&
+          tab === "influencers" && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
+            >
+              <div className="flex items-center gap-4 text-center sm:text-left">
+                <div className="w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 flex-shrink-0">
+                  <Flame className="w-8 h-8 fill-current" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-1.5 text-2xs font-extrabold uppercase tracking-wider text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded-full mb-1">
+                    <Sparkles className="w-3 h-3" />
+                    Hot Creator of the Week
+                  </div>
+                  <h2 className="text-xl font-black text-foreground">
+                    {weeklyChampion.name}
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Completed <strong>{weeklyChampion.score} escrow deals</strong> in the last 7 days.
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href={`/dashboard/influencers/${weeklyChampion.id}`}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-xs inline-flex items-center gap-1.5"
+              >
+                View Profile
+                <ChevronRight className="w-4 h-4" />
+              </Link>
+            </motion.div>
+          )}
+
+        {/* Top-3 Visual Podium (Duolingo / Strava Pattern) */}
+        {filter === "all-time" &&
+          tab === "influencers" &&
+          first &&
+          second &&
+          third && (
+            <div className="py-6 px-4 sm:px-8 bg-card border border-border rounded-3xl shadow-xs">
+              <div className="text-center mb-6">
+                <span className="text-2xs font-bold text-muted-foreground uppercase tracking-widest block">
+                  All-Time Hall of Fame
+                </span>
+                <h2 className="text-lg font-extrabold text-foreground">
+                  India&apos;s Top 3 Creators
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 sm:gap-6 items-end justify-center max-w-2xl mx-auto pt-6">
+                {/* 2nd Place (Silver) */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="flex flex-col items-center text-center space-y-2 order-1"
+                >
+                  <div className="relative">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-slate-300 dark:border-slate-500 overflow-hidden relative shadow-sm">
+                      {second.avatar ? (
+                        <Image
+                          src={second.avatar}
+                          alt={second.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center font-bold text-sm text-foreground">
+                          {second.name?.slice(0, 2).toUpperCase() || "?"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-600 text-slate-800 dark:text-slate-100 flex items-center justify-center font-black text-xs shadow-xs">
+                      2
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <span className="font-bold text-xs sm:text-sm text-foreground block truncate max-w-[100px] sm:max-w-[140px]">
+                      {second.name}
+                    </span>
+                    <span className="text-2xs text-muted-foreground font-semibold tabular-nums">
+                      {formatNumber(second.xp)} XP
+                    </span>
+                  </div>
+
+                  {/* Silver Pedestal */}
+                  <div className="w-full h-24 sm:h-28 rounded-t-2xl bg-muted/60 border-t-2 border-x-2 border-slate-300 dark:border-slate-600 flex flex-col items-center justify-center p-2">
+                    <Medal className="w-6 h-6 text-slate-400 mb-1" />
+                    <span className="text-2xs font-extrabold text-muted-foreground uppercase">
+                      Silver
+                    </span>
+                  </div>
+                </motion.div>
+
+                {/* 1st Place (Gold) */}
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0 }}
+                  className="flex flex-col items-center text-center space-y-2 order-2"
+                >
+                  <Crown className="w-7 h-7 text-amber-500 animate-bounce" />
+                  <div className="relative">
+                    <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full border-4 border-amber-500 overflow-hidden relative shadow-md">
+                      {first.avatar ? (
+                        <Image
+                          src={first.avatar}
+                          alt={first.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center font-bold text-lg text-foreground">
+                          {first.name?.slice(0, 2).toUpperCase() || "?"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-sm shadow-xs">
+                      1
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <span className="font-extrabold text-sm sm:text-base text-foreground block truncate max-w-[110px] sm:max-w-[160px]">
+                      {first.name}
+                    </span>
+                    <span className="text-xs text-amber-500 font-bold tabular-nums">
+                      {formatNumber(first.xp)} XP
+                    </span>
+                  </div>
+
+                  {/* Gold Pedestal */}
+                  <div className="w-full h-32 sm:h-36 rounded-t-2xl bg-amber-500/10 border-t-2 border-x-2 border-amber-500/50 flex flex-col items-center justify-center p-2">
+                    <Trophy className="w-7 h-7 text-amber-500 mb-1" />
+                    <span className="text-2xs font-extrabold text-amber-500 uppercase">
+                      Champion
+                    </span>
+                  </div>
+                </motion.div>
+
+                {/* 3rd Place (Bronze) */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="flex flex-col items-center text-center space-y-2 order-3"
+                >
+                  <div className="relative">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-amber-700/60 overflow-hidden relative shadow-sm">
+                      {third.avatar ? (
+                        <Image
+                          src={third.avatar}
+                          alt={third.name}
+                          fill
+                          unoptimized
+                          className="object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-muted flex items-center justify-center font-bold text-sm text-foreground">
+                          {third.name?.slice(0, 2).toUpperCase() || "?"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-amber-700 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                      3
+                    </div>
+                  </div>
+
+                  <div className="pt-2">
+                    <span className="font-bold text-xs sm:text-sm text-foreground block truncate max-w-[100px] sm:max-w-[140px]">
+                      {third.name}
+                    </span>
+                    <span className="text-2xs text-muted-foreground font-semibold tabular-nums">
+                      {formatNumber(third.xp)} XP
+                    </span>
+                  </div>
+
+                  {/* Bronze Pedestal */}
+                  <div className="w-full h-20 sm:h-22 rounded-t-2xl bg-muted/40 border-t-2 border-x-2 border-amber-700/40 flex flex-col items-center justify-center p-2">
+                    <Medal className="w-5 h-5 text-amber-700 mb-1" />
+                    <span className="text-2xs font-extrabold text-muted-foreground uppercase">
+                      Bronze
+                    </span>
+                  </div>
+                </motion.div>
+              </div>
+            </div>
+          )}
+
+        {/* Error Alert */}
+        {error && (
+          <div className="p-4 rounded-2xl bg-disputed-muted border border-disputed-border text-disputed text-sm font-medium text-center">
+            {error}
+          </div>
         )}
+
+        {/* Leaderboard Table / Cards */}
+        <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-xs">
+          {/* Header Row */}
+          <div className="grid grid-cols-12 gap-4 px-6 py-3.5 bg-muted/40 border-b border-border text-2xs font-bold text-muted-foreground uppercase tracking-wider">
+            <div className="col-span-1 text-center">Rank</div>
+            <div className="col-span-6 sm:col-span-7">Member & Profile</div>
+            <div className="col-span-3 sm:col-span-2 text-right">{scoreLabel}</div>
+            <div className="col-span-2 text-right">Badge Level</div>
+          </div>
+
+          {/* List Content */}
+          {loading ? (
+            <div className="divide-y divide-border/60">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="p-4 sm:p-5 flex items-center gap-4 animate-pulse">
+                  <div className="w-8 h-8 rounded-full bg-muted" />
+                  <div className="w-10 h-10 rounded-full bg-muted" />
+                  <div className="space-y-1.5 flex-1">
+                    <div className="h-4 w-40 bg-muted rounded" />
+                    <div className="h-3 w-24 bg-muted rounded" />
+                  </div>
+                  <div className="h-4 w-16 bg-muted rounded" />
+                </div>
+              ))}
+            </div>
+          ) : activeList.length === 0 ? (
+            <div className="p-12 text-center">
+              <EmptyState
+                emoji=""
+                title="No Rankings Found"
+                description="No users match the selected city or category criteria. Try broadening your filter selection."
+                compact
+              />
+            </div>
+          ) : (
+            <div className="divide-y divide-border/60">
+              <AnimatePresence>
+                {activeList.map((user, index) => {
+                  const rankNumber = index + 1;
+                  const isTop3 = rankNumber <= 3;
+
+                  return (
+                    <motion.div
+                      key={user.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.02 }}
+                      className={`grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-muted/40 transition-colors ${
+                        isTop3 ? "bg-muted/10 font-semibold" : ""
+                      }`}
+                    >
+                      {/* Rank Indicator */}
+                      <div className="col-span-1 text-center">
+                        <span
+                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${
+                            rankNumber === 1
+                              ? "bg-amber-500 text-white shadow-xs"
+                              : rankNumber === 2
+                              ? "bg-slate-300 dark:bg-slate-600 text-slate-800 dark:text-slate-100"
+                              : rankNumber === 3
+                              ? "bg-amber-700 text-white"
+                              : "text-muted-foreground font-semibold"
+                          }`}
+                        >
+                          {rankNumber}
+                        </span>
+                      </div>
+
+                      {/* User Info */}
+                      <div className="col-span-6 sm:col-span-7 flex items-center gap-3.5 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-muted border border-border flex items-center justify-center font-bold text-xs text-foreground overflow-hidden relative flex-shrink-0">
+                          {user.avatar ? (
+                            <Image
+                              src={user.avatar}
+                              alt={user.name}
+                              fill
+                              unoptimized
+                              className="object-cover"
+                            />
+                          ) : (
+                            user.name?.slice(0, 2).toUpperCase() || "?"
+                          )}
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-sm text-foreground truncate">
+                              {user.name || "Anonymous Member"}
+                            </span>
+                            {user.isWeeklyChampion && (
+                              <span className="inline-flex items-center gap-1 text-2xs font-extrabold uppercase px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                <Flame className="w-2.5 h-2.5 fill-current" />
+                                Hot
+                              </span>
+                            )}
+                            {user.trustScore ? (
+                              <span className="hidden sm:inline-flex items-center gap-1 text-2xs font-bold text-verified">
+                                <ShieldCheck className="w-3 h-3" />
+                                {user.trustScore}
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
+                            <span>{user.subtitle}</span>
+                            {user.city && (
+                              <>
+                                <span>•</span>
+                                <span className="inline-flex items-center gap-1">
+                                  <MapPin className="w-2.5 h-2.5" />
+                                  {user.city}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Score Metric */}
+                      <div className="col-span-3 sm:col-span-2 text-right">
+                        <span className="font-extrabold text-sm text-primary tabular-nums">
+                          {typeof user.score === "number"
+                            ? formatNumber(user.score)
+                            : user.score}
+                        </span>
+                        <span className="text-2xs text-muted-foreground block font-medium">
+                          {scoreLabel}
+                        </span>
+                      </div>
+
+                      {/* Level Pill */}
+                      <div className="col-span-2 text-right">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-2xs font-bold bg-muted text-foreground border border-border">
+                          Lv.{user.level}
+                        </span>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          )}
+        </div>
       </div>
-<div
-className="podium-name font-bold text-center"
-data-first={Boolean(isFirst)}
->
-{user.name || "Anonymous"}
-</div>
-<div
-className="podium-base flex items-center justify-center flex-col gap-1"
-data-rank={rank}
-data-first={Boolean(isFirst)}
->
-<div
-className="podium-rank font-extrabold"
-data-rank={rank}
-data-first={Boolean(isFirst)}
->
-{rank}
-</div>
-<div className="text-secondary text-xs">
-{formatNumber(user.xp)} {unit}
-</div>
-</div>
-</motion.div>
-);
+    </DashboardShell>
+  );
 }

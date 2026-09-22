@@ -1,69 +1,38 @@
 /**
-* Route-level Suspense skeleton for Admin Violations table.
-* Mirrors: header + table with 7 columns.
-*/
+ * Route-level Suspense skeleton for Admin Violations table.
+ */
 export default function AdminViolationsLoading() {
-return (
-<div className="admin-page" aria-hidden="true">
-{/* Header */}
-<div className="admin-toolbar mb-6">
-<div>
-<div className="skeleton h-9 w-52 rounded-md mb-2" />
-<div className="skeleton h-4 w-72 rounded-sm" />
-</div>
-</div>
+  return (
+    <div className="max-w-6xl mx-auto space-y-6" aria-hidden="true">
+      {/* Header */}
+      <div className="space-y-2">
+        <div className="h-8 w-56 bg-muted rounded-xl animate-pulse" />
+        <div className="h-4 w-80 bg-muted rounded-md animate-pulse" />
+      </div>
 
-{/* Table skeleton */}
-<div className="card overflow-hidden p-0">
-<div className="admin-table-wrap">
-<table className="w-full border-collapse">
-<thead>
-<tr className="bg-secondary">
-{["User", "Type", "Severity", "Action", "Description", "Date", "Expires"].map((col) => (
-<th key={col} className="text-left border-b border-card p-4">
-<div className={`skeleton h-3 rounded-sm ${col === "Description" ? "w-20" : "w-12"}`} />
-</th>
-))}
-</tr>
-</thead>
-<tbody>
-{[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-<tr key={i} className="border-b border-card">
-{/* User */}
-<td className="p-card">
-<div className="skeleton h-4 w-32 rounded-sm mb-1" />
-<div className="skeleton h-3 w-40 rounded-sm" />
-</td>
-{/* Type */}
-<td className="p-card">
-<div className="skeleton h-4 w-28 rounded-sm" />
-</td>
-{/* Severity */}
-<td className="p-card">
-<div className="skeleton h-6 w-20 rounded-lg" />
-</td>
-{/* Action */}
-<td className="p-card">
-<div className="skeleton h-6 w-24 rounded-md" />
-</td>
-{/* Description */}
-<td className="p-card">
-<div className="skeleton h-4 w-48 rounded-sm" />
-</td>
-{/* Date */}
-<td className="p-card">
-<div className="skeleton h-4 w-20 rounded-sm" />
-</td>
-{/* Expires */}
-<td className="p-card">
-<div className="skeleton h-4 w-16 rounded-sm" />
-</td>
-</tr>
-))}
-</tbody>
-</table>
-</div>
-</div>
-</div>
-);
+      {/* Filter toolbar skeleton */}
+      <div className="p-4 rounded-2xl bg-card border border-border">
+        <div className="h-10 w-full sm:w-80 bg-muted rounded-lg animate-pulse" />
+      </div>
+
+      {/* Table skeleton */}
+      <div className="rounded-2xl bg-card border border-border overflow-hidden p-4 space-y-3">
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center justify-between p-4 rounded-xl bg-muted/20 border border-border/40 animate-pulse"
+          >
+            <div className="space-y-1.5">
+              <div className="h-4 w-32 bg-muted rounded" />
+              <div className="h-3 w-40 bg-muted rounded" />
+            </div>
+            <div className="h-4 w-28 bg-muted rounded hidden sm:block" />
+            <div className="h-6 w-20 bg-muted rounded" />
+            <div className="h-6 w-24 bg-muted rounded" />
+            <div className="h-4 w-20 bg-muted rounded hidden md:block" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

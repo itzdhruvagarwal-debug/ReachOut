@@ -6,7 +6,16 @@ import EmptyState from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui";
 import { formatDateTime } from "@/lib/utils-client";
 import { useState, useMemo } from "react";
-
+import {
+  Laptop,
+  Smartphone,
+  ShieldCheck,
+  CheckCircle2,
+  Clock,
+  AlertCircle,
+  ChevronDown,
+  ChevronUp,
+} from "lucide-react";
 import {
   type LoginActivityItem as LoginActivity,
   type LoginActivityResponse as ActivityResponse,
@@ -16,103 +25,147 @@ interface LoginActivityPanelProps {
   showToast: (message: string, type?: "success" | "error" | "info") => void;
 }
 
+export default function LoginActivityPanel({
+  showToast: _showToast,
+}: Readonly<LoginActivityPanelProps>) {
+  const [showAllLogins, setShowAllLogins] = useState(false);
 
-export default function LoginActivityPanel({ showToast: _showToast }: Readonly<LoginActivityPanelProps>) {
-const [showAllLogins, setShowAllLogins] = useState(false);
+  const { data } = useSWR<ActivityResponse>("/api/user/activity", fetcher);
 
-const { data } = useSWR<ActivityResponse>("/api/user/activity", fetcher);
+  const loginActivity = useMemo(() => {
+    if (!data?.activity) return [];
+    const uniqueDevices = new Map<string, LoginActivity>();
+    data.activity.forEach((login: LoginActivity) => {
+      if (!uniqueDevices.has(login.device)) {
+        uniqueDevices.set(login.device, login);
+      }
+    });
+    return Array.from(uniqueDevices.values());
+  }, [data]);
 
-const loginActivity = useMemo(() => {
-if (!data?.activity) return [];
-const uniqueDevices = new Map<string, LoginActivity>();
-data.activity.forEach((login: LoginActivity) => {
-if (!uniqueDevices.has(login.device)) {
-uniqueDevices.set(login.device, login);
-}
-});
-return Array.from(uniqueDevices.values());
-}, [data]);
+  const visibleLogins = showAllLogins
+    ? loginActivity
+    : loginActivity.slice(0, 3);
 
-const visibleLogins = showAllLogins ? loginActivity : loginActivity.slice(0, 3);
+  return (
+    <div className="p-5 sm:p-6 rounded-2xl border border-border bg-card shadow-xs space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <Laptop className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-sm sm:text-base font-bold text-foreground">
+              Active Sessions &amp; Devices
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Monitor active logins and browser sessions across your devices
+            </p>
+          </div>
+        </div>
 
-return (
-<div className="card">
-<div className="flex justify-between items-center mb-4">
-<h2 className="text-lg font-bold">
-Recent Login Activity
-</h2>
-{loginActivity.length > 3 && (
-<span className="text-xs text-muted">
-{loginActivity.length} total sessions
-</span>
-)}
-</div>
-<div
-className="flex flex-col gap-3"
->
-{loginActivity.length === 0 ? (
-<EmptyState emoji="" title="No Login Activity" description="No recent login sessions found." compact />
-) : (
-visibleLogins.map((login) => (
-<div
-key={`${login.device}-${login.time}`}
-className={`flex justify-between items-center p-3 bg-tertiary rounded-sm ${login.active ? "border-active-login" : "border-inactive-login"}`}
->
-<div
-className="flex items-center gap-3"
->
-<div className="text-xl flex items-center justify-center">
-{login.device.includes("Android") ||
-login.device.includes("iPhone") ? (
-<svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-blue-500">
-<rect width="14" height="20" x="5" y="2" rx="2" ry="2" />
-<path d="M12 18h.01" />
-</svg>
-) : (
-<svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5 text-blue-500">
-<rect width="18" height="12" x="3" y="4" rx="2" ry="2" />
-<line x1="2" y1="20" x2="22" y2="20" />
-<line x1="12" y1="16" x2="12" y2="20" />
-</svg>
-)}
-</div>
-<div>
-<div className="text-sm font-semibold">
-{login.device}{" "}
-<span
-className="font-normal text-muted"
->
- {login.location}
-</span>
-</div>
-<div
-className={`text-xs ${login.success ? "text-secondary" : "text-rose"}`}
->
-{login.time || login.lastActive ? formatDateTime(login.time || login.lastActive) : "Just now"}{" "}
-{login.success ? "" : "(Failed Attempt)"}
-</div>
-</div>
-</div>
-{login.active && (
-<div
-className="font-bold text-emerald bg-emerald-subtle rounded-sm text-2xs px-2 py-0.5"
->
-ACTIVE
-</div>
-)}
-</div>
-))
-)}
-</div>
-{loginActivity.length > 3 && (
-<Button
-variant="secondary"
-onClick={() => setShowAllLogins(!showAllLogins)}
-className="flex items-center justify-center w-full mt-3 text-sm font-semibold cursor-pointer bg-tertiary border-card rounded-sm text-primary-light gap-1.5 login-activity-btn-more"
->
-{showAllLogins ? "▲ Show Less" : `▼ View All (${loginActivity.length})`}
-</Button>
-)}
-</div>
-);
+        {loginActivity.length > 0 && (
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-muted-foreground bg-muted px-2.5 py-1 rounded-full border border-border">
+            {loginActivity.length} Total Sessions
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-2.5">
+        {loginActivity.length === 0 ? (
+          <EmptyState
+            emoji=""
+            title="No Login Activity"
+            description="No recent login sessions recorded."
+            compact
+          />
+        ) : (
+          visibleLogins.map((login) => {
+            const isMobile =
+              login.device.includes("Android") ||
+              login.device.includes("iPhone") ||
+              login.device.includes("Mobile");
+
+            return (
+              <div
+                key={`${login.device}-${login.time || login.lastActive}`}
+                className={`p-3.5 sm:p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all ${
+                  login.active
+                    ? "bg-card border-primary/30 shadow-xs"
+                    : "bg-muted/30 border-border"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-card border border-border text-primary shrink-0">
+                    {isMobile ? (
+                      <Smartphone className="w-4 h-4" />
+                    ) : (
+                      <Laptop className="w-4 h-4" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-foreground flex items-center gap-2">
+                      <span>{login.device}</span>
+                      {login.location && (
+                        <span className="text-[11px] font-normal text-muted-foreground">
+                          • {login.location}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      className={`text-[11px] mt-0.5 flex items-center gap-1 ${
+                        login.success !== false
+                          ? "text-muted-foreground"
+                          : "text-disputed font-semibold"
+                      }`}
+                    >
+                      <Clock className="w-3 h-3" />
+                      <span>
+                        {login.time || login.lastActive
+                          ? formatDateTime(login.time || login.lastActive)
+                          : "Just now"}
+                      </span>
+                      {login.success === false && " (Failed Attempt)"}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  {login.active ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-verified bg-verified-muted px-2.5 py-0.5 rounded-full border border-verified-border">
+                      <span className="w-1.5 h-1.5 rounded-full bg-verified animate-pulse" />
+                      Active Session
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">
+                      Signed Out
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {loginActivity.length > 3 && (
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setShowAllLogins(!showAllLogins)}
+          className="w-full text-xs font-semibold flex items-center justify-center gap-1.5"
+        >
+          {showAllLogins ? (
+            <>
+              <ChevronUp className="w-3.5 h-3.5" /> Show Less
+            </>
+          ) : (
+            <>
+              <ChevronDown className="w-3.5 h-3.5" /> View All Sessions ({loginActivity.length})
+            </>
+          )}
+        </Button>
+      )}
+    </div>
+  );
 }

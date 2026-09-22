@@ -39,3 +39,7 @@ export { useToasts, ToastContainer, Toast } from "./Toast";
 export type { ToastItem, ToastType, ToastProps } from "./Toast";
 
 export { ConfirmationBadge } from "./ConfirmationBadge";
+
+// ThemeToggle component
+export { ThemeToggle } from "./ThemeToggle";
+export type { ThemeToggleProps } from "./ThemeToggle";

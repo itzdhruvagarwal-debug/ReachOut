@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import { createSchemaFetcher } from "@/lib/fetcher";
 import {
   type DashboardCampaign as Campaign,
@@ -14,7 +15,17 @@ import EmptyState from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui";
 import { CampaignDiscoveryCard } from "@/components/dashboard/campaigns/CampaignDiscoveryCard";
 import { CampaignFiltersBar } from "@/components/dashboard/campaigns/CampaignFiltersBar";
-import { ChevronLeft, ChevronRight, PlusCircle, Sparkles } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  PlusCircle,
+  ShieldCheck,
+  Zap,
+  TrendingUp,
+  Sparkles,
+  Layers,
+  CheckCircle2,
+} from "lucide-react";
 
 export function buildCampaignQueryParams(
   canCreateCampaign: boolean,
@@ -171,17 +182,22 @@ export default function CampaignsClient({
   }, []);
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 pb-12">
-      {/* Header */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-5">
+    <div className="max-w-7xl mx-auto space-y-6 pb-16 animate-fade-in">
+      {/* ── 1. KOFLUENCE DISCOVERY HEADER ───────────────────────────────── */}
+      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-            {canCreateCampaign ? "My Campaigns" : "Explore Campaigns"}
-          </h1>
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl sm:text-3xl font-heading font-black text-foreground tracking-tight">
+              {canCreateCampaign ? "Campaign Management" : "Campaign Discovery"}
+            </h1>
+            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-escrow-muted text-escrow border border-escrow-border">
+              <ShieldCheck className="w-3.5 h-3.5" /> 100% Escrow Funded
+            </span>
+          </div>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
             {canCreateCampaign
-              ? "Manage your active campaigns, review influencer applications, and fund escrow milestones."
-              : "Discover verified brand collaborations matching your niche with guaranteed escrow payouts."}
+              ? "Oversee your live brand briefs, review incoming creator pitches, and allocate escrow milestones."
+              : "Explore verified brand collaborations with pre-funded escrow milestones and instant settlements."}
           </p>
         </div>
 
@@ -189,15 +205,49 @@ export default function CampaignsClient({
           <Button
             href="/dashboard/campaigns/create"
             variant="primary"
-            size="sm"
-            className="font-bold text-xs gap-1.5 shadow-sm self-start sm:self-center"
+            className="font-bold text-xs gap-1.5 shadow-sm self-start sm:self-center shrink-0"
           >
-            <PlusCircle className="w-4 h-4" /> Create Campaign
+            <PlusCircle className="w-4 h-4" /> Create New Brief
           </Button>
         )}
       </header>
 
-      {/* Filter and Category Bar */}
+      {/* ── 2. TRUST HIGHLIGHT RIBBON (KOFLUENCE BENCHMARK) ──────────────── */}
+      {!canCreateCampaign && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-card border border-border shadow-xs text-xs">
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
+            <div className="w-7 h-7 rounded-lg bg-verified-muted text-verified flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-foreground block">Guaranteed Escrow</span>
+              <span className="text-[11px] text-muted-foreground">Budgets locked before briefs go live</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
+            <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-foreground block">Instant IMPS Release</span>
+              <span className="text-[11px] text-muted-foreground">Auto-disbursed within 60s of verification</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
+            <div className="w-7 h-7 rounded-lg bg-muted text-muted-foreground flex items-center justify-center shrink-0">
+              <Layers className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-bold text-foreground block">0% Creator Cuts</span>
+              <span className="text-[11px] text-muted-foreground">Keep 100% of your quoted deal rate</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. FILTER & CATEGORY CAROUSEL ───────────────────────────────── */}
       <CampaignFiltersBar
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -207,7 +257,7 @@ export default function CampaignsClient({
         setSortBy={handleSortChange}
       />
 
-      {/* Campaign Cards Grid */}
+      {/* ── 4. CAMPAIGN CARDS GRID ───────────────────────────────────────── */}
       {loading && <CampaignGridSkeleton />}
 
       {!loading && error && (
@@ -221,13 +271,13 @@ export default function CampaignsClient({
 
       {!loading && !error && campaigns.length === 0 && (
         <EmptyState
-          title={canCreateCampaign ? "No Campaigns Yet" : "No Campaigns Found"}
+          title={canCreateCampaign ? "No Campaigns Active Yet" : "No Campaigns Match Filters"}
           description={
             canCreateCampaign
-              ? "You haven't launched any campaigns yet. Create your first campaign to connect with top-ranked creators."
-              : "No active campaigns match your search and category filter. Try clearing filters or exploring other niches."
+              ? "You haven't launched any campaign briefs yet. Create your first brief to invite verified creators."
+              : "No active opportunities match your category and keyword filters. Try clearing filters or exploring other niches."
           }
-          actionLabel={canCreateCampaign ? "Create New Campaign" : "Reset Filters"}
+          actionLabel={canCreateCampaign ? "Create New Campaign" : "Reset All Filters"}
           actionHref={canCreateCampaign ? "/dashboard/campaigns/create" : undefined}
           onActionClick={
             !canCreateCampaign
@@ -252,27 +302,27 @@ export default function CampaignsClient({
             ))}
           </section>
 
-          {/* Pagination */}
+          {/* ── 5. ACCESSIBLE PAGINATION CONTROLS ──────────────────────────── */}
           {totalPages > 1 && (
-            <nav aria-label="Campaigns pagination" className="flex justify-center items-center gap-3 pt-6">
+            <nav aria-label="Campaigns pagination" className="flex justify-center items-center gap-3 pt-8">
               <Button
                 variant="secondary"
                 size="sm"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="text-xs font-semibold gap-1"
+                className="text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Previous
               </Button>
-              <span className="text-xs font-medium text-muted-foreground px-2">
-                Page <strong className="text-foreground">{page}</strong> of {totalPages}
+              <span className="text-xs font-medium text-muted-foreground px-3">
+                Page <strong className="text-foreground font-mono">{page}</strong> of <span className="font-mono">{totalPages}</span>
               </span>
               <Button
                 variant="secondary"
                 size="sm"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
-                className="text-xs font-semibold gap-1"
+                className="text-xs font-semibold gap-1.5 cursor-pointer shadow-xs"
               >
                 Next <ChevronRight className="w-3.5 h-3.5" />
               </Button>

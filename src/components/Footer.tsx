@@ -83,7 +83,7 @@ export function Footer() {
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label={social.label}
-                  className="site-social-link flex items-center justify-center cursor-pointer rounded-lg bg-tertiary hover:bg-slate-800 text-slate-300 hover:text-white border border-card transition-colors w-9 h-9 aspect-square"
+                  className="site-social-link flex items-center justify-center cursor-pointer rounded-lg bg-secondary hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors w-9 h-9 aspect-square"
                 >
                   {social.icon}
                 </a>
@@ -120,7 +120,7 @@ function FooterColumn({
 }>) {
   return (
     <div>
-      <h3 className="font-bold mb-4 text-xs uppercase tracking-wider text-slate-200">
+      <h3 className="font-bold mb-4 text-xs uppercase tracking-wider text-foreground">
         {title}
       </h3>
       <ul className="p-0 list-none">
@@ -128,7 +128,7 @@ function FooterColumn({
           <li key={item.label} className="mb-2">
             <Link
               href={item.href}
-              className="site-footer-link text-secondary text-sm hover:text-white transition-colors"
+              className="site-footer-link text-muted-foreground text-sm hover:text-foreground transition-colors"
             >
               {item.label}
             </Link>

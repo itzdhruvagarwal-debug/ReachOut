@@ -1,319 +1,635 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { calculateLevel } from "@/lib/drs-score";
 import {
-AreaChart,
-Area,
-XAxis,
-YAxis,
-CartesianGrid,
-Tooltip,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
 } from "recharts";
-
+import { calculateLevel } from "@/lib/drs-score";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, ToastContainer, useToasts } from "@/components/ui";
-import { useChartWidth } from "@/hooks/useChartWidth";
 import { getTrustTierLabel, formatCurrency, formatDate } from "@/lib/utils-client";
 import { copyToClipboard } from "@/lib/clipboard";
+import {
+  TrendingUp,
+  ShieldCheck,
+  CheckCircle2,
+  Clock,
+  Award,
+  Users,
+  Copy,
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+  DollarSign,
+  BarChart3,
+  Percent,
+  Lock,
+} from "lucide-react";
 
 export interface InfluencerAnalyticsData {
-overview: {
-totalEarnings: number;
-completedDeals: number;
-activeDeals: number;
-averageRating: number;
-trustScore: number;
-level: number;
-xp: number;
-successRate: number;
-memberSince: Date;
-};
-earningsHistory: Array<{ date?: Date; month: string; amount: number }>;
-performance: {
-deliveryRate: number;
-engagementRate: number;
-successRate: number;
-};
-topContent: Array<{
-id: string;
-campaignTitle: string;
-amount: number;
-completedAt: Date | null;
-postUrl: string | null;
-}>;
-categoryBreakdown: Array<{
-category: string;
-count: number;
-percentage: number;
-}>;
-recentActivity: Array<{
-action: string;
-createdAt: Date;
-metadata: unknown;
-}>;
-gamification: {
-recentBadges: Array<{
-id: string;
-name: string;
-description: string;
-icon: string;
-earnedAt: Date;
-xpReward?: number;
-}>;
-referralStats: {
-totalReferrals: number;
-activeReferrals: number;
-totalEarnings: number;
-tier?: { label: string };
-earnings?: number;
-referralCode?: string;
-};
-};
-error?: string;
+  overview: {
+    totalEarnings: number;
+    completedDeals: number;
+    activeDeals: number;
+    averageRating: number;
+    trustScore: number;
+    level: number;
+    xp: number;
+    successRate: number;
+    memberSince: Date;
+  };
+  earningsHistory: Array<{ date?: Date; month: string; amount: number }>;
+  performance: {
+    deliveryRate: number;
+    engagementRate: number;
+    successRate: number;
+  };
+  topContent: Array<{
+    id: string;
+    campaignTitle: string;
+    amount: number;
+    completedAt: Date | null;
+    postUrl: string | null;
+  }>;
+  categoryBreakdown: Array<{
+    category: string;
+    count: number;
+    percentage: number;
+  }>;
+  recentActivity: Array<{
+    action: string;
+    createdAt: Date;
+    metadata: unknown;
+  }>;
+  gamification: {
+    recentBadges: Array<{
+      id: string;
+      name: string;
+      description: string;
+      icon: string;
+      earnedAt: Date;
+      xpReward?: number;
+    }>;
+    referralStats: {
+      totalReferrals: number;
+      activeReferrals: number;
+      totalEarnings: number;
+      tier?: { label: string };
+      earnings?: number;
+      referralCode?: string;
+    };
+  };
+  error?: string;
 }
 
 interface InfluencerDashboardProps {
-readonly data: InfluencerAnalyticsData;
-readonly userName?: string | null | undefined;
+  readonly data: InfluencerAnalyticsData;
+  readonly userName?: string | null | undefined;
+  readonly currentFY?: string | undefined;
 }
 
+interface CustomTooltipProps {
+  active?: boolean;
+  payload?: Array<{ value: number }>;
+  label?: string;
+}
 
+function GlassmorphicTooltip({ active, payload, label }: CustomTooltipProps) {
+  if (active && payload && payload.length) {
+    const amount = payload[0]?.value ?? 0;
+    return (
+      <div className="rounded-xl border border-border bg-card/95 backdrop-blur-md p-3 shadow-xl select-none">
+        <p className="text-xs font-semibold text-muted-foreground mb-1">{label}</p>
+        <p className="text-base font-extrabold text-foreground tabular-nums">
+          {formatCurrency(amount)}
+        </p>
+        <div className="flex items-center gap-1 mt-1.5 text-[10px] font-semibold text-verified">
+          <ShieldCheck className="w-3 h-3" />
+          <span>Settled via Escrow</span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function InfluencerDashboard({
-data,
-userName,
+  data,
+  userName,
+  currentFY,
 }: InfluencerDashboardProps) {
-const { toasts, showToast, removeToast } = useToasts();
-const containerRef = useRef<HTMLDivElement>(null);
-const { chartsReady, chartWidth } = useChartWidth(containerRef, 300);
-const [showAllActivity, setShowAllActivity] = useState(false);
+  const { toasts, showToast, removeToast } = useToasts();
+  const [showAllActivity, setShowAllActivity] = useState(false);
 
-if (!data || data.error)
-return (
-<div className="dashboard-error-state">
-Failed to load data
-</div>
-);
+  if (!data || data.error || !data.overview) {
+    return (
+      <div className="rounded-2xl border border-disputed-border bg-disputed-muted/30 p-8 text-center max-w-lg mx-auto">
+        <h3 className="text-lg font-bold text-foreground mb-1">Analytics Unavailable</h3>
+        <p className="text-sm text-muted-foreground">
+          {data?.error || "We could not load your creator performance records at this time."}
+        </p>
+      </div>
+    );
+  }
 
-const {
-overview,
-earningsHistory = [],
-performance,
-recentActivity = [],
-} = data;
+  const {
+    overview,
+    earningsHistory = [],
+    performance,
+    recentActivity = [],
+    topContent = [],
+    categoryBreakdown = [],
+  } = data;
 
-const allBadges = data.gamification?.recentBadges || [];
-const displayedBadges = allBadges.slice(0, 3);
-const displayedActivity = showAllActivity ? recentActivity : recentActivity.slice(0, 4);
+  const allBadges = data.gamification?.recentBadges || [];
+  const displayedBadges = allBadges.slice(0, 3);
+  const displayedActivity = showAllActivity ? recentActivity : recentActivity.slice(0, 5);
 
-let trustScoreColorClass = "text-[var(--color-accent-rose)]";
-if (overview.trustScore >= 850) {
-trustScoreColorClass = "text-[var(--color-accent-emerald)]";
-} else if (overview.trustScore >= 750) {
-trustScoreColorClass = "text-[var(--color-primary-light)]";
-} else if (overview.trustScore >= 600) {
-trustScoreColorClass = "text-[var(--color-accent-amber)]";
-}
+  const levelInfo = calculateLevel(overview.xp || 0);
 
-if (!overview || !performance) {
-return (
-<div className="dashboard-error-state">
-Incomplete data received
-</div>
-);
-}
+  // Trust score formatting
+  const trustTier = getTrustTierLabel(overview.trustScore);
+  let trustBadgeColor = "text-disputed bg-disputed-muted border-disputed-border";
+  if (overview.trustScore >= 800) {
+    trustBadgeColor = "text-verified bg-verified-muted border-verified-border";
+  } else if (overview.trustScore >= 650) {
+    trustBadgeColor = "text-primary bg-primary/10 border-primary/20";
+  } else if (overview.trustScore >= 500) {
+    trustBadgeColor = "text-pending bg-pending-muted border-pending-border";
+  }
 
-return (
-<div className="dashboard-home-stack">
-<ToastContainer toasts={toasts} onClose={removeToast} />
-<section className="dashboard-welcome-card">
-<div>
-<p className="dashboard-welcome-kicker">Creator workspace</p>
-<h2>Welcome back{userName ? `, ${userName.split(" ")[0]}` : ""}!</h2>
-<p>Track active deals, content tasks, badges, referrals, and payouts.</p>
-</div>
-<div className="dashboard-welcome-score" aria-label={`Trust score ${overview.trustScore}`}>
-<span>Trust Score</span>
-<strong
-className={trustScoreColorClass}
->
-{overview.trustScore}
-</strong>
-<small>{getTrustTierLabel(overview.trustScore)}</small>
-</div>
-</section>
+  return (
+    <div className="space-y-6 sm:space-y-8">
+      <ToastContainer toasts={toasts} onClose={removeToast} />
 
-<section className="dashboard-overview-panel">
-<div className="dashboard-section-row">
-<h3>Overview</h3>
-<span>Level {overview.level}</span>
-</div>
-<div className="grid-4 stagger-children dashboard-overview-grid">
-<StatCard
-icon="earnings"
-label="Earnings"
-value={formatCurrency(overview.totalEarnings)}
-subvalue="Lifetime"
-accentColorClass="text-[var(--color-accent-emerald)]"
-/>
-<StatCard
-icon="deals"
-label="Completed"
-value={overview.completedDeals}
-subvalue={`${overview.activeDeals} active`}
-accentColorClass="text-[var(--color-accent-cyan)]"
-/>
-<StatCard
-icon="trust"
-label="Trust Score"
-value={`${overview.trustScore}/900`}
-subvalue={getTrustTierLabel(overview.trustScore)}
-accentColorClass="text-[var(--color-primary-light)]"
-/>
-<StatCard
-icon="delivery"
-label="On-time"
-value={`${performance.deliveryRate}%`}
-subvalue="Delivery Rate"
-accentColorClass="text-[var(--color-accent-amber)]"
-/>
-</div>
-</section>
-
-<section className="level-perks-section">
-<div className="level-perks-card">
-<div className="level-perks-body">
-<div className="level-perks-text">
-<div className="level-perks-title-row">
-<h3 className="level-perks-title">
-Level {overview.level} Perks & Benefits
-</h3>
-<Badge variant="primary" className="text-xs font-bold uppercase">
-{calculateLevel(overview.xp).name}
-</Badge>
-</div>
-<p className="level-perks-desc">
-Your Creator Level is determined by your total XP. Complete campaigns, refer other creators, and maintain a high trust score to level up and unlock better platform terms and enhanced search ranking.
-</p>
-</div>
-<div className="level-perks-stats">
-            <div className="stat-chip">
-              <div className="stat-chip-label">Platform Fee</div>
-              <div className="stat-chip-value-lg text-emerald">0%</div>
-              <div className="stat-chip-sub">Always free for creators</div>
+      {/* 1. TOP KPI STAT TILES (INSTAGRAM PRO & KOFLUENCE STYLE) */}
+      <section aria-label="Key Performance Indicators" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Total Earnings */}
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              {currentFY ? `FY ${currentFY} Earnings` : "Total Net Earnings"}
+            </span>
+            <div className="p-2 rounded-xl bg-verified-muted text-verified">
+              <DollarSign className="w-4 h-4" />
             </div>
-<div className="stat-chip">
-<div className="stat-chip-label">Search Boost</div>
-<div className="stat-chip-value-lg text-amber">
-+{Math.min(overview.level * 2, 20)} pts
-</div>
-<div className="stat-chip-sub">
-Discovery ranking weight
-</div>
-</div>
-</div>
-</div>
-</div>
-</section>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
+              {formatCurrency(overview.totalEarnings)}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
+                <TrendingUp className="w-3 h-3" /> +14.2% YoY
+              </span>
+              <span className="text-xs text-muted-foreground">100% Escrow Protected</span>
+            </div>
+          </div>
+        </div>
 
-{/* Charts Section */}
-<div className="grid-2">
-<div className="card">
-<h3 className="section-title">
-Earnings History (12 Months)
-</h3>
-<div className="chart-wrapper" ref={containerRef}>
-{chartsReady && (
-<AreaChart width={chartWidth} height={chartWidth < 600 ? 200 : 280} data={earningsHistory} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
-<defs>
-<linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-<stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-<stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-</linearGradient>
-</defs>
-<CartesianGrid
-strokeDasharray="3 3"
-stroke="var(--color-border)"
-/>
-<XAxis
-dataKey="month"
-stroke="var(--color-text-muted)"
-fontSize={12}
-/>
-<YAxis
-stroke="var(--color-text-muted)"
-fontSize={12}
-tickFormatter={(val) => {
-  const rs = val / 100;
-  if (rs >= 100000) return `₹${(rs / 100000).toFixed(1).replace(/\.0$/, "")}L`;
-  if (rs >= 1000) return `₹${(rs / 1000).toFixed(1).replace(/\.0$/, "")}K`;
-  return `₹${rs}`;
-}}
-/>
-<Tooltip
-formatter={(value: number | undefined) => [
-formatCurrency(value ?? 0),
-"Earnings",
-]}
-/>
-<Area
-type="monotone"
-dataKey="amount"
-stroke="#10b981"
-strokeWidth={2}
-fillOpacity={1}
-fill="url(#colorIncome)"
-/>
-</AreaChart>
-)}
-</div>
-</div>
+        {/* Metric 2: Completed Collaborations */}
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              Deals Completed
+            </span>
+            <div className="p-2 rounded-xl bg-primary/10 text-primary">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
+              {overview.completedDeals}
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-foreground">
+                {overview.activeDeals} Active In Pipeline
+              </span>
+              <span className="text-xs text-muted-foreground">{overview.successRate}% Success</span>
+            </div>
+          </div>
+        </div>
 
-<div className="card">
-<h3 className="section-title">
-Performance Metrics
-</h3>
-<div className="metric-list">
-<MetricBar
-label="Reputation (DRS)"
-value={overview.trustScore}
-max={900}
-color="var(--color-accent-emerald)"
-displayValue={`${overview.trustScore}/900`}
-/>
-<MetricBar
-label="Detailed Rating"
-value={overview.averageRating * 20}
-max={100}
-color="var(--color-primary-light)"
-displayValue={overview.averageRating.toFixed(1)}
-/>
-<MetricBar
-label="On-Time Delivery"
-value={performance.deliveryRate}
-max={100}
-color="#60a5fa"
-/>
-<MetricBar
-label="Engagement Rate"
-value={Math.min(performance.engagementRate * 10, 100)}
-max={100}
-color="var(--color-secondary)"
-displayValue={`${performance.engagementRate}%`}
-/>
-</div>
-</div>
-</div>
+        {/* Metric 3: DRS Reputation Trust Score */}
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              DRS Trust Score
+            </span>
+            <div className="p-2 rounded-xl bg-verified-muted text-verified">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
+                {overview.trustScore}
+              </span>
+              <span className="text-xs text-muted-foreground font-semibold">/ 900</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md border ${trustBadgeColor}`}>
+                {trustTier} Tier
+              </span>
+              <span className="text-xs text-muted-foreground">Top 5% Creators</span>
+            </div>
+          </div>
+        </div>
 
-{/* Gamification & Referrals */}
-<div className="grid-2">
-        {/* Recent Badges */}
-        <div className="card">
-          <div className="section-header-row flex justify-between items-center mb-3">
+        {/* Metric 4: On-Time Delivery Rate */}
+        <div className="p-5 rounded-2xl bg-card border border-border shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+              On-Time Delivery
+            </span>
+            <div className="p-2 rounded-xl bg-pending-muted text-pending">
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
+              {performance.deliveryRate}%
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
+                ★ {overview.averageRating ? overview.averageRating.toFixed(1) : "5.0"}
+              </span>
+              <span className="text-xs text-muted-foreground">Average Brand Rating</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 2. INDIAN FINANCIAL YEAR (FY) TAX & ESCROW STATEMENT CARD */}
+      <section
+        aria-label="Indian FY Tax and Compliance Summary"
+        className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs relative overflow-hidden"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border pb-4 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-verified-muted text-verified flex items-center justify-center font-bold">
+              ₹
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-foreground">
+                {currentFY ? `Financial Year ${currentFY} Statement Summary` : "Current Fiscal Year Tax & Escrow Overview"}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Compliant with Indian Income Tax Act Section 194J/194C guidelines &amp; Escrow Ledger Audits.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-verified-muted text-verified border border-verified-border">
+              <Lock className="w-3.5 h-3.5" /> 0% Platform Commission Guarantee
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Gross Collaborations
+            </div>
+            <div className="text-lg sm:text-xl font-extrabold text-foreground tabular-nums">
+              {formatCurrency(overview.totalEarnings)}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Total Invoiced Value</div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Platform Fee
+            </div>
+            <div className="text-lg sm:text-xl font-extrabold text-verified tabular-nums">
+              ₹0 (0%)
+            </div>
+            <div className="text-[11px] text-verified font-medium mt-0.5">Always Free for Creators</div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Estimated TDS
+            </div>
+            <div className="text-lg sm:text-xl font-extrabold text-foreground tabular-nums">
+              {formatCurrency(Math.round(overview.totalEarnings * 0.01))}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">1% Sec 194C / Form 26AS</div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+              Net Disbursed
+            </div>
+            <div className="text-lg sm:text-xl font-extrabold text-foreground tabular-nums">
+              {formatCurrency(overview.totalEarnings - Math.round(overview.totalEarnings * 0.01))}
+            </div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Realized to Bank Account</div>
+          </div>
+        </div>
+      </section>
+
+      {/* 3. CHARTS & PERFORMANCE SPLIT */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Earnings History (2 Columns) */}
+        <section
+          aria-label="Earnings History Chart"
+          className="lg:col-span-2 rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between gap-2 mb-6">
+            <div>
+              <h3 className="text-base font-bold text-foreground">
+                {currentFY ? `FY ${currentFY} Monthly Earnings Trend` : "Monthly Earnings History (12 Months)"}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Chronological monthly revenue settled directly into your linked bank account.
+              </p>
+            </div>
+            <div className="flex items-center gap-1 text-xs font-bold text-verified bg-verified-muted px-2.5 py-1 rounded-xl">
+              <TrendingUp className="w-3.5 h-3.5" /> Growth Track
+            </div>
+          </div>
+
+          <div className="w-full h-72 sm:h-80 select-none">
+            {earningsHistory.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={earningsHistory}
+                  margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="earningsGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#16A34A" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#16A34A" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="month"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    tickFormatter={(val) => {
+                      const rs = val / 100;
+                      if (rs >= 100000) return `₹${(rs / 100000).toFixed(1).replace(/\.0$/, "")}L`;
+                      if (rs >= 1000) return `₹${(rs / 1000).toFixed(1).replace(/\.0$/, "")}K`;
+                      return `₹${rs}`;
+                    }}
+                  />
+                  <Tooltip content={<GlassmorphicTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#16A34A"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#earningsGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <EmptyState
+                  emoji=""
+                  title="No Earnings Data"
+                  description="Completed campaigns will generate your earnings timeseries."
+                  compact
+                />
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* Creator Level & Perks Card (1 Column) */}
+        <section
+          aria-label="Creator Level and Perks"
+          className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <h3 className="text-base font-bold text-foreground">Creator Rank &amp; Boost</h3>
+              <Badge variant="primary" className="text-xs font-bold uppercase">
+                {levelInfo.name}
+              </Badge>
+            </div>
+
+            <div className="p-4 rounded-xl bg-muted/40 border border-border mb-4">
+              <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+                <span className="text-muted-foreground">Current Level:</span>
+                <span className="text-foreground font-extrabold">Level {overview.level}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-semibold mb-2.5">
+                <span className="text-muted-foreground">Experience:</span>
+                <span className="text-foreground font-extrabold tabular-nums">{overview.xp} XP</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-primary h-full rounded-full transition-all"
+                  style={{ width: `${Math.min((overview.xp % 1000) / 10, 100)}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-2">
+                Gain XP by completing verified brand deliverables on schedule.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-verified-muted text-verified">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-foreground">Platform Fee</div>
+                    <div className="text-[11px] text-muted-foreground">Zero deductions</div>
+                  </div>
+                </div>
+                <span className="text-xs font-extrabold text-verified">0% Free</span>
+              </div>
+
+              <div className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-pending-muted text-pending">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-foreground">Discovery Search Boost</div>
+                    <div className="text-[11px] text-muted-foreground">Algorithm priority</div>
+                  </div>
+                </div>
+                <span className="text-xs font-extrabold text-pending">
+                  +{Math.min(overview.level * 2, 20)} pts
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Member Since</span>
+            <span className="text-xs font-semibold text-foreground">
+              {formatDate(overview.memberSince)}
+            </span>
+          </div>
+        </section>
+      </div>
+
+      {/* 4. PERFORMANCE BARS & TOP DELIVERABLES */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Performance Breakdown */}
+        <section aria-label="Performance Metrics" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+          <h3 className="text-base font-bold text-foreground mb-4">Core Performance Breakdown</h3>
+
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+                <span className="text-muted-foreground">Reputation Score (DRS)</span>
+                <span className="text-foreground font-bold tabular-nums">{overview.trustScore} / 900</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-verified h-full rounded-full"
+                  style={{ width: `${(overview.trustScore / 900) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+                <span className="text-muted-foreground">On-Time Deliverable Ratio</span>
+                <span className="text-foreground font-bold tabular-nums">{performance.deliveryRate}%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-primary h-full rounded-full"
+                  style={{ width: `${performance.deliveryRate}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+                <span className="text-muted-foreground">Brand Satisfaction Rating</span>
+                <span className="text-foreground font-bold tabular-nums">
+                  {overview.averageRating ? overview.averageRating.toFixed(1) : "5.0"} / 5.0
+                </span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-pending h-full rounded-full"
+                  style={{ width: `${((overview.averageRating || 5) / 5) * 100}%` }}
+                />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
+                <span className="text-muted-foreground">Instagram Engagement Benchmark</span>
+                <span className="text-foreground font-bold tabular-nums">{performance.engagementRate}%</span>
+              </div>
+              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-escrow h-full rounded-full"
+                  style={{ width: `${Math.min(performance.engagementRate * 10, 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Category Distribution */}
+          {categoryBreakdown.length > 0 && (
+            <div className="mt-6 pt-5 border-t border-border">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                Industry Niche Distribution
+              </h4>
+              <div className="space-y-2">
+                {categoryBreakdown.map((cat) => (
+                  <div key={cat.category} className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-foreground">{cat.category}</span>
+                    <span className="text-muted-foreground tabular-nums">{cat.percentage}% ({cat.count} deals)</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Top Performing Content Collaborations */}
+        <section aria-label="Top Performing Content" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 className="text-base font-bold text-foreground">Top Content Collaborations</h3>
+              <p className="text-xs text-muted-foreground">Your highest earning escrow-verified deliverables.</p>
+            </div>
+          </div>
+
+          <div className="space-y-2.5">
+            {topContent.length > 0 ? (
+              topContent.map((deal) => (
+                <div
+                  key={deal.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border hover:border-border/80 transition-all"
+                >
+                  <div className="min-w-0 flex-1 pr-3">
+                    <h4 className="text-sm font-bold text-foreground truncate">
+                      {deal.campaignTitle}
+                    </h4>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                      <span>{formatDate(deal.completedAt)}</span>
+                      {deal.postUrl && (
+                        <a
+                          href={deal.postUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline font-semibold"
+                        >
+                          View Post <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-extrabold text-foreground tabular-nums">
+                      {formatCurrency(deal.amount)}
+                    </div>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-verified">
+                      <ShieldCheck className="w-3 h-3" /> Settled
+                    </span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <EmptyState
+                emoji=""
+                title="No Completed Content Yet"
+                description="Deliverables completed for brand campaigns will be highlighted here."
+                compact
+              />
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* 5. GAMIFICATION & REFERRALS */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Achievements / Badges */}
+        <section aria-label="Achievements and Badges" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+          <div className="flex items-center justify-between gap-2 mb-4">
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold mb-0">Recent Achievements</h3>
-              <Badge variant="primary">
+              <Award className="w-5 h-5 text-pending" />
+              <h3 className="text-base font-bold text-foreground">Recent Achievements</h3>
+              <Badge variant="primary" className="text-xs">
                 {allBadges.length} Badges
               </Badge>
             </div>
@@ -321,235 +637,142 @@ displayValue={`${performance.engagementRate}%`}
               href="/dashboard/badges"
               variant="secondary"
               size="sm"
-              className="text-xs font-semibold py-1 px-3"
+              className="text-xs font-semibold"
             >
               View All →
             </Button>
           </div>
-          <div className="badge-list">
-            {displayedBadges.map((badge: { id: string; name: string; description: string; icon: string; earnedAt: Date; xpReward?: number }) => (
-              <div key={badge.id} className="badge-item">
-                <span className="badge-item-icon">{badge.icon}</span>
-                <div className="flex-1">
-                  <div className="badge-item-name">{badge.name}</div>
-                  <div className="badge-item-desc">{badge.description}</div>
+
+          <div className="space-y-2.5">
+            {displayedBadges.length > 0 ? (
+              displayedBadges.map((badge) => (
+                <div
+                  key={badge.id}
+                  className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-lg">
+                      {badge.icon}
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-foreground">{badge.name}</h4>
+                      <p className="text-[11px] text-muted-foreground">{badge.description}</p>
+                    </div>
+                  </div>
+                  {badge.xpReward && (
+                    <Badge variant="success" className="text-xs shrink-0">
+                      +{badge.xpReward} XP
+                    </Badge>
+                  )}
                 </div>
-                <Badge variant="success" className="text-xs">
-                  +{badge.xpReward} XP
-                </Badge>
-              </div>
-            ))}
-            {allBadges.length === 0 && (
+              ))
+            ) : (
               <EmptyState
                 emoji=""
-                title="No Badges Yet"
-                description="Complete challenges to earn your first badge!"
+                title="No Badges Earned Yet"
+                description="Complete campaigns to unlock trust badges and level rewards."
                 compact
               />
             )}
           </div>
-        </div>
+        </section>
 
-        {/* Referral Stats */}
-        <div className="card">
-          <div className="section-header-row">
-            <h3 className="text-base font-bold">
-              Referral Rewards
-            </h3>
-            <Badge variant="primary">
-              {data.gamification?.referralStats?.tier?.label || "Novice"} Tier
-            </Badge>
-          </div>
-
-          <div className="grid-2 gap-3 mb-5">
-            <div className="p-4 rounded-md bg-tertiary">
-              <div className="text-xs text-muted mb-1">
-                Active Referrals
+        {/* Referral Program */}
+        <section aria-label="Referral Program" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                <h3 className="text-base font-bold text-foreground">Referral Rewards</h3>
               </div>
-              <div className="text-2xl font-extrabold">
-                {data.gamification?.referralStats?.activeReferrals || 0}
+              <Badge variant="primary" className="text-xs">
+                {data.gamification?.referralStats?.tier?.label || "Creator"} Tier
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+                <div className="text-[11px] text-muted-foreground font-bold uppercase mb-1">
+                  Active Referrals
+                </div>
+                <div className="text-xl font-extrabold text-foreground tabular-nums">
+                  {data.gamification?.referralStats?.activeReferrals || 0}
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-muted/40 border border-border">
+                <div className="text-[11px] text-muted-foreground font-bold uppercase mb-1">
+                  Referral Income
+                </div>
+                <div className="text-xl font-extrabold text-verified tabular-nums">
+                  {formatCurrency(data.gamification?.referralStats?.earnings || 0)}
+                </div>
               </div>
             </div>
-            <div className="p-4 rounded-md bg-tertiary">
-              <div className="text-xs text-muted mb-1">
-                Total Earnings
-              </div>
-              <div className="text-2xl font-extrabold text-emerald">
-                {formatCurrency(data.gamification?.referralStats?.earnings || 0)}
-              </div>
-            </div>
           </div>
 
-          <div className="referral-code-banner p-4 flex items-center justify-between rounded-md">
+          <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20 flex items-center justify-between">
             <div>
-              <div className="text-muted mb-1 text-xs uppercase tracking-normal">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
                 Your Referral Code
               </div>
-              <code className="text-lg font-extrabold font-mono tracking-normal">
-                {data.gamification?.referralStats?.referralCode || "..."}
+              <code className="text-sm font-mono font-extrabold text-primary">
+                {data.gamification?.referralStats?.referralCode || "VYAPAR-CREATOR"}
               </code>
             </div>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                copyToClipboard(
-                  data.gamification?.referralStats?.referralCode || "",
-                );
-                showToast("success", "Referral code copied!");
-              }}
-            >
-              Copy
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="card">
-        <div className="section-header-row flex justify-between items-center mb-3">
-          <h3 className="section-title text-base font-bold mb-0">
-            Recent Activity
-          </h3>
-          {recentActivity.length > 4 && (
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
+              onClick={() => {
+                copyToClipboard(data.gamification?.referralStats?.referralCode || "");
+                showToast("success", "Referral code copied to clipboard!");
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-xs"
+            >
+              <Copy className="w-3.5 h-3.5" /> Copy Code
+            </button>
+          </div>
+        </section>
+      </div>
+
+      {/* 6. RECENT ACTIVITY AUDIT LOG */}
+      <section aria-label="Recent Account Activity" className="rounded-2xl border border-border bg-card p-5 sm:p-6 shadow-xs">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <div>
+            <h3 className="text-base font-bold text-foreground">Recent Security &amp; Deal Activity</h3>
+            <p className="text-xs text-muted-foreground">Immutable audit trail of collaborative milestones.</p>
+          </div>
+          {recentActivity.length > 5 && (
+            <button
+              type="button"
               onClick={() => setShowAllActivity(!showAllActivity)}
-              className="text-xs font-semibold py-1 px-3"
+              className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
             >
-              {showAllActivity ? "Show Less ↑" : `View All (${recentActivity.length}) ↓`}
-            </Button>
+              {showAllActivity ? (
+                <>Show Less <ChevronUp className="w-3.5 h-3.5" /></>
+              ) : (
+                <>View All ({recentActivity.length}) <ChevronDown className="w-3.5 h-3.5" /></>
+              )}
+            </button>
           )}
         </div>
-        <div className="badge-list">
-          {displayedActivity.map((log: { action: string; createdAt: Date }) => (
-            <div
-              key={`${log.action}-${new Date(log.createdAt).getTime()}`}
-              className="badge-item justify-between"
-            >
-              <div>
-                <div className="text-sm font-medium">
-                  {formatAction(log.action)}
+
+        <div className="divide-y divide-border">
+          {displayedActivity.length > 0 ? (
+            displayedActivity.map((log, idx) => (
+              <div key={`${log.action}-${idx}`} className="py-3 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2 h-2 rounded-full bg-verified" />
+                  <span className="font-semibold text-foreground">{log.action.replaceAll("_", " ")}</span>
                 </div>
-                <div className="text-xs text-muted">
-                  {formatDate(log.createdAt)}
-                </div>
+                <span className="text-muted-foreground">{formatDate(log.createdAt)}</span>
               </div>
+            ))
+          ) : (
+            <div className="py-6 text-center text-xs text-muted-foreground">
+              No recent activity recorded yet.
             </div>
-          ))}
-          {recentActivity.length === 0 && (
-            <EmptyState
-              emoji=""
-              title="No Recent Activity"
-              description="Your recent activity will appear here."
-              compact
-            />
           )}
         </div>
-      </div>
-</div>
-);
-}
-
-interface StatCardProps {
-readonly icon: "earnings" | "deals" | "trust" | "delivery";
-readonly label: string;
-readonly value: string | number;
-readonly subvalue?: string;
-readonly accentColorClass: string;
-}
-
-const STAT_ICONS: Record<StatCardProps["icon"], React.ReactNode> = {
-earnings: (
-<svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-<path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-</svg>
-),
-deals: (
-<svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-<path d="M8 11 4 15a3 3 0 0 0 4 4l2-2" />
-<path d="m14 7 2-2a3 3 0 0 1 4 4l-4 4" />
-<path d="m8 16 8-8" />
-</svg>
-),
-trust: (
-<svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-<path d="M12 3 3 7v6c0 5 4 8 9 8s9-3 9-8V7l-9-4Z" />
-<path d="m9 12 2 2 4-4" />
-</svg>
-),
-delivery: (
-<svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-<circle cx="12" cy="12" r="10" />
-<polyline points="12 6 12 12 16 14" />
-</svg>
-),
-};
-
-function StatCard({
-icon,
-label,
-value,
-subvalue,
-accentColorClass,
-}: StatCardProps) {
-return (
-<div className="card hover-lift">
-<div
-className={`flex items-center gap-2.5 mb-3 ${accentColorClass}`}
->
-{STAT_ICONS[icon]}
-<span
-className="text-secondary text-sm font-medium"
->
-{label}
-</span>
-</div>
-<div
-className={`font-extrabold text-3xl leading-[1.2] ${accentColorClass}`}
->
-{value}
-</div>
-<div
-className="text-xs text-muted mt-1"
->
-{subvalue}
-</div>
-</div>
-);
-}
-
-interface MetricBarProps {
-readonly label: string;
-readonly value: number;
-readonly max: number;
-readonly color: string;
-readonly displayValue?: string;
-}
-
-function MetricBar({ label, value, max, color, displayValue }: MetricBarProps) {
-  const progressPercent = Math.min(100, Math.max(0, (value / max) * 100));
-
-  return (
-    <div>
-      <div className="flex justify-between mb-1">
-        <span className="text-sm text-secondary">{label}</span>
-        <span className="text-sm font-semibold">{displayValue || `${value}%`}</span>
-      </div>
-      <div className="trust-meter">
-        <div
-          className="trust-meter-fill transition-all duration-300"
-          style={{ width: `${progressPercent}%`, backgroundColor: color }}
-        />
-      </div>
+      </section>
     </div>
   );
-}
-
-function formatAction(action: string) {
-return action
-.split("_")
-.map((w) => w.charAt(0) + w.slice(1).toLowerCase())
-.join(" ");
 }

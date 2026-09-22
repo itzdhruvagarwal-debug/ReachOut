@@ -1,10 +1,9 @@
 /* ==================== ADMIN CONSOLE ==================== */
 .admin-shell {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 32rem),
-    var(--color-bg-primary);
+  /* Background inherited from body (bg-background via Tailwind + next-themes) */
 }
+
 
 /* ==================== ADMIN USER TABLE STANDARDIZED CLASSES ==================== */
 
@@ -447,37 +446,16 @@
 /* ==================== MOBILE-FIRST APP POLISH ==================== */
 
 .dashboard-app-shell {
-  --color-bg-primary: #070a13;
-  --color-bg-secondary: #0d1322;
-  --color-bg-tertiary: #141d33;
-  --color-bg-card: #0e1628;
-  --color-text-primary: #f8fafc;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-border: rgba(59, 130, 246, 0.12);
-  --color-border-light: rgba(255, 255, 255, 0.12);
-  --shadow-sm: 0 4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
-  --gradient-primary: linear-gradient(135deg, #2563eb 0%, #10b981 100%);
   background:
-    radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 32rem),
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.06), transparent 32rem),
     var(--color-bg-primary);
   color: var(--color-text-primary);
 }
 
 .dashboard-app-shell .sidebar {
-  --color-bg-secondary: #0e1628;
-  --color-bg-tertiary: #141d33;
-  --color-bg-card: #0e1628;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
-  --color-border: rgba(255, 255, 255, 0.08);
-  --color-border-light: rgba(255, 255, 255, 0.15);
-  background:
-    linear-gradient(180deg, #0e1628 0%, #070b14 100%);
-  box-shadow: 10px 0 30px rgba(0, 0, 0, 0.4);
+  background: var(--color-bg-card);
+  border-right: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .dashboard-app-shell .sidebar-link {
@@ -520,7 +498,7 @@
 }
 
 .dashboard-topbar {
-  background: rgba(13, 19, 34, 0.85) !important;
+  background: var(--color-bg-primary) !important;
   color: var(--color-text-primary);
   backdrop-filter: blur(22px) saturate(1.25);
   -webkit-backdrop-filter: blur(22px) saturate(1.25);
@@ -726,7 +704,7 @@
 
 @media (max-width: 768px) {
   body:has(.dashboard-app-shell) {
-    background: #070a13;
+    background: var(--color-bg-primary);
   }
 
   .dashboard-app-shell {

@@ -62,7 +62,7 @@ export default function OfflineIndicator() {
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/20 hover:bg-black/30 text-white text-[11px] transition-colors shrink-0"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-foreground/15 hover:bg-foreground/25 text-white text-[11px] transition-colors shrink-0"
             >
               <RefreshCw className="w-3 h-3" />
               <span>Retry</span>

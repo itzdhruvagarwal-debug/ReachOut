@@ -52,6 +52,21 @@
 | **Internal Server Error (500)** | "We encountered a temporary processing issue. Our team has been notified. Please try again shortly." | Try Again |
 | **File Upload Too Large** | "File upload failed. Please ensure your file is under the allowed size limit and in a supported format." | Select File |
 
+### E. Administrative Moderation & Arbitration
+| Scenario | User-Facing Message | Suggested Action |
+| :--- | :--- | :--- |
+| **Payout Rejection Note Too Short** | "Rejection reason must be at least 5 characters." | Edit Note |
+| **Razorpay Payout Authorized** | "Payout authorized successfully. Funds transfer has been scheduled via Razorpay Transfers API." | Done |
+| **KYC Document Approved** | "Document approved and verified." | Next Document |
+| **KYC Document Rejected** | "Document rejected. Applicant notified with explanation." | Next Document |
+| **Full KYC Account Verification** | "User account verified and activated. Escrow withdrawals and bidding privileges unlocked." | View Queue |
+| **Account Ban Confirmation** | "User account has been banned and active sessions terminated." | Refresh Directory |
+| **Account Unban / Activation** | "User account has been reactivated successfully." | Refresh Directory |
+| **Badge Awarded** | "Badge awarded successfully to user profile." | Done |
+| **Dispute Verdict: Refund Brand** | "Dispute resolved in favor of the brand. Full escrow refunded." | View Dispute |
+| **Dispute Verdict: Release Creator** | "Dispute resolved in favor of the creator. Escrow funds released to wallet." | View Dispute |
+| **Newsletter Broadcast Dispatched** | "Newsletter dispatched successfully to verified subscribers." | View Stats |
+
 ---
 
 ## 3. Developer Usage Guide

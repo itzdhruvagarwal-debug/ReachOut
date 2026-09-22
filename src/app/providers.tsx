@@ -10,7 +10,13 @@ import CustomInstallBanner from "@/components/pwa/CustomInstallBanner";
 import { SWRConfig } from "swr";
 import QueryProvider from "@/components/providers/QueryProvider";
 
-export function Providers({ children }: Readonly<{ children: React.ReactNode }>) {
+export function Providers({
+  children,
+  nonce,
+}: Readonly<{
+  children: React.ReactNode;
+  nonce?: string | undefined;
+}>) {
   return (
     <SessionProvider
       basePath="/api/auth"
@@ -21,6 +27,7 @@ export function Providers({ children }: Readonly<{ children: React.ReactNode }>)
         defaultTheme="system"
         enableSystem
         disableTransitionOnChange
+        {...(nonce ? { nonce } : {})}
       >
         <QueryProvider>
           <SWRConfig

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { type DashboardCampaign as Campaign } from "@/lib/schemas";
@@ -13,12 +13,14 @@ import {
   Sparkles,
   Lock,
   Star,
+  CheckCircle2,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 
 interface CampaignDiscoveryCardProps {
   campaign: Campaign;
   isBrand: boolean;
+  isApplied?: boolean;
 }
 
 const deliverableLabels: Record<string, string> = {
@@ -34,14 +36,32 @@ const deliverableLabels: Record<string, string> = {
 export function CampaignDiscoveryCard({
   campaign,
   isBrand,
+  isApplied,
 }: Readonly<CampaignDiscoveryCardProps>) {
   const maxInfluencers = campaign.maxInfluencers ?? 0;
   const acceptedCount = campaign.acceptedCount ?? 0;
   const fillPercentage =
     maxInfluencers > 0 ? Math.min(100, Math.round((acceptedCount / maxInfluencers) * 100)) : 0;
+  const remainingSlots = maxInfluencers > 0 ? Math.max(0, maxInfluencers - acceptedCount) : null;
+  const isSlotsUrgent = fillPercentage >= 80 && remainingSlots !== null && remainingSlots > 0;
+
+  const daysLeft = useMemo(() => {
+    if (!campaign.postingDeadline) return null;
+    const due = new Date(campaign.postingDeadline).getTime();
+    const now = Date.now();
+    return Math.ceil((due - now) / (1000 * 60 * 60 * 24));
+  }, [campaign.postingDeadline]);
+
+  const isDeadlineUrgent = daysLeft !== null && daysLeft > 0 && daysLeft <= 3;
 
   return (
-    <article className="rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-primary/50 transition-all flex flex-col justify-between group">
+    <article
+      className={`rounded-2xl border p-5 shadow-sm transition-all flex flex-col justify-between group relative overflow-hidden ${
+        isApplied
+          ? "border-verified/50 bg-card hover:border-verified"
+          : "border-border bg-card hover:border-primary/50"
+      }`}
+    >
       <div className="space-y-3.5">
         {/* Top: Brand Info & Commercial Budget */}
         <div className="flex items-start justify-between gap-3">
@@ -77,12 +97,19 @@ export function CampaignDiscoveryCard({
             </div>
           </div>
 
-          <div className="text-right shrink-0">
-            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-              Budget
-            </div>
-            <div className="text-base sm:text-lg font-extrabold font-mono tabular-nums text-foreground">
-              {formatCurrency(campaign.perInfluencerBudget)}
+          <div className="text-right shrink-0 flex flex-col items-end gap-1">
+            {isApplied && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-verified text-primary-foreground shadow-xs">
+                <CheckCircle2 className="w-3 h-3" /> Applied
+              </span>
+            )}
+            <div>
+              <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Budget
+              </div>
+              <div className="text-base sm:text-lg font-extrabold font-mono tabular-nums text-foreground">
+                {formatCurrency(campaign.perInfluencerBudget)}
+              </div>
             </div>
           </div>
         </div>
@@ -118,6 +145,22 @@ export function CampaignDiscoveryCard({
           ))}
         </div>
 
+        {/* Urgency badges (Kofluence / Collabr scarcity pattern) */}
+        {(isSlotsUrgent || isDeadlineUrgent) && (
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            {isSlotsUrgent && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-pending-muted text-pending border border-pending-border">
+                🔥 {remainingSlots} {remainingSlots === 1 ? "slot" : "slots"} left
+              </span>
+            )}
+            {isDeadlineUrgent && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-disputed-muted text-disputed border border-disputed-border">
+                ⏰ {daysLeft === 1 ? "Ends today" : `${daysLeft} days left`}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Telemetry Metrics & Slot Progress Bar (Kofluence Style) */}
         <div className="rounded-xl border border-border/70 bg-muted/30 p-3 space-y-2">
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -146,11 +189,15 @@ export function CampaignDiscoveryCard({
             <div className="space-y-1 pt-1">
               <div className="flex justify-between text-[10px] text-muted-foreground">
                 <span>Slots Filled</span>
-                <span className="font-semibold">{fillPercentage}%</span>
+                <span className={`font-semibold ${isSlotsUrgent ? "text-pending font-bold" : ""}`}>
+                  {isSlotsUrgent ? `🔥 Only ${remainingSlots} left (${fillPercentage}%)` : `${fillPercentage}%`}
+                </span>
               </div>
               <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-primary rounded-full transition-all duration-300"
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    isSlotsUrgent ? "bg-pending" : "bg-primary"
+                  }`}
                   style={{ width: `${fillPercentage}%` }}
                 />
               </div>
@@ -161,19 +208,23 @@ export function CampaignDiscoveryCard({
 
       {/* Footer: Posting Deadline & View Brief Action */}
       <div className="pt-4 border-t border-border mt-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-          <span>Due {formatDate(campaign.postingDeadline)}</span>
+        <div className={`flex items-center gap-1.5 text-xs ${isDeadlineUrgent ? "text-disputed font-semibold" : "text-muted-foreground"}`}>
+          <Clock className="w-3.5 h-3.5 shrink-0" />
+          <span>
+            {isDeadlineUrgent
+              ? `Due ${formatDate(campaign.postingDeadline)} (Closing Soon)`
+              : `Due ${formatDate(campaign.postingDeadline)}`}
+          </span>
         </div>
 
         <Button
           href={`/dashboard/campaigns/${campaign.id}`}
-          variant="primary"
+          variant={isApplied ? "secondary" : "primary"}
           size="sm"
           className="font-bold text-xs gap-1 shadow-sm"
           aria-label={`View brief for ${campaign.title}`}
         >
-          {isBrand ? "Manage Brief" : "View Brief"}
+          {isApplied ? "View Application" : isBrand ? "Manage Brief" : "View Brief"}
           <ArrowRight className="w-3.5 h-3.5" />
         </Button>
       </div>

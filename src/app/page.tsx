@@ -1,524 +1,390 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PWAInstallButton from "@/components/pwa/PWAInstallButton";
 import { Button } from "@/components/ui/Button";
-import {
-homeFeatures,
-homeSteps,
-homeTestimonials,
-} from "@/lib/home-content";
-import {
-RevealOnScroll,
-getFeatureIcon,
-renderStars,
-} from "@/components/landing/LandingHelpers";
+import { homeSteps, homeTestimonials } from "@/lib/home-content";
 import { HeroProductMockup } from "@/components/landing/HeroProductMockup";
+import { EscrowSimulator } from "@/components/landing/EscrowSimulator";
+import { BentoFeatures } from "@/components/landing/BentoFeatures";
+import { ComparisonTable } from "@/components/landing/ComparisonTable";
+import { CreatorShowcase } from "@/components/landing/CreatorShowcase";
+import { LandingFAQ } from "@/components/landing/LandingFAQ";
+
+const TRUSTED_BRANDS = [
+  "FitForma",
+  "Myntra",
+  "Mamaearth",
+  "Nykaa",
+  "boAt",
+  "Lenskart",
+  "Sugar Cosmetics",
+];
+
+const PLATFORM_STATS = [
+  {
+    label: "Escrow Protected & Settled",
+    value: "₹12+ Crore",
+    subtext: "100% on-time bank disbursements",
+  },
+  {
+    label: "Verified Creators & Brands",
+    value: "5,400+",
+    subtext: "Aadhaar, PAN & KYC audited",
+  },
+  {
+    label: "On-Time Deliverable Rate",
+    value: "99.4%",
+    subtext: "Enforced by smart contract timers",
+  },
+  {
+    label: "Bad Debt & Default Rate",
+    value: "0.0%",
+    subtext: "Guaranteed upfront escrow locking",
+  },
+];
 
 export default function HomePage() {
-const [activeTab, setActiveTab] = useState<"influencer" | "brand">(
-"influencer",
-);
+  const [activeStepTab, setActiveStepTab] = useState<"influencer" | "brand">("influencer");
 
-return (
-<div className="min-h-screen">
-<Navbar />
+  return (
+    <div className="min-h-screen bg-background text-foreground flex flex-col selection:bg-primary/20 selection:text-primary">
+      <Navbar />
 
-{/* ==================== HERO ==================== */}
-<section
-className="landing-hero relative overflow-hidden pt-30 pb-20"
->
-<div className="landing-hero-media absolute inset-0" />
-<div className="landing-hero-scrim absolute inset-0 z-0" />
+      <main className="flex-1">
+        {/* ==================== 1. HERO SECTION ==================== */}
+        <section className="relative pt-28 pb-16 sm:pt-36 sm:pb-24 overflow-hidden border-b border-border">
+          {/* Subtle ambient light glows */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-primary/10 rounded-full blur-[120px] pointer-events-none" />
+          <div className="absolute top-1/3 right-10 w-[300px] h-[300px] bg-verified/10 rounded-full blur-[100px] pointer-events-none" />
 
-<div className="container relative z-1">
-<div
-className="text-center max-w-900 mx-auto"
->
-        <div
-          className="landing-kicker inline-flex items-center gap-2 font-bold rounded-full text-xs uppercase mb-6 tracking-wider bg-indigo-15 text-indigo-light"
-        >
-          🛡️ India&apos;s Trusted Influencer Commerce & Escrow Platform
-        </div>
+          <div className="container max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+            <div className="text-center max-w-3xl mx-auto">
+              {/* Trust Badge Kicker */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20 mb-6 shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                🛡️ India&apos;s #1 Influencer Commerce & Escrow Infrastructure
+              </div>
 
-        <h1
-          className="landing-hero-title mb-6 font-extrabold"
-        >
-          <span
-            className="landing-gradient-word inline-block"
-          >
-            VyaparMedia
-          </span>
-          <span
-            className="landing-hero-tagline block font-semibold mt-3-5"
-          >
-            Where Brands & Creators Build Trusted Business.
-          </span>
-        </h1>
+              {/* Main Headline */}
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-foreground leading-[1.1] mb-6">
+                Where Brands & Creators Build{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-verified">
+                  Trusted Business.
+                </span>
+              </h1>
 
-        <p
-          className="landing-hero-copy max-w-600 leading-relaxed"
-        >
-          Scale your brand with 100% upfront escrow safety, verified creator analytics, legally binding smart contracts, and guaranteed on-time bank settlements.
-        </p>
+              {/* Compelling Value Subtitle */}
+              <p className="text-base sm:text-lg text-muted-foreground leading-relaxed max-w-2xl mx-auto mb-8">
+                Scale your creator campaigns with 100% upfront escrow locking, verified DRS™ trust scores, legally binding digital contracts, and instant UPI settlements.
+              </p>
 
-        <div
-          className="hero-cta-group flex gap-4 justify-center flex-wrap mb-4"
-        >
-          <Link
-            href="/register?type=influencer"
-            className="landing-cta landing-cta-primary inline-flex items-center justify-center gap-2 font-bold rounded-lg text-sm no-underline text-white shadow-lg"
-          >
-            Join as Creator
-          </Link>
-          <Link
-            href="/register?type=brand"
-            className="landing-cta landing-cta-secondary inline-flex items-center justify-center gap-2 font-bold rounded-lg text-sm no-underline text-white backdrop-blur"
-          >
-            Hire Creators
-          </Link>
-        </div>
+              {/* Dual CTA Group */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-6">
+                <Link href="/register?type=influencer" className="w-full sm:w-auto">
+                  <Button size="lg" className="w-full sm:w-auto font-bold px-8 shadow-lg shadow-primary/20">
+                    Join as Creator (Get Protected)
+                  </Button>
+                </Link>
+                <Link href="/register?type=brand" className="w-full sm:w-auto">
+                  <Button size="lg" variant="secondary" className="w-full sm:w-auto font-bold px-8">
+                    Hire Verified Creators &rarr;
+                  </Button>
+                </Link>
+              </div>
 
-        <div className="flex items-center justify-center gap-3 text-xs text-secondary mb-5 flex-wrap">
-          <span className="flex items-center gap-1.5 text-muted">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald inline-block" aria-hidden="true" />
-            Installable App for iOS & Android
-          </span>
-          <div className="inline-flex items-center gap-2">
-            <PWAInstallButton platform="ios" variant="icon" className="pwa-install-mini-btn text-secondary hover:text-white transition-colors" label="Install on iOS" />
-            <PWAInstallButton platform="android" variant="icon" className="pwa-install-mini-btn text-secondary hover:text-white transition-colors" label="Install on Android" />
+              {/* PWA & Mobile Trust Strip */}
+              <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mb-4 flex-wrap">
+                <span className="flex items-center gap-1.5 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-verified inline-block" />
+                  Installable PWA App for iOS & Android
+                </span>
+                <div className="inline-flex items-center gap-2">
+                  <PWAInstallButton
+                    platform="ios"
+                    variant="icon"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    label="Install on iOS"
+                  />
+                  <PWAInstallButton
+                    platform="android"
+                    variant="icon"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    label="Install on Android"
+                  />
+                </div>
+              </div>
+
+              {/* Proof Badges */}
+              <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground flex-wrap font-medium">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-verified font-bold">✓</span> 100% Upfront Escrow
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-verified font-bold">✓</span> 0% Creator Commission
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <span className="text-verified font-bold">✓</span> GST & TDS Compliant
+                </span>
+              </div>
+            </div>
+
+            {/* Interactive Hero Workspace Mockup */}
+            <HeroProductMockup />
+
+            {/* Brand Logo Trust Strip */}
+            <div className="mt-14 pt-8 border-t border-border/60 text-center">
+              <p className="text-xs uppercase tracking-widest font-bold text-muted-foreground mb-6">
+                Trusted by Marketers at High-Growth Brands
+              </p>
+              <div className="flex items-center justify-center gap-8 sm:gap-12 flex-wrap">
+                {TRUSTED_BRANDS.map((brand) => (
+                  <span
+                    key={brand}
+                    className="text-sm sm:text-base font-bold text-muted-foreground/70 hover:text-foreground transition-colors select-none tracking-wide"
+                  >
+                    {brand}
+                  </span>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        <div
-          className="flex gap-6 justify-center flex-wrap mb-2"
-        >
-          {["🛡️ Secure sessions", "💳 Protected payments", "📱 Installable PWA"].map((item) => (
-            <span
-              key={item}
-              className="landing-proof-item text-sm flex items-center gap-1.5"
-            >
-              {item}
-            </span>
-          ))}
-        </div>
+        {/* ==================== 2. PLATFORM METRICS ==================== */}
+        <section className="py-14 bg-card border-b border-border">
+          <div className="container max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+              {PLATFORM_STATS.map((stat) => (
+                <div key={stat.label} className="p-4 sm:p-6 rounded-2xl border border-border bg-background flex flex-col">
+                  <span className="text-3xl sm:text-4xl font-black text-foreground mb-1 tracking-tight">
+                    {stat.value}
+                  </span>
+                  <span className="text-sm font-bold text-foreground mb-0.5">
+                    {stat.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {stat.subtext}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
 
-        <HeroProductMockup />
+        {/* ==================== 3. INTERACTIVE ESCROW SIMULATOR ==================== */}
+        <section className="py-16">
+          <div className="container max-w-6xl mx-auto px-4 sm:px-6">
+            <EscrowSimulator />
+          </div>
+        </section>
 
-        <div
-          className="landing-trust-strip animate-fade-in w-full text-center"
-        >
-          <p
-            className="text-sm text-muted-foreground mb-4 font-medium"
-          >
-            Trusted by India&apos;s fastest growing brands
-          </p>
-          <div
-            className="landing-brand-row flex justify-center items-center gap-8 flex-wrap"
-          >
-            {["FitForma", "Myntra", "Mamaearth", "Nykaa", "Boat", "Lenskart"].map((brand) => (
-              <span
-                key={brand}
-                className="text-sm font-semibold tracking-wider text-slate-400 select-none grayscale opacity-75 hover:opacity-100 transition-opacity"
-              >
-                {brand}
+        {/* ==================== 4. BENTO-GRID PLATFORM FEATURES ==================== */}
+        <BentoFeatures />
+
+        {/* ==================== 5. HOW IT WORKS (DUAL JOURNEY) ==================== */}
+        <section id="how-it-works" className="py-20 bg-secondary/30 border-y border-border">
+          <div className="container max-w-5xl mx-auto px-4 sm:px-6">
+            <div className="text-center max-w-2xl mx-auto mb-12">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 mb-3">
+                Simple & Transparent
               </span>
-            ))}
+              <h2 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">
+                How Collaborations Work
+              </h2>
+              <p className="text-muted-foreground mt-2 text-sm sm:text-base">
+                A seamless 4-step workflow backed by smart contract milestones and verified escrow releases.
+              </p>
+            </div>
+
+            {/* Persona Switcher */}
+            <div className="flex justify-center mb-12">
+              <div className="inline-flex p-1 rounded-full bg-card border border-border shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setActiveStepTab("influencer")}
+                  className={`px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
+                    activeStepTab === "influencer"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  For Creators (4 Steps to Payout)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveStepTab("brand")}
+                  className={`px-5 py-2 rounded-full text-xs sm:text-sm font-bold transition-all ${
+                    activeStepTab === "brand"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  For Brands (4 Steps to ROI)
+                </button>
+              </div>
+            </div>
+
+            {/* Step Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              {homeSteps.map((step, idx) => {
+                const current = activeStepTab === "influencer" ? step.forInfluencer : step.forBrand;
+                return (
+                  <div
+                    key={`${activeStepTab}-${idx}`}
+                    className="p-6 sm:p-7 rounded-2xl border border-border bg-card shadow-sm hover:border-primary/50 transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="w-10 h-10 rounded-xl bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-black text-lg">
+                          {current.step}
+                        </span>
+                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Phase 0{current.step}
+                        </span>
+                      </div>
+                      <h3 className="text-lg font-bold text-foreground mb-2">
+                        {current.title}
+                      </h3>
+                      <p className="text-muted-foreground text-sm leading-relaxed">
+                        {current.description}
+                      </p>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground font-medium">
+                      <span>✓ Protected by platform guidelines</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </div>
+        </section>
+
+        {/* ==================== 6. CREATOR DIRECTORY SHOWCASE ==================== */}
+        <CreatorShowcase />
+
+        {/* ==================== 7. COMPARISON TABLE ==================== */}
+        <ComparisonTable />
+
+        {/* ==================== 8. TESTIMONIALS & SOCIAL PROOF ==================== */}
+        <section className="py-20 relative">
+          <div className="container max-w-6xl mx-auto px-4 sm:px-6">
+            <div className="text-center max-w-2xl mx-auto mb-14">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-verified-muted text-verified border border-verified-border mb-3">
+                Proven Track Record
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">
+                Trusted by Real Creators & Marketers
+              </h2>
+              <p className="text-muted-foreground mt-2 text-sm sm:text-base">
+                Read how safe escrows and binding contracts solved late payments and fraud for India&apos;s digital creators.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {homeTestimonials.map((t) => (
+                <div
+                  key={t.name}
+                  className="p-6 rounded-2xl border border-border bg-card shadow-sm hover:border-primary/50 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Stars */}
+                    <div className="flex items-center gap-1 text-pending mb-4" aria-label="5 out of 5 stars">
+                      {[...Array(5)].map((_, i) => (
+                        <svg
+                          key={i}
+                          width="16"
+                          height="16"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          stroke="none"
+                        >
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                      ))}
+                    </div>
+
+                    <p className="text-sm text-foreground leading-relaxed italic mb-6">
+                      &quot;{t.quote}&quot;
+                    </p>
+                  </div>
+
+                  {/* Author Row */}
+                  <div className="flex items-center gap-3 pt-4 border-t border-border">
+                    <div className="relative w-11 h-11 rounded-full overflow-hidden border border-border flex-shrink-0">
+                      <Image
+                        src={t.avatar}
+                        alt={t.name}
+                        fill
+                        sizes="44px"
+                        className="object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">
+                        {t.name}
+                      </h4>
+                      <p className="text-xs text-muted-foreground">
+                        {t.role} {t.followers && t.followers !== "Brand" && `(${t.followers})`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ==================== 9. FREQUENTLY ASKED QUESTIONS ==================== */}
+        <LandingFAQ />
+
+        {/* ==================== 10. HIGH-CONVERTING BOTTOM CTA ==================== */}
+        <section className="py-20 relative overflow-hidden">
+          <div className="container max-w-5xl mx-auto px-4 sm:px-6">
+            <div className="rounded-3xl border border-border bg-card p-8 sm:p-14 text-center relative overflow-hidden shadow-2xl">
+              {/* Radial gradient background accent */}
+              <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-card to-card pointer-events-none" />
+              <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary/20 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="relative z-10 max-w-2xl mx-auto">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-verified-muted text-verified border border-verified-border mb-4">
+                  🛡️ Risk-Free Guarantee
+                </span>
+                <h2 className="text-3xl sm:text-5xl font-black text-foreground tracking-tight mb-4">
+                  Ready to Transact with 100% Peace of Mind?
+                </h2>
+                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed mb-8">
+                  Join 5,400+ creators and brands who have stopped chasing payments and guessing deliverables.
+                </p>
+
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 mb-6">
+                  <Link href="/register" className="w-full sm:w-auto">
+                    <Button size="lg" className="w-full sm:w-auto font-bold px-10 shadow-lg shadow-primary/25">
+                      Create Free Account
+                    </Button>
+                  </Link>
+                  <Link href="/pricing" className="w-full sm:w-auto">
+                    <Button size="lg" variant="secondary" className="w-full sm:w-auto font-bold px-8">
+                      View Pricing & Fees
+                    </Button>
+                  </Link>
+                </div>
+
+                <p className="text-xs text-muted-foreground font-medium">
+                  No credit card required &bull; 100% Free for creators &bull; Setup in 2 minutes
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
     </div>
-
-<Button
-type="button"
-variant="ghost"
-className="landing-scroll-cue hide-mobile absolute flex flex-col items-center gap-2 cursor-pointer border-none p-0 bg-none opacity-50"
-onClick={() => {
-document.getElementById("features")?.scrollIntoView({ behavior: "smooth" });
-}}
->
-<span className="text-muted font-semibold text-xs uppercase tracking-wider">Explore</span>
-<svg
-width="20"
-height="20"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-strokeWidth="2.5"
-strokeLinecap="round"
-strokeLinejoin="round"
-className="text-primary-light"
->
-<polyline points="6 9 12 15 18 9" />
-</svg>
-</Button>
-</section>
-
-{/* ==================== FEATURES ==================== */}
-<section
-id="features"
-className="section mesh-bg relative"
->
-<div className="container">
-<RevealOnScroll>
-<h2 className="section-title">
-Why Choose <span className="gradient-text">VyaparMedia</span>?
-</h2>
-</RevealOnScroll>
-<RevealOnScroll delay={0.1}>
-<p className="section-subtitle">
-Built with trust as the foundation. Every feature is designed to
-protect both creators and brands.
-</p>
-</RevealOnScroll>
-
-<div className="grid-3">
-{homeFeatures.map((feature, index) => (
-<RevealOnScroll key={feature.title} delay={index * 0.08}>
-<div className="card hover-lift h-full">
-<div className="feature-icon">{getFeatureIcon(feature.icon)}</div>
-<h3
-className="text-lg font-bold mb-2"
->
-{feature.title}
-</h3>
-<p
-className="text-secondary text-sm leading-relaxed"
->
-{feature.description}
-</p>
-</div>
-</RevealOnScroll>
-))}
-</div>
-</div>
-</section>
-
-{/* ==================== HOW IT WORKS ==================== */}
-<section
-id="how-it-works"
-className="section bg-secondary"
->
-<div className="container">
-<RevealOnScroll>
-<h2 className="section-title">
-How It <span className="gradient-text">Works</span>
-</h2>
-</RevealOnScroll>
-<RevealOnScroll delay={0.1}>
-<p className="section-subtitle">
-Simple, transparent, and secure. Here&apos;s your journey on
-VyaparMedia.
-</p>
-</RevealOnScroll>
-
-<RevealOnScroll delay={0.15}>
-<div
-className="landing-segmented flex justify-center gap-1 bg-tertiary p-1 mb-10 rounded-full"
->
-<Button
-type="button"
-variant="ghost"
-onClick={() => setActiveTab("influencer")}
-className="landing-segmented-button flex-1 text-sm rounded-full"
-data-active={activeTab === "influencer"}
->
-For Influencers
-</Button>
-<Button
-type="button"
-variant="ghost"
-onClick={() => setActiveTab("brand")}
-className="landing-segmented-button flex-1 text-sm rounded-full"
-data-active={activeTab === "brand"}
->
-For Brands
-</Button>
-</div>
-</RevealOnScroll>
-
-<div
-className="landing-steps flex flex-col gap-4 mx-auto"
->
-{homeSteps.map((step, index) => {
-const currentStep =
-activeTab === "influencer" ? step.forInfluencer : step.forBrand;
-return (
-<RevealOnScroll
-key={`${activeTab}-${index}`}
-delay={index * 0.1}
->
-<div
-className="card hover-lift step-card flex items-center gap-5"
->
-<div
-className="landing-step-number flex items-center justify-center font-extrabold flex-shrink-0 bg-gradient-primary rounded-full text-2xl"
->
-{currentStep.step}
-</div>
-<div className="flex-1">
-<h3
-className="font-bold mb-1 text-base"
->
-{currentStep.title}
-</h3>
-<p
-className="text-secondary text-sm leading-relaxed"
->
-{currentStep.description}
-</p>
-</div>
-</div>
-</RevealOnScroll>
-);
-})}
-</div>
-</div>
-</section>
-
-{/* ==================== TESTIMONIALS ==================== */}
-<section className="section">
-<div className="container">
-<RevealOnScroll>
-<h2 className="section-title">
-Loved by <span className="gradient-text">Creators & Brands</span>
-</h2>
-</RevealOnScroll>
-<RevealOnScroll delay={0.1}>
-<p className="section-subtitle">
-See how matching profiles, secure escrows, and gamified growth help run trusted partnerships.
-</p>
-</RevealOnScroll>
-
-<div className="grid-3">
-{homeTestimonials.map((testimonial, index) => (
-<RevealOnScroll key={testimonial.name} delay={index * 0.1}>
-<div
-className="card hover-lift text-center h-full"
->
-<div
-className="landing-testimonial-avatar avatar avatar-xl relative overflow-hidden rounded-full"
->
-<Image
-src={testimonial.avatar}
-alt={testimonial.name}
-width={80}
-height={80}
-className="object-cover w-full h-full rounded-full"
-/>
-</div>
-<h3 className="text-base font-bold text-foreground">
-{testimonial.name}
-</h3>
-<p
-className="text-xs text-muted mb-1"
->
-{testimonial.role}
-{testimonial.followers &&
-testimonial.followers !== "Brand" &&
-` - ${testimonial.followers} followers`}
-</p>
-
-{renderStars(testimonial.rating)}
-
-<p
-className="text-secondary text-sm leading-relaxed italic"
->
-&quot;{testimonial.quote}&quot;
-</p>
-</div>
-</RevealOnScroll>
-))}
-</div>
-</div>
-</section>
-
-{/* ==================== PRICING ==================== */}
-<section
-id="pricing"
-className="section bg-secondary"
->
-<div className="container">
-<RevealOnScroll>
-<h2 className="section-title">
-Simple, <span className="gradient-text">Transparent</span> Pricing
-</h2>
-</RevealOnScroll>
-<RevealOnScroll delay={0.1}>
-<p className="section-subtitle">
-No hidden fees. No surprises. Just fair pricing for everyone.
-</p>
-</RevealOnScroll>
-
-<div
-className="grid-2 max-w-800 mx-auto"
->
-<RevealOnScroll delay={0.15}>
-<div
-className="card hover-lift text-center h-full flex flex-col"
->
-<div className="flex-1">
-<h3
-className="font-extrabold mb-2 text-2xl"
->
-For Influencers
-</h3>
-<div
-className="landing-price mb-1 font-extrabold"
->
-<span className="gradient-text">FREE</span>
-</div>
-<p
-className="text-muted mb-6 text-sm"
->
-to join & apply
-</p>
-<ul
-className="text-left mb-6 list-none"
->
-{[
-"Profile, portfolio, and verification",
-"Campaign discovery and applications",
-"Clear payout before deal signing",
-"Levels, badges, and referral benefits",
-"Protected settlement after approval",
-].map((item) => (
-<li
-key={item}
-className="landing-check-row border-b border-card text-secondary text-sm flex items-center gap-2.5"
->
-<svg
-width="16"
-height="16"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-strokeWidth="3"
-strokeLinecap="round"
-strokeLinejoin="round"
-className="flex-shrink-0 text-primary-light"
->
-<polyline points="20 6 9 17 4 12" />
-</svg>
-<span>{item}</span>
-</li>
-))}
-</ul>
-</div>
-<Link
-href="/register?type=influencer"
-className="btn btn-secondary w-full mt-4"
->
-Join as Influencer
-</Link>
-</div>
-</RevealOnScroll>
-
-<RevealOnScroll delay={0.25}>
-<div
-className="card card-gradient pricing-popular hover-lift text-center h-full flex flex-col"
->
-<div className="flex-1">
-<div
-className="badge badge-primary mb-4"
->
-Popular for teams
-</div>
-<h3
-className="font-extrabold mb-2 text-2xl"
->
-For Brands
-</h3>
-<div
-className="landing-price mb-1 font-extrabold"
->
-<span className="gradient-text">10%</span>
-</div>
-<p
-className="text-muted mb-6 text-sm"
->
-of campaign budget
-</p>
-<ul
-className="text-left mb-6 list-none"
->
-{[
-"Verified creator discovery",
-"Protected payment escrow workflow",
-"Contract and approval flow",
-"Post verification system",
-"Dispute resolution included",
-].map((item) => (
-<li
-key={item}
-className="landing-check-row border-b border-card text-secondary text-sm flex items-center gap-2.5"
->
-<svg
-width="16"
-height="16"
-viewBox="0 0 24 24"
-fill="none"
-stroke="currentColor"
-strokeWidth="3"
-strokeLinecap="round"
-strokeLinejoin="round"
-className="flex-shrink-0 text-emerald"
->
-<polyline points="20 6 9 17 4 12" />
-</svg>
-<span>{item}</span>
-</li>
-))}
-</ul>
-</div>
-<Link
-href="/register?type=brand"
-className="btn btn-primary w-full mt-4"
->
-Start Your Campaign
-</Link>
-</div>
-</RevealOnScroll>
-</div>
-</div>
-</section>
-
-{/* ==================== CTA ==================== */}
-<RevealOnScroll>
-<section
-className="landing-final-cta section text-center relative overflow-hidden bg-gradient-primary"
->
-<div className="landing-final-cta-texture absolute inset-0" />
-
-<div
-className="container relative z-1"
->
-<h2
-className="landing-cta-title mb-4 font-extrabold tracking-normal"
->
-Ready to Get Started?
-</h2>
-<p
-className="landing-cta-copy mb-8 leading-relaxed opacity-90"
->
-Create a free account, install the PWA, and manage campaigns from
-web, iOS home screen, or Android home screen.
-</p>
-<Link
-href="/register"
-className="landing-cta-inverse btn btn-lg font-bold"
->
-Create Free Account
-</Link>
-</div>
-</section>
-</RevealOnScroll>
-
-<Footer />
-</div>
-);
+  );
 }

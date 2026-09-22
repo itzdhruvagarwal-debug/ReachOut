@@ -9,6 +9,21 @@ interface DisputeTimelineProps {
   readonly dispute: DisputeDetail;
 }
 
+function getDisputeCountdown(createdAtStr: string): string {
+  try {
+    const created = new Date(createdAtStr).getTime();
+    const deadline = created + 48 * 60 * 60 * 1000;
+    const diffMs = deadline - Date.now();
+    if (diffMs <= 0) return "SLA Expired";
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}h ${minutes}m left`;
+    return `${minutes}m left`;
+  } catch {
+    return "48h window";
+  }
+}
+
 export function DisputeTimeline({ dispute }: Readonly<DisputeTimelineProps>) {
   const isResolved = dispute.status === "RESOLVED" || dispute.status === "CLOSED";
   const isTier2 = dispute.tier >= 2 || dispute.status === "TIER2_MEDIATION";
@@ -16,9 +31,17 @@ export function DisputeTimeline({ dispute }: Readonly<DisputeTimelineProps>) {
 
   return (
     <div className="bg-card border border-border rounded-2xl p-5 shadow-sm space-y-4">
-      <div className="flex items-center gap-2 pb-2 border-b border-border/60">
-        <History className="w-4 h-4 text-primary" />
-        <h2 className="text-base font-bold text-foreground">Dispute Timeline</h2>
+      <div className="flex items-center justify-between pb-2 border-b border-border/60 flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <History className="w-4 h-4 text-primary" />
+          <h2 className="text-base font-bold text-foreground">Dispute Timeline</h2>
+        </div>
+        {!isResolved && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-pending bg-pending-muted px-2.5 py-0.5 rounded-full border border-pending-border">
+            <Clock className="w-3 h-3 animate-pulse" />
+            48h Window: {getDisputeCountdown(dispute.createdAt)}
+          </span>
+        )}
       </div>
 
       <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-border">

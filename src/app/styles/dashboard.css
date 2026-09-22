@@ -431,7 +431,7 @@
   display: flex;
   width: 100%;
   min-height: 100vh;
-  background: var(--color-bg-primary);
+  /* background intentionally omitted — inherits from body via Tailwind bg-background */
   overflow-x: hidden;
   max-width: 100vw;
 }
@@ -718,7 +718,9 @@
 .min-h-screen { min-height: 100vh; }
 .flex-1 { flex: 1; }
 .pt-20 { padding-top: 80px; }
-.bg-primary { background: var(--color-bg-primary); }
+/* NOTE: .bg-primary intentionally removed — it was overriding Tailwind's bg-primary (Electric Blue) with dark navy.
+   Tailwind's native bg-primary utility is now the authority. Use .bg-bg-primary CSS var for raw bg needs. */
+
 
 /* ==================== VERIFICATION QUEUE ==================== */
 .vq-card {

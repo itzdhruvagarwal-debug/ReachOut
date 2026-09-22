@@ -124,7 +124,7 @@ export default function FilterBottomSheet({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity"
             aria-hidden="true"
           />
 
@@ -200,32 +200,35 @@ export default function FilterBottomSheet({
                 </div>
               </div>
 
-              {/* Niche / Category Section */}
-              <div>
-                <label className="block text-xs uppercase font-bold text-muted-foreground tracking-wider mb-2.5">
-                  Niche / Industry
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {NICHES.map((n) => {
-                    const isSelected =
-                      (n === "All" && !localFilters.niche) || localFilters.niche === n;
-                    return (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => handleNicheSelect(n)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                          isSelected
-                            ? "bg-primary text-primary-foreground border-primary shadow-xs font-semibold"
-                            : "bg-muted/40 text-foreground border-border/80 hover:bg-muted"
-                        }`}
-                      >
-                        {n}
-                      </button>
-                    );
-                  })}
+              {/* Niche / Category Section — only shown for campaigns mode.
+                  For creators mode the chip carousel on the page handles category. */}
+              {mode === "campaigns" && (
+                <div>
+                  <label className="block text-xs uppercase font-bold text-muted-foreground tracking-wider mb-2.5">
+                    Niche / Industry
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {NICHES.map((n) => {
+                      const isSelected =
+                        (n === "All" && !localFilters.niche) || localFilters.niche === n;
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => handleNicheSelect(n)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary shadow-xs font-semibold"
+                              : "bg-muted/40 text-foreground border-border/80 hover:bg-muted"
+                          }`}
+                        >
+                          {n}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Mode-specific Range Section (Budget vs Followers) */}
               {mode === "campaigns" ? (

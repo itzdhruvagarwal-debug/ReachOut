@@ -1,187 +1,147 @@
-"use client";
+import type { Metadata } from "next";
+import { LegalLayout, LegalSection } from "@/components/legal/LegalLayout";
 
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+export const metadata: Metadata = {
+  title: "Privacy Policy — VyaparMedia",
+  description:
+    "How VyaparMedia collects, uses, tokenizes, and protects your personal data under the DPDP Act 2023 and Indian IT regulations. Last updated June 20, 2026.",
+};
+
+const SECTIONS = [
+  { id: "who-we-are", heading: "1. Who We Are & Scope" },
+  { id: "information-we-collect", heading: "2. Information We Collect" },
+  { id: "why-we-use", heading: "3. Purposes of Data Processing" },
+  { id: "consent-rights", heading: "4. User Rights & DPDP Consent" },
+  { id: "sharing", heading: "5. Authorized Service Providers" },
+  { id: "security-retention", heading: "6. Security & Statutory Retention" },
+  { id: "automated", heading: "7. Automated Checks & DRS™ Scoring" },
+  { id: "children", heading: "8. Age Eligibility & Minor Protection" },
+  { id: "contact", heading: "9. Grievance Redressal & Contact" },
+];
 
 export default function PrivacyPage() {
-const lastUpdated = "June 20, 2026";
+  return (
+    <LegalLayout
+      title="Privacy Policy"
+      lastUpdated="June 20, 2026"
+      description="This Privacy Policy explains how VyaparMedia collects, processes, stores, and safeguards personal data and KYC records under the Digital Personal Data Protection (DPDP) Act, 2023."
+      sections={SECTIONS}
+    >
+      {/* 1 */}
+      <LegalSection id="who-we-are" heading="1. Who We Are &amp; Scope">
+        <p>
+          VyaparMedia operates an India-focused influencer collaboration marketplace connecting verified brands, digital creators, and platform mediators. This policy applies to all interactions across our web application, installable Progressive Web App (PWA), REST APIs, escrow payment ledgers, dispute rooms, and customer support channels.
+        </p>
+      </LegalSection>
 
-return (
-<div className="flex flex-col min-h-screen">
-<Navbar />
+      {/* 2 */}
+      <LegalSection id="information-we-collect" heading="2. Information We Collect" highlight>
+        <p className="mb-4">
+          To facilitate legally enforceable brand contracts and statutory tax reporting, we collect the following categories of data:
+        </p>
+        <ul className="list-disc pl-6 space-y-2.5">
+          <li>
+            <strong className="text-foreground">Identity &amp; Account Data:</strong> Full legal name, email address, mobile number, hashed credentials, user role (Brand, Creator, Admin), and device authentication logs.
+          </li>
+          <li>
+            <strong className="text-foreground">Creator Portfolio &amp; Media Kit:</strong> Public bio, city, content niches, rate cards, connected Instagram/YouTube handles, historical post metrics, and audience demographics.
+          </li>
+          <li>
+            <strong className="text-foreground">KYC &amp; Statutory Identifiers:</strong> Permanent Account Number (PAN), masked Aadhaar reference tokens (via authorized UIDAI-compliant DigiLocker/OCR providers), GSTIN certificate metadata, bank account numbers, IFSC codes, and cancelled cheque images for direct bank payout routing.
+          </li>
+          <li>
+            <strong className="text-foreground">Financial &amp; Ledger Records:</strong> Escrow deposits, milestone releases, Razorpay transaction references, TDS deductions under Section 194-O, GST tax invoices, and withdrawal logs.
+          </li>
+          <li>
+            <strong className="text-foreground">Collaboration Artifacts:</strong> Campaign briefs, milestone deliverables, draft content previews, live promotional URLs, performance metrics, deal room messages, and dispute evidence.
+          </li>
+        </ul>
+      </LegalSection>
 
-<main className="flex-1 pt-20">
-<section className="section">
-<div className="container max-w-900">
-<h1
-className="section-title gradient-text mb-3 text-3xl font-extrabold"
->
-Privacy Policy
-</h1>
-<p className="text-secondary font-semibold mb-10">
-Last updated: {lastUpdated}
-</p>
+      {/* 3 */}
+      <LegalSection id="why-we-use" heading="3. Purposes of Data Processing">
+        <ul className="list-disc pl-6 space-y-2">
+          <li>To establish your account identity, enforce two-factor authentication, and prevent account takeover.</li>
+          <li>To calculate our proprietary DRS™ (Dynamic Reliability Score) and protect brands from artificial bot traffic.</li>
+          <li>To operate milestone escrow contracts, process bank transfers, and generate GST-compliant invoices.</li>
+          <li>To fulfill mandatory CBDT tax compliance, including quarterly Form 26AS TDS credit reporting.</li>
+          <li>To mediate deliverable disputes through our objective Evidence Vault arbitration workflow.</li>
+          <li>To dispatch critical transactional notifications regarding deal milestones, approvals, and escrow lock status.</li>
+        </ul>
+      </LegalSection>
 
-<div className="text-secondary grid gap-8 leading-relaxed text-sm">
-<section>
-<h2 className="terms-heading">1. Who we are</h2>
-<p>
-VyaparMedia operates an India-focused influencer collaboration marketplace
-for brands, creators, and platform administrators. This Privacy Policy
-explains how we collect, use, disclose, retain, and protect personal data
-when you use our website, installable PWA, dashboards, APIs, support
-channels, payments, verification, messaging, content monitoring, and dispute
-tools.
-</p>
-</section>
+      {/* 4 */}
+      <LegalSection id="consent-rights" heading="4. User Rights &amp; DPDP Consent">
+        <p>
+          In accordance with the <strong className="text-foreground">Digital Personal Data Protection (DPDP) Act, 2023</strong>, you hold unconditional rights to:
+        </p>
+        <ul className="list-disc pl-6 space-y-2 my-3">
+          <li><strong className="text-foreground">Right of Access:</strong> Request a comprehensive copy of all personal data, activity logs, and KYC documents stored under your profile.</li>
+          <li><strong className="text-foreground">Right to Rectification:</strong> Update inaccurate bank details, addresses, or tax credentials directly from your Settings dashboard.</li>
+          <li><strong className="text-foreground">Right to Erasure:</strong> Request permanent deletion of non-statutory account data upon settlement of all open escrow deals and financial balances.</li>
+          <li><strong className="text-foreground">Right to Grievance Redressal:</strong> Nominate an authorized representative or file a grievance directly with our designated Data Protection Officer.</li>
+        </ul>
+        <p className="text-xs text-muted-foreground italic">
+          *Note: Statutory financial records, GST invoices, and Section 194-O TDS logs must be retained for 7 years as mandated by Indian tax and anti-money-laundering regulations.
+        </p>
+      </LegalSection>
 
-<section className="card terms-panel">
-<h2 className="terms-heading">2. Information we collect</h2>
-<ul className="list-disc pl-6 space-y-3">
-<li>
-<strong>Account data:</strong> name, email, phone number, password hash,
-role, login history, device details, IP address, session identifiers, and
-security events.
-</li>
-<li>
-<strong>Profile data:</strong> creator bio, city, languages, categories,
-rates, social handles, audience metrics, brand profile details, website,
-business identifiers, and profile media.
-</li>
-<li>
-<strong>Verification data:</strong> PAN, Aadhaar-related verification
-evidence, GSTIN, CIN, bank account proof, cancelled cheque or statement
-metadata, selfies or liveness evidence where enabled, ITR acknowledgement
-details, business address, beneficial-owner details where required, and KYC
-review status. Sensitive identifiers are encrypted, masked, or tokenized
-where the platform only needs reference data.
-</li>
-<li>
-<strong>Transaction data:</strong> wallet balances, payment holds, Razorpay
-order/payment IDs, payouts, refunds, disputes, ledger entries, invoices, tax
-metadata, and withdrawal details.
-</li>
-<li>
-<strong>Collaboration data:</strong> campaign briefs, proposals, contracts,
-deliverables, submitted content, live post URLs, approvals, reviews, chat
-messages, typing/read status, notifications, and support requests.
-</li>
-<li>
-<strong>Usage data:</strong> pages viewed, button clicks, feature usage,
-error logs, service worker state, device/browser type, and performance
-diagnostics.
-</li>
-<li>
-<strong>Third-party verification data:</strong> verification outcomes,
-provider reference IDs, social account authorization status, content API
-responses, payment gateway event IDs, and fraud/risk signals returned by
-service providers.
-</li>
-</ul>
-</section>
+      {/* 5 */}
+      <LegalSection id="sharing" heading="5. Authorized Service Providers">
+        <p>
+          We do not sell, rent, or monetize your personal data. We disclose strictly scoped data to authorized infrastructure partners under confidentiality and data protection agreements:
+        </p>
+        <ul className="list-disc pl-6 space-y-2 my-3">
+          <li><strong className="text-foreground">Payment Gateways:</strong> Razorpay (for PCI-DSS compliant card, UPI, and IMPS escrow processing).</li>
+          <li><strong className="text-foreground">Cloud Infrastructure:</strong> Supabase (PostgreSQL), Cloudflare R2 (encrypted media assets), and Upstash (high-speed Redis cache).</li>
+          <li><strong className="text-foreground">Communications:</strong> Resend (transactional email) and Twilio / MSG91 (two-factor authentication OTPs).</li>
+          <li><strong className="text-foreground">Law Enforcement:</strong> Government agencies or tax authorities only when presented with a valid statutory order or court decree under applicable Indian laws.</li>
+        </ul>
+      </LegalSection>
 
-<section>
-<h2 className="terms-heading">3. Why we use your data</h2>
-<ul className="list-disc pl-6 space-y-2">
-<li>To create accounts, authenticate users, prevent account takeover, and provide role-based access.</li>
-<li>To verify creators and brands, calculate trust scores, enforce tier limits, and reduce fraud.</li>
-<li>To run campaigns, applications, deals, contracts, payments, refunds, withdrawals, and disputes.</li>
-<li>To support GST, ITR, TDS, payout, invoice, audit, accounting, and legal record requirements.</li>
-<li>To comply with KYC, fraud-prevention, anti-abuse, taxation, payment, and lawful request obligations.</li>
-<li>To send OTPs, security alerts, payment notifications, deal updates, and support responses.</li>
-<li>To improve matching, analytics, PWA reliability, content verification, and platform safety.</li>
-</ul>
-</section>
+      {/* 6 */}
+      <LegalSection id="security-retention" heading="6. Security &amp; Statutory Retention">
+        <p>
+          All sensitive identifiers (such as bank details and PANs) are encrypted at rest using AES-256 and transmitted exclusively via TLS 1.3. We implement strict role-based access control (RBAC), multi-factor session authentication, rate-limiting, and real-time security event auditing.
+        </p>
+        <p>
+          Users must safeguard their passwords and OTPs. VyaparMedia employees will never solicit your password, two-factor OTP, or UPI PIN via call, WhatsApp, or direct message.
+        </p>
+      </LegalSection>
 
-<section>
-<h2 className="terms-heading">4. Consent, lawful use, and user rights</h2>
-<p>
-We process personal data for account performance, consent-based actions,
-security, legal compliance, and other lawful platform purposes. Where consent
-is required, you can withdraw it through account settings or by contacting us.
-You may request access, correction, deletion, grievance redressal, or nomination
-support as available under applicable Indian data protection law.
-</p>
-<p>
-Some requests may be limited where we must retain payment, tax, KYC, dispute,
-fraud-prevention, audit, or legal records. If account deletion is approved, we
-may anonymize operational profile data while retaining statutory financial and
-security records.
-</p>
-</section>
+      {/* 7 */}
+      <LegalSection id="automated" heading="7. Automated Checks &amp; DRS™ Scoring">
+        <p>
+          VyaparMedia applies automated algorithmic checks to compute creator reliability and detect fraud. Our system evaluates engagement consistency, comment semantic health, follower velocity, and past deal fulfillment rates. If you believe your DRS™ trust tier has been impacted by an algorithmic anomaly, you may request a manual human review via the Help Center.
+        </p>
+      </LegalSection>
 
-<section>
-<h2 className="terms-heading">5. Sharing with service providers</h2>
-<p>
-We do not sell personal data. We share limited data with providers who help us
-operate the service, including Supabase/Postgres hosting, Upstash Redis,
-Cloudflare R2 or S3 storage, Vercel hosting, Razorpay payments, email delivery,
-WhatsApp/SMS OTP delivery, KYC providers, analytics/observability tools, social
-platform APIs, legal/accounting advisors, and law enforcement or regulators
-when required.
-</p>
-<p>
-Providers are expected to process data only for authorized service purposes.
-Cross-border processing may occur where hosting, analytics, support, payment,
-or verification providers operate outside India, subject to applicable law and
-contractual safeguards.
-</p>
-</section>
+      {/* 8 */}
+      <LegalSection id="children" heading="8. Age Eligibility &amp; Minor Protection">
+        <p>
+          VyaparMedia is strictly an enterprise commercial marketplace. Users must be at least 18 years of age to open an account, accept brand contracts, or receive financial disbursements. If we identify that an account belongs to a minor without parental/guardian guardianship contracts, the account will be immediately paused.
+        </p>
+      </LegalSection>
 
-<section>
-<h2 className="terms-heading">6. Security and retention</h2>
-<p>
-We use access controls, encryption, token revocation, rate limits, audit logs,
-fraud checks, and least-privilege workflows. We retain records only for as long
-as needed for platform operations, dispute handling, statutory retention, tax,
-accounting, fraud prevention, and legal obligations. Financial, tax, and audit
-records may be retained even after account deletion where the law requires it.
-</p>
-<p>
-No online system is risk-free. Users must keep passwords, OTPs, devices, and
-linked email or phone accounts secure and must report suspected unauthorized
-access promptly.
-</p>
-</section>
-
-<section>
-<h2 className="terms-heading">7. Automated checks and trust scoring</h2>
-<p>
-VyaparMedia may use rule-based and automated checks for fraud prevention,
-content verification, trust scoring, limits, dispute triage, payout review,
-and account security. These systems may use account history, verification
-status, delivery timelines, complaint patterns, payment events, and social
-platform signals. You can contact support if you believe an automated action
-is incorrect.
-</p>
-</section>
-
-<section>
-<h2 className="terms-heading">8. Children and prohibited use</h2>
-<p>
-VyaparMedia is intended for users who can enter into binding commercial
-relationships. Users under 18 may not create creator, brand, or admin accounts.
-If we learn that a minor has created an account, we may suspend the account and
-delete non-essential data.
-</p>
-</section>
-
-<section>
-<h2 className="terms-heading">9. Contact and grievance redressal</h2>
-<p>
-For privacy requests, account deletion, correction, consent withdrawal, or
-grievance escalation, contact us at{" "}
-<a href="mailto:privacy@VyaparMedia.in" className="terms-link">privacy@VyaparMedia.in</a>.
-For legal notices, contact{" "}
-<a href="mailto:legal@VyaparMedia.in" className="terms-link">legal@VyaparMedia.in</a>.
-</p>
-</section>
-</div>
-</div>
-</section>
-</main>
-
-<Footer />
-</div>
-);
+      {/* 9 */}
+      <LegalSection id="contact" heading="9. Grievance Redressal &amp; Contact" highlight>
+        <p>
+          For privacy inquiries, data rectification, or formal grievances under Indian Information Technology regulations, contact our Data Protection and Grievance Cell:
+        </p>
+        <div className="rounded-xl border border-border bg-card p-5 mt-4 space-y-2 text-sm">
+          <p><strong className="text-foreground">Designated Officer:</strong> Grievance Redressal Officer</p>
+          <p>
+            <strong className="text-foreground">Email:</strong>{" "}
+            <a href="mailto:privacy@vyaparmedia.in" className="text-primary font-bold hover:underline">
+              privacy@vyaparmedia.in
+            </a>
+          </p>
+          <p><strong className="text-foreground">Address:</strong> VyaparMedia Technologies Pvt. Ltd., Outer Ring Road, Bellandur, Bengaluru, Karnataka 560103</p>
+          <p className="text-xs text-muted-foreground pt-1">
+            Grievances are acknowledged within 24 hours and addressed within 15 working days.
+          </p>
+        </div>
+      </LegalSection>
+    </LegalLayout>
+  );
 }

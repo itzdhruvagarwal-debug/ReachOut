@@ -76,8 +76,8 @@ export default function MobileBottomBar({
           aria-label={createAction.ariaLabel}
           className="group flex items-center gap-1.5 px-4 py-2.5 min-h-[44px] rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 font-semibold text-xs border border-primary/20 hover:scale-105 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 touch-target-44"
         >
-          <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center">
-            <Plus className="w-3.5 h-3.5 stroke-[3] text-white" />
+          <div className="w-5 h-5 rounded-full bg-primary-foreground/20 flex items-center justify-center">
+            <Plus className="w-3.5 h-3.5 stroke-[3] text-primary-foreground" />
           </div>
           <span className="tracking-tight">{createAction.shortLabel}</span>
         </Link>

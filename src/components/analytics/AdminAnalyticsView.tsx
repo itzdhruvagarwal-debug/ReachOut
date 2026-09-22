@@ -116,7 +116,7 @@ animate="show"
 >
 {/* Header / System Status */}
 <motion.div variants={itemVariants} className="flex justify-end">
-<div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-xl">
+<div className="flex items-center gap-2 px-4 py-2 bg-card/60 border border-border rounded-full backdrop-blur-xl">
 <div className={`w-2.5 h-2.5 rounded-full shadow-lg animate-pulse ${getStatusColor(data.systemHealth.status)}`} />
 <span className={`text-sm font-semibold tracking-wide ${getStatusTextColor(data.systemHealth.status)}`}>
 System Status: {data.systemHealth.status}
@@ -157,20 +157,20 @@ textColor="text-emerald-400"
 </div>
 
 {/* Financial Overview */}
-<motion.div variants={itemVariants} className="card relative overflow-hidden group border border-white/10 glass">
+<motion.div variants={itemVariants} className="card relative overflow-hidden group border border-border glass">
 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 <div className="relative z-10 p-6 sm:p-8">
 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-6">
-<h2 className="text-xl font-bold flex items-center gap-2">
+<h2 className="text-xl font-bold flex items-center gap-2 text-foreground">
 Financial Performance
 </h2>
 <div className="flex flex-wrap gap-8">
 <div className="flex flex-col">
-<span className="text-sm text-gray-400 font-medium">Total GMV</span>
-<span className="text-2xl font-bold tracking-tight text-white">{fmt(data.financials.totalGMV)}</span>
+<span className="text-sm text-muted-foreground font-medium">Total GMV</span>
+<span className="text-2xl font-bold tracking-tight text-foreground">{fmt(data.financials.totalGMV)}</span>
 </div>
 <div className="flex flex-col">
-<span className="text-sm text-gray-400 font-medium">Total Revenue</span>
+<span className="text-sm text-muted-foreground font-medium">Total Revenue</span>
 <span className="text-2xl font-bold tracking-tight text-emerald">
 {fmt(data.financials.totalRevenue)}
 </span>
@@ -182,10 +182,10 @@ Financial Performance
 {chartsReady && (
 <ResponsiveContainer width="100%" height={350} minWidth={0}>
 <BarChart data={data.financials.revenueHistory} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-<CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-white/5" vertical={false} />
-<XAxis dataKey="month" stroke="currentColor" className="text-gray-400 text-xs" tickFormatter={(str) => str.slice(0, 3)} axisLine={false} tickLine={false} dy={10} />
-<YAxis yAxisId="left" stroke="currentColor" className="text-gray-400 text-xs" tickFormatter={(val) => `Rs ${val / 1000}k`} axisLine={false} tickLine={false} dx={-10} />
-<YAxis yAxisId="right" orientation="right" stroke="currentColor" className="text-gray-400 text-xs" tickFormatter={(val) => `Rs ${val / 1000}k`} axisLine={false} tickLine={false} dx={10} />
+<CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border/40" vertical={false} />
+<XAxis dataKey="month" stroke="currentColor" className="text-muted-foreground text-xs" tickFormatter={(str) => str.slice(0, 3)} axisLine={false} tickLine={false} dy={10} />
+<YAxis yAxisId="left" stroke="currentColor" className="text-muted-foreground text-xs" tickFormatter={(val) => `Rs ${val / 1000}k`} axisLine={false} tickLine={false} dx={-10} />
+<YAxis yAxisId="right" orientation="right" stroke="currentColor" className="text-muted-foreground text-xs" tickFormatter={(val) => `Rs ${val / 1000}k`} axisLine={false} tickLine={false} dx={10} />
 <Tooltip
 cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
 formatter={(value: number | undefined) => [fmt(value ?? 0), ""]}
@@ -214,10 +214,10 @@ formatter={(value: number | undefined) => [fmt(value ?? 0), ""]}
 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
 {/* User Growth Chart */}
-<motion.div variants={itemVariants} className="card lg:col-span-2 relative overflow-hidden group border border-white/10 glass p-6 sm:p-8">
+<motion.div variants={itemVariants} className="card lg:col-span-2 relative overflow-hidden group border border-border glass p-6 sm:p-8">
 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 <div className="relative z-10">
-<h3 className="text-lg font-bold mb-6 text-white tracking-tight">User Growth (30 Days)</h3>
+<h3 className="text-lg font-bold mb-6 text-foreground tracking-tight">User Growth (30 Days)</h3>
 <div className="w-full h-280">
 {chartsReady && (
 <ResponsiveContainer width="100%" height={280} minWidth={0}>
@@ -228,9 +228,9 @@ formatter={(value: number | undefined) => [fmt(value ?? 0), ""]}
 <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
 </linearGradient>
 </defs>
-<CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-white/5" vertical={false} />
-<XAxis dataKey="date" stroke="currentColor" className="text-gray-400 text-xs" tickFormatter={(str) => str.slice(5)} axisLine={false} tickLine={false} dy={10} />
-<YAxis stroke="currentColor" className="text-gray-400 text-xs" axisLine={false} tickLine={false} dx={-10} />
+<CartesianGrid strokeDasharray="3 3" stroke="currentColor" className="text-border/40" vertical={false} />
+<XAxis dataKey="date" stroke="currentColor" className="text-muted-foreground text-xs" tickFormatter={(str) => str.slice(5)} axisLine={false} tickLine={false} dy={10} />
+<YAxis stroke="currentColor" className="text-muted-foreground text-xs" axisLine={false} tickLine={false} dx={-10} />
 <Tooltip />
 <Line type="monotone" dataKey="total" stroke="#3b82f6" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} name="New Users" />
 <Line type="monotone" dataKey="brand" stroke="#8b5cf6" strokeWidth={3} dot={false} name="Brands" />
@@ -243,10 +243,10 @@ formatter={(value: number | undefined) => [fmt(value ?? 0), ""]}
 </motion.div>
 
 {/* System Health */}
-<motion.div variants={itemVariants} className="card relative overflow-hidden group border border-white/10 glass p-6 sm:p-8">
+<motion.div variants={itemVariants} className="card relative overflow-hidden group border border-border glass p-6 sm:p-8">
 <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 <div className="relative z-10 flex flex-col h-full">
-<h3 className="text-lg font-bold mb-6 text-white tracking-tight flex items-center gap-2">
+<h3 className="text-lg font-bold mb-6 text-foreground tracking-tight flex items-center gap-2">
 Health & Risk
 </h3>
 <div className="flex flex-col gap-4 flex-grow justify-center">
@@ -270,7 +270,7 @@ label="Open Disputes"
 value={data.activity.disputesOpen}
 color={data.activity.disputesOpen > 5 ? "text-rose" : "text-emerald"}
 />
-<div className="h-px w-full bg-white/10 my-2" />
+<div className="h-px w-full bg-border my-2" />
 <HealthRow
 label="K-Factor"
 value={data.growthMetrics.kFactor.toFixed(2)}
@@ -296,7 +296,7 @@ function MetricCard({ icon, label, value, gradient, textColor }: MetricCardProps
 return (
 <motion.div variants={itemVariants} className="relative group">
 <div className={`absolute inset-0 bg-gradient-to-br ${gradient} rounded-2xl blur-xl opacity-50 group-hover:opacity-100 transition-opacity duration-500`} />
-<div className="relative bg-card card glass border border-card rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300">
+<div className="relative bg-card card glass border border-border rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300">
 <div className="flex justify-between items-start">
 <div className="flex flex-col">
 <span className="text-sm font-medium text-secondary mb-1">{label}</span>
@@ -311,8 +311,8 @@ return (
 
 function HealthRow({ label, value, color }: Readonly<{ label: string; value: string | number; color: string }>) {
 return (
-<div className="flex justify-between items-center bg-white/5 rounded-lg p-3 border border-white/5 transition-colors hover:bg-white/10">
-<span className="text-sm font-medium text-gray-300">{label}</span>
+<div className="flex justify-between items-center bg-secondary/60 rounded-lg p-3 border border-border transition-colors hover:bg-muted">
+<span className="text-sm font-medium text-muted-foreground">{label}</span>
 <span className={`text-base font-bold drop-shadow-sm ${color}`}>{value}</span>
 </div>
 );

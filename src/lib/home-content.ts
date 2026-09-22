@@ -1,43 +1,4 @@
 
-export const homeFeatures = [
-  {
-    icon: "PAY",
-    title: "Secured Escrow Payments",
-    description:
-      "100% upfront escrow locking. Creators produce content with complete peace of mind knowing funds are secured and guaranteed.",
-  },
-  {
-    icon: "TR",
-    title: "Verified Trust & KYC",
-    description:
-      "Aadhaar, PAN, GSTIN, and live social API checks eliminate fraud, fake followers, and unverified businesses.",
-  },
-  {
-    icon: "CT",
-    title: "Smart Digital Contracts",
-    description:
-      "Automated contracts cover deliverables, posting timelines, commercial usage rights, revisions, and tax terms before deal signing.",
-  },
-  {
-    icon: "MT",
-    title: "High-ROI Creator Matching",
-    description:
-      "Brands discover verified creators by niche, authentic engagement, target geography, and real follower demographics.",
-  },
-  {
-    icon: "PV",
-    title: "Live Post Verification",
-    description:
-      "Automated system tracks live Instagram & YouTube links to ensure required hashtags, brand mentions, and duration compliance.",
-  },
-  {
-    icon: "XP",
-    title: "Vyapar Trust & Rewards",
-    description:
-      "Earn DRS trust points, unlock higher monthly tiers, and gain platform fee discounts through on-time deliveries.",
-  },
-];
-
 export const homeSteps = [
   {
     forInfluencer: {
