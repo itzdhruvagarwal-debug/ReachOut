@@ -24,18 +24,24 @@ export function FinancialOverviewBar({
 }: Readonly<FinancialOverviewBarProps>) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-pulse">
+      <section aria-label="Financial overview loading" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="h-36 rounded-2xl bg-card border border-border p-5 flex flex-col justify-between"
+            className="h-36 rounded-2xl bg-card border border-border p-5 flex flex-col justify-between animate-pulse"
           >
-            <div className="w-24 h-4 bg-muted rounded" />
-            <div className="w-40 h-8 bg-muted rounded" />
-            <div className="w-28 h-3 bg-muted rounded" />
+            <div className="flex items-center justify-between">
+              <div className="w-28 h-4 bg-muted rounded-md" />
+              <div className="w-14 h-4 bg-muted rounded-full" />
+            </div>
+            <div className="w-44 h-8 bg-muted rounded-lg" />
+            <div className="flex items-center justify-between pt-2 border-t border-border/40">
+              <div className="w-24 h-3 bg-muted rounded-md" />
+              <div className="w-16 h-3 bg-muted rounded-md" />
+            </div>
           </div>
         ))}
-      </div>
+      </section>
     );
   }
 
@@ -49,8 +55,8 @@ export function FinancialOverviewBar({
 
   return (
     <section aria-label="Financial overview" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {/* 1. AVAILABLE BALANCE (HERO CARD - JUPITER / CRED STYLE) */}
-      <div className="relative overflow-hidden rounded-2xl border border-primary/30 bg-card p-5 shadow-sm flex flex-col justify-between group hover:border-primary/60 transition-all">
+      {/* 1. AVAILABLE BALANCE CARD (CRED / JUPITER STYLE) */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col justify-between group hover:border-primary/50 transition-all">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5">
@@ -72,13 +78,13 @@ export function FinancialOverviewBar({
           </p>
         </div>
 
-        <div className="pt-4 flex items-center gap-2 border-t border-border/50 mt-4">
+        <div className="pt-4 flex items-center gap-2 border-t border-border/60 mt-4">
           {isBrand ? (
             <Button
               href="/dashboard/wallet"
               variant="primary"
               size="sm"
-              className="text-xs font-bold gap-1 shadow-sm w-full sm:w-auto"
+              className="text-xs font-bold gap-1 shadow-xs w-full sm:w-auto"
             >
               <Plus className="w-3.5 h-3.5" /> Add Funds
             </Button>
@@ -87,7 +93,7 @@ export function FinancialOverviewBar({
               href="/dashboard/wallet"
               variant="primary"
               size="sm"
-              className="text-xs font-bold gap-1 shadow-sm w-full sm:w-auto"
+              className="text-xs font-bold gap-1 shadow-xs w-full sm:w-auto"
             >
               <ArrowUpRight className="w-3.5 h-3.5" /> Withdraw
             </Button>
@@ -103,15 +109,15 @@ export function FinancialOverviewBar({
         </div>
       </div>
 
-      {/* 2. ESCROW PROTECTED (COLLABR / CRED STYLE) */}
-      <div className="rounded-2xl border border-escrow-border bg-escrow-muted p-5 shadow-sm flex flex-col justify-between">
+      {/* 2. ESCROW PROTECTED VAULT (COLLABR / CRED STYLE) */}
+      <div className="rounded-2xl border border-escrow-border bg-escrow-muted p-5 shadow-xs flex flex-col justify-between">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-escrow flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5" />
               Locked in Escrow
             </span>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-escrow/20 text-escrow font-bold">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-escrow/15 text-escrow font-bold">
               Safe Vault
             </span>
           </div>
@@ -140,7 +146,7 @@ export function FinancialOverviewBar({
       </div>
 
       {/* 3. LIFETIME VOLUME & TRUST REPUTATION (PHONEPE / CRED STYLE) */}
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm flex flex-col justify-between sm:col-span-2 lg:col-span-1">
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-xs flex flex-col justify-between sm:col-span-2 lg:col-span-1">
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
@@ -166,7 +172,7 @@ export function FinancialOverviewBar({
             <span className="text-xs font-bold text-foreground">
               DRS: <span className="font-mono text-primary font-extrabold">{trustScore}</span>
             </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-medium">
               {trustTier}
             </span>
           </div>

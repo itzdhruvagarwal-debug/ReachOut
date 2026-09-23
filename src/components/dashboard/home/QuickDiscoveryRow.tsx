@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import useSWR from "swr";
 import { formatCurrency } from "@/lib/utils-client";
-import { Sparkles, ArrowRight, ShieldCheck, Compass, Users, ChevronRight } from "lucide-react";
+import { ShieldCheck, Compass, Users, ChevronRight } from "lucide-react";
 import { Button, Badge } from "@/components/ui";
 
 interface QuickDiscoveryRowProps {
@@ -73,7 +73,7 @@ export function QuickDiscoveryRow({ isBrand, isInfluencer }: Readonly<QuickDisco
             rawCampaigns.slice(0, 3).map((camp) => (
               <article
                 key={camp.id}
-                className="rounded-2xl border border-border bg-card p-4 shadow-sm hover:border-primary/50 transition-all flex flex-col justify-between group"
+                className="rounded-2xl border border-border bg-card p-4 shadow-xs hover:border-primary/50 transition-all flex flex-col justify-between group"
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
@@ -122,7 +122,7 @@ export function QuickDiscoveryRow({ isBrand, isInfluencer }: Readonly<QuickDisco
             rawInfluencers.slice(0, 3).map((inf) => (
               <article
                 key={inf.id}
-                className="rounded-2xl border border-border bg-card p-4 shadow-sm hover:border-primary/50 transition-all flex flex-col justify-between group"
+                className="rounded-2xl border border-border bg-card p-4 shadow-xs hover:border-primary/50 transition-all flex flex-col justify-between group"
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">

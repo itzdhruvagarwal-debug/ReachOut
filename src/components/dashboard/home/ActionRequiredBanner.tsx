@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useMemo } from "react";
-import Link from "next/link";
 import { type RawDealItem } from "@/lib/schemas";
 import { ShieldCheck, AlertTriangle, Clock, ArrowRight, CheckCircle2, Zap } from "lucide-react";
 import { Button } from "@/components/ui";
@@ -114,11 +113,11 @@ export function ActionRequiredBanner({
     return (
       <section
         aria-label="Action required notification"
-        className="relative overflow-hidden rounded-2xl border border-pending-border bg-pending-muted p-4 sm:p-5 shadow-sm transition-all"
+        className="relative overflow-hidden rounded-2xl border border-pending-border bg-pending-muted p-4 sm:p-5 shadow-xs transition-all"
       >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pending text-card shadow-sm">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-pending text-card shadow-xs">
               <AlertTriangle className="h-5 w-5" />
             </div>
             <div>
@@ -127,7 +126,7 @@ export function ActionRequiredBanner({
                   <Zap className="w-3 h-3 fill-current" /> Priority Action
                 </span>
                 {remainingCount > 0 && (
-                  <span className="inline-flex items-center rounded-full bg-pending/20 px-2 py-0.5 text-[10px] font-bold text-pending">
+                  <span className="inline-flex items-center rounded-full bg-pending/15 px-2 py-0.5 text-[10px] font-bold text-pending">
                     +{remainingCount} more in queue
                   </span>
                 )}
@@ -148,7 +147,7 @@ export function ActionRequiredBanner({
                 href={topItem.href}
                 variant="primary"
                 size="sm"
-                className="font-bold text-xs gap-1.5 shadow-sm"
+                className="font-bold text-xs gap-1.5 shadow-xs"
               >
                 {topItem.actionLabel}
                 <ArrowRight className="w-3.5 h-3.5" />

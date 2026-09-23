@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Sparkles,
   ChevronRight,
+  Flame,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui";
 
@@ -75,6 +76,18 @@ function getBadgeVariant(tone: string): "primary" | "success" | "danger" | "warn
   }
 }
 
+function checkIsDueSoon(deadlineStr?: string | null): boolean {
+  if (!deadlineStr) return false;
+  try {
+    const deadline = new Date(deadlineStr).getTime();
+    const now = Date.now();
+    const diffHours = (deadline - now) / (1000 * 60 * 60);
+    return diffHours > 0 && diffHours <= 48;
+  } catch {
+    return false;
+  }
+}
+
 export function ActiveDealsFeed({
   deals,
   isLoading,
@@ -83,24 +96,24 @@ export function ActiveDealsFeed({
 }: Readonly<ActiveDealsFeedProps>) {
   if (isLoading) {
     return (
-      <div className="space-y-3.5 animate-pulse">
-        <div className="h-6 w-48 bg-muted rounded" />
+      <section aria-label="Active collaborations loading" className="space-y-3.5">
+        <div className="h-6 w-48 bg-muted rounded-md animate-pulse" />
         {[1, 2, 3].map((i) => (
           <div
             key={i}
-            className="rounded-2xl border border-border bg-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
+            className="rounded-2xl border border-border bg-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 animate-pulse"
           >
             <div className="flex items-center gap-3.5">
               <div className="w-12 h-12 rounded-full bg-muted shrink-0" />
               <div className="space-y-2">
-                <div className="w-48 h-4 bg-muted rounded" />
-                <div className="w-32 h-3 bg-muted rounded" />
+                <div className="w-48 h-4 bg-muted rounded-md" />
+                <div className="w-32 h-3 bg-muted rounded-md" />
               </div>
             </div>
-            <div className="w-28 h-8 bg-muted rounded" />
+            <div className="w-28 h-8 bg-muted rounded-lg" />
           </div>
         ))}
-      </div>
+      </section>
     );
   }
 
@@ -127,7 +140,7 @@ export function ActiveDealsFeed({
           href={isBrand ? "/dashboard/campaigns/create" : "/dashboard/campaigns"}
           variant="primary"
           size="md"
-          className="font-bold text-xs sm:text-sm gap-1.5 shadow-sm"
+          className="font-bold text-xs sm:text-sm gap-1.5 shadow-xs"
         >
           {isBrand ? "Create New Campaign" : "Discover Open Campaigns"}
           <ArrowRight className="w-4 h-4" />
@@ -173,11 +186,12 @@ export function ActiveDealsFeed({
           const deliverables = normalizeDeliverables(deal.deliverables || deal.campaign?.deliverables);
           const dealAmount = deal.amount ?? deal.totalAmount ?? 0;
           const deadline = deal.postingDeadline || deal.campaign?.postingDeadline;
+          const dueSoon = checkIsDueSoon(deadline);
 
           return (
             <article
               key={deal.id}
-              className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-sm hover:border-primary/40 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+              className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs hover:border-primary/50 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
               {/* Left: Avatar & Collaboration Metadata */}
               <div className="flex items-start sm:items-center gap-3.5">
@@ -203,6 +217,11 @@ export function ActiveDealsFeed({
                       {badgeConfig.icon}
                       {badgeConfig.label}
                     </Badge>
+                    {dueSoon && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pending-muted text-pending border border-pending-border">
+                        <Flame className="w-3 h-3 fill-current" /> Due Soon
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
@@ -258,7 +277,7 @@ export function ActiveDealsFeed({
                     href={`/dashboard/deals/${deal.id}`}
                     variant="primary"
                     size="sm"
-                    className="font-bold text-xs gap-1 shadow-sm"
+                    className="font-bold text-xs gap-1 shadow-xs"
                   >
                     Manage
                     <ArrowRight className="w-3.5 h-3.5" />

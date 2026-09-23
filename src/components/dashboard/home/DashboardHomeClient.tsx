@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import useSWR from "swr";
 import { type Session } from "next-auth";
 import { createSchemaFetcher } from "@/lib/fetcher";
@@ -12,6 +13,7 @@ import {
 } from "@/lib/schemas";
 import { useWallet } from "@/hooks/api/useWallet";
 import { isBrand as checkIsBrand, isInfluencer as checkIsInfluencer } from "@/lib/rbac";
+import { formatCurrency } from "@/lib/utils-client";
 import { ActionRequiredBanner } from "./ActionRequiredBanner";
 import { FinancialOverviewBar } from "./FinancialOverviewBar";
 import { ActiveDealsFeed, filterActiveDeals } from "./ActiveDealsFeed";
@@ -20,7 +22,7 @@ import { DashboardStoriesBar } from "./DashboardStoriesBar";
 import AnalyticsPageClient from "@/app/dashboard/analytics/AnalyticsPageClient";
 import type { InfluencerAnalyticsData } from "@/components/analytics/InfluencerDashboard";
 import type { BrandAnalyticsData } from "@/components/analytics/BrandDashboard";
-import { ShieldCheck, LayoutDashboard, BarChart3 } from "lucide-react";
+import { ShieldCheck, LayoutDashboard, BarChart3, Wallet, Lock, Layers } from "lucide-react";
 
 interface DashboardHomeClientProps {
   user: Session["user"];
@@ -64,62 +66,107 @@ export default function DashboardHomeClient({
   const trustScore = influencerData?.overview.trustScore ?? brandData?.overview.trustScore ?? 750;
   const level = influencerData?.overview.level ?? 1;
   const escrowBalancePaise = walletData?.totalHeld ?? walletData?.pendingBalance ?? 0;
+  const availableBalancePaise = walletData?.balance ?? 0;
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto pb-12">
-      {/* 1. TOP GREETING & VIEW SWITCHER (INSTAGRAM / COLLABR STYLE) */}
-      <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
-        <div className="flex items-center gap-3.5">
-          <div className="relative w-12 h-12 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 shrink-0 flex items-center justify-center text-primary font-bold text-lg">
-            {userAvatar ? (
-              <Image src={userAvatar} alt={displayName} fill className="object-cover" />
-            ) : (
-              <span>{displayName[0]?.toUpperCase() || "U"}</span>
-            )}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
-                Welcome back, {displayName}
-              </h1>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-verified-muted text-verified">
-                <ShieldCheck className="w-3.5 h-3.5" /> Verified
-              </span>
+      {/* 1. TOP GREETING & VIEW SWITCHER (INSTAGRAM + KOFLUENCE STYLE) */}
+      <header className="flex flex-col gap-4 border-b border-border pb-5">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          {/* Creator/Brand identity */}
+          <div className="flex items-center gap-3.5">
+            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-primary/10 border-2 border-primary/20 shrink-0 flex items-center justify-center text-primary font-bold text-lg shadow-xs">
+              {userAvatar ? (
+                <Image src={userAvatar} alt={displayName} fill className="object-cover" />
+              ) : (
+                <span>{displayName[0]?.toUpperCase() || "U"}</span>
+              )}
             </div>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              {isBrand
-                ? "Manage campaigns, approve deliverables, and fund escrow-backed collaborations."
-                : "Track your deliverables, verified brand deals, and instant escrow settlements."}
-            </p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight">
+                  Welcome back, {displayName}
+                </h1>
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-verified-muted text-verified border border-verified-border">
+                  <ShieldCheck className="w-3.5 h-3.5" /> Verified
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                {isBrand
+                  ? "Manage campaigns, approve deliverables, and fund escrow-backed collaborations."
+                  : "Track your deliverables, verified brand deals, and instant escrow settlements."}
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* View Switcher: Action Feed vs Deep-Dive Analytics */}
-        <div className="flex items-center bg-muted p-1 rounded-xl self-start sm:self-center border border-border">
-          <button
-            type="button"
-            onClick={() => setActiveView("feed")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeView === "feed"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <LayoutDashboard className="w-3.5 h-3.5" />
-            Action Feed
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveView("analytics")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              activeView === "analytics"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            Analytics &amp; FY Reports
-          </button>
+          {/* Right Action Bar: Kofluence Hero Stats & View Switcher */}
+          <div className="flex flex-wrap items-center gap-3 self-start lg:self-center">
+            {/* Pinned quick KPI chips (Kofluence pattern) */}
+            <div className="flex items-center gap-2">
+              {isInfluencer && (
+                <Link
+                  href="/dashboard/wallet"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border shadow-xs hover:border-primary/50 transition-colors"
+                >
+                  <Wallet className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[11px] text-muted-foreground font-medium">Available:</span>
+                  <span className="text-xs font-mono font-extrabold text-foreground tabular-nums">
+                    {formatCurrency(availableBalancePaise)}
+                  </span>
+                </Link>
+              )}
+              {isBrand && (
+                <Link
+                  href="/dashboard/deals"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border shadow-xs hover:border-primary/50 transition-colors"
+                >
+                  <Layers className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[11px] text-muted-foreground font-medium">Active:</span>
+                  <span className="text-xs font-mono font-extrabold text-foreground tabular-nums">
+                    {activeDeals.length} Deals
+                  </span>
+                </Link>
+              )}
+              <Link
+                href="/dashboard/wallet"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-escrow-muted border border-escrow-border text-escrow shadow-xs hover:bg-escrow/15 transition-colors"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-medium">Escrow:</span>
+                <span className="text-xs font-mono font-extrabold tabular-nums">
+                  {formatCurrency(escrowBalancePaise)}
+                </span>
+              </Link>
+            </div>
+
+            {/* View Switcher: Action Feed vs Deep-Dive Analytics */}
+            <div className="flex items-center bg-muted p-1 rounded-xl border border-border">
+              <button
+                type="button"
+                onClick={() => setActiveView("feed")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeView === "feed"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                Action Feed
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveView("analytics")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  activeView === "analytics"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Analytics &amp; FY Reports
+              </button>
+            </div>
+          </div>
         </div>
       </header>
 
