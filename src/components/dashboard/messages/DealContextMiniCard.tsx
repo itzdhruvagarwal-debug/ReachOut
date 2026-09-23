@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
-import { Shield, ChevronDown, ChevronUp, ExternalLink, Lock } from "lucide-react";
+import { Lock, Shield, AlertTriangle, ExternalLink, Clock } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils-client";
 
 export interface DealContextData {
@@ -19,12 +19,18 @@ export interface DealContextMiniCardProps {
   deal: DealContextData | null;
 }
 
-export function DealContextMiniCard({ deal }: Readonly<DealContextMiniCardProps>) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  if (!deal) return null;
-
-  const isDisputed = deal.status === "DISPUTED";
+function getDealStatusConfig(status: string): {
+  label: string;
+  colorClass: string;
+  bgClass: string;
+  borderClass: string;
+  icon: React.ReactNode;
+} {
+  const isDisputed = status === "DISPUTED";
+  const isPending =
+    status === "PENDING_SIGNATURE" ||
+    status === "PENDING_PAYMENT" ||
+    status === "AWAITING_SIGNATURE";
   const isEscrowLocked = [
     "PAYMENT_HELD",
     "ACTIVE",
@@ -33,76 +39,100 @@ export function DealContextMiniCard({ deal }: Readonly<DealContextMiniCardProps>
     "CONTENT_APPROVED",
     "POSTED",
     "VERIFIED",
-  ].includes(deal.status);
+  ].includes(status);
+
+  if (isDisputed) {
+    return {
+      label: "Dispute Active",
+      colorClass: "text-disputed",
+      bgClass: "bg-disputed-muted",
+      borderClass: "border-disputed-border",
+      icon: <AlertTriangle className="w-3 h-3" />,
+    };
+  }
+  if (isPending) {
+    return {
+      label: "Awaiting Signature",
+      colorClass: "text-pending",
+      bgClass: "bg-pending-muted",
+      borderClass: "border-pending-border",
+      icon: <Clock className="w-3 h-3" />,
+    };
+  }
+  if (isEscrowLocked) {
+    return {
+      label: "Escrow Protected",
+      colorClass: "text-escrow",
+      bgClass: "bg-escrow-muted",
+      borderClass: "border-escrow-border",
+      icon: <Lock className="w-3 h-3" />,
+    };
+  }
+  return {
+    label: status.toLowerCase().replaceAll("_", " "),
+    colorClass: "text-muted-foreground",
+    bgClass: "bg-muted",
+    borderClass: "border-border",
+    icon: <Shield className="w-3 h-3" />,
+  };
+}
+
+/**
+ * DealContextMiniCard — Collabr-style sticky pinned deal banner.
+ * Renders as a compact always-visible bar at the top of the chat panel
+ * (above the message scroll area). Color-coded by deal status.
+ */
+export function DealContextMiniCard({ deal }: Readonly<DealContextMiniCardProps>) {
+  if (!deal) return null;
+
+  const { label, colorClass, bgClass, borderClass, icon } = getDealStatusConfig(deal.status);
 
   return (
-    <aside aria-label="Pinned escrow deal summary" className="border-b border-border bg-card/80 transition-all">
-      {/* Compact Pinned Header Bar */}
-      <div className="flex items-center justify-between px-4 py-2.5 text-xs">
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-escrow-muted text-escrow border border-escrow-border font-bold shrink-0">
-            <Lock className="w-3 h-3" />
-            <span>Escrow Protected</span>
-          </div>
-          <span className="font-bold text-foreground truncate max-w-[140px] sm:max-w-xs">
-            {deal.title}
-          </span>
-          <span className="font-extrabold text-foreground tabular-nums font-mono shrink-0">
-            {formatCurrency(deal.amountInPaise)}
-          </span>
-        </div>
+    <aside
+      aria-label="Pinned deal context"
+      className={`shrink-0 flex items-center justify-between gap-2 px-4 py-2 border-b ${borderClass} ${bgClass} transition-colors`}
+    >
+      {/* Left: Status pill + deal info */}
+      <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
+        {/* Status chip */}
+        <span
+          className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${colorClass} ${bgClass} ${borderClass}`}
+        >
+          {icon}
+          {label}
+        </span>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href={`/dashboard/deals/${deal.id}`}
-            className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline"
-          >
-            <span>Deal Room</span>
-            <ExternalLink className="w-3 h-3" />
-          </Link>
-          <button
-            type="button"
-            onClick={() => setIsExpanded((prev) => !prev)}
-            aria-label={isExpanded ? "Collapse deal details" : "Expand deal details"}
-            className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
-          >
-            {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          </button>
-        </div>
+        {/* Title */}
+        <span className="font-semibold text-xs text-foreground truncate max-w-[120px] sm:max-w-[220px]">
+          {deal.title}
+        </span>
+
+        {/* Amount */}
+        <span className="font-extrabold text-xs text-foreground tabular-nums font-mono shrink-0">
+          {formatCurrency(deal.amountInPaise)}
+        </span>
+
+        {/* Deadline — only if present */}
+        {deal.submissionDeadline && (
+          <span className="hidden sm:inline-flex items-center gap-1 text-[10px] text-muted-foreground shrink-0">
+            <Clock className="w-3 h-3" />
+            Due{" "}
+            {formatDate(deal.submissionDeadline, "-", {
+              day: "numeric",
+              month: "short",
+            })}
+          </span>
+        )}
       </div>
 
-      {/* Expanded Details Drawer */}
-      {isExpanded && (
-        <div className="px-4 pb-3.5 pt-1.5 text-xs grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-border bg-muted/30">
-          <div>
-            <span className="text-muted-foreground block text-[11px]">Deal Status</span>
-            <span className="font-bold text-foreground capitalize">
-              {deal.status.toLowerCase().replaceAll("_", " ")}
-            </span>
-          </div>
-          <div>
-            <span className="text-muted-foreground block text-[11px]">Escrow State</span>
-            <span className="font-bold text-foreground">
-              {isDisputed
-                ? "Frozen in Dispute"
-                : isEscrowLocked
-                ? "Locked in Escrow"
-                : "Awaiting Signature"}
-            </span>
-          </div>
-          {deal.submissionDeadline && (
-            <div>
-              <span className="text-muted-foreground block text-[11px]">Deadline</span>
-              <span className="font-bold text-foreground">
-                {formatDate(deal.submissionDeadline, "-", {
-                  day: "numeric",
-                  month: "short",
-                })}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Right: Deal Room link */}
+      <Link
+        href={`/dashboard/deals/${deal.id}`}
+        className={`inline-flex items-center gap-1 text-[11px] font-bold ${colorClass} hover:underline shrink-0`}
+      >
+        <span className="hidden sm:inline">Deal Room</span>
+        <ExternalLink className="w-3 h-3" />
+      </Link>
     </aside>
   );
 }

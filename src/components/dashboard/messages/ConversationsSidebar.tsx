@@ -6,7 +6,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { useMessages } from "./useMessages";
 import { Conversation } from "./MessagesHelpers";
 import { formatDate, formatTime } from "@/lib/utils-client";
-import { Search, X, MessageSquare } from "lucide-react";
+import { Search, X } from "lucide-react";
 
 interface ConversationsSidebarProps {
   readonly state: ReturnType<typeof useMessages>;
@@ -18,21 +18,45 @@ function formatConversationTime(timestamp?: string): string {
     const date = new Date(timestamp);
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
-
-    if (isToday) {
-      return formatTime(date);
-    }
-
+    if (isToday) return formatTime(date);
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
-    if (date.toDateString() === yesterday.toDateString()) {
-      return "Yesterday";
-    }
-
+    if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
     return formatDate(date, "", { month: "short", day: "numeric" });
   } catch {
     return "";
   }
+}
+
+/** Instagram-style animated 3-dot typing indicator for sidebar preview */
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label="Typing">
+      <span className="w-1 h-1 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
+      <span className="w-1 h-1 rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
+      <span className="w-1 h-1 rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
+    </span>
+  );
+}
+
+/** Loading skeleton — Instagram DM style rows */
+function SidebarSkeleton() {
+  return (
+    <div className="space-y-0 divide-y divide-border/50" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex items-center gap-3 p-4 animate-pulse">
+          <div className="w-11 h-11 rounded-full bg-muted shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="flex justify-between items-center">
+              <div className="h-3 w-28 bg-muted rounded" />
+              <div className="h-2.5 w-10 bg-muted rounded" />
+            </div>
+            <div className="h-2.5 w-40 bg-muted/60 rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function ConversationsSidebar({ state }: Readonly<ConversationsSidebarProps>) {
@@ -68,38 +92,41 @@ export function ConversationsSidebar({ state }: Readonly<ConversationsSidebarPro
         selectedConversation ? "hidden sm:flex" : "flex"
       }`}
     >
-      {/* Sidebar Header */}
-      <div className="border-b border-border p-4 flex flex-col gap-3">
+      {/* ── Sidebar Header ── */}
+      <div className="border-b border-border px-4 pt-4 pb-3 flex flex-col gap-3 shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg sm:text-xl font-extrabold text-foreground">Messages</h2>
+            <h2 className="text-base font-extrabold text-foreground tracking-tight">
+              Messages
+            </h2>
+            {/* Total unread pill — numbered, like WhatsApp/Instagram */}
             {totalUnread > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary text-primary-foreground font-mono tabular-nums">
-                {totalUnread} new
+              <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black bg-primary text-primary-foreground tabular-nums shadow-sm">
+                {totalUnread > 99 ? "99+" : totalUnread}
               </span>
             )}
           </div>
-          <span className="text-xs text-muted-foreground font-medium">
+          <span className="text-[11px] text-muted-foreground font-medium">
             {conversations.length} {conversations.length === 1 ? "chat" : "chats"}
           </span>
         </div>
 
-        {/* Search input (Instagram DM style) */}
+        {/* Search — Instagram DM pill style */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           <input
             type="text"
-            placeholder="Search conversations..."
+            placeholder="Search conversations…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-9 py-2 rounded-xl border border-input bg-muted/40 text-foreground placeholder:text-muted-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+            className="w-full pl-8 pr-8 py-2 rounded-full border border-input bg-muted/50 text-foreground placeholder:text-muted-foreground text-xs focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
             aria-label="Search conversations"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               aria-label="Clear search"
             >
               <X className="w-3.5 h-3.5" />
@@ -108,16 +135,11 @@ export function ConversationsSidebar({ state }: Readonly<ConversationsSidebarPro
         </div>
       </div>
 
-      {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-border/60">
+      {/* ── Conversations List ── */}
+      <div className="flex-1 overflow-y-auto">
         {(() => {
           if (loadingConversations) {
-            return (
-              <div className="text-center p-8 flex flex-col items-center gap-3">
-                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span className="text-xs text-muted-foreground">Loading chats...</span>
-              </div>
-            );
+            return <SidebarSkeleton />;
           }
 
           if (conversations.length === 0) {
@@ -134,106 +156,121 @@ export function ConversationsSidebar({ state }: Readonly<ConversationsSidebarPro
           if (filteredConversations.length === 0) {
             return (
               <div className="p-6 text-center text-muted-foreground text-xs">
-                No conversations matching &quot;{searchQuery}&quot;
+                No chats matching &quot;{searchQuery}&quot;
               </div>
             );
           }
 
-          return filteredConversations.map((conv: Conversation) => {
-            const isSelected = selectedConversation === conv.userId;
-            const isBrand = conv.userType?.toUpperCase() === "BRAND";
+          return (
+            <div className="divide-y divide-border/50">
+              {filteredConversations.map((conv: Conversation) => {
+                const isSelected = selectedConversation === conv.userId;
+                const isBrand = conv.userType?.toUpperCase() === "BRAND";
+                const hasUnread = conv.unread > 0;
 
-            return (
-              <button
-                key={conv.userId}
-                onClick={() => setSelectedConversation(conv.userId)}
-                type="button"
-                aria-label={(() => {
-                  let unreadText = "";
-                  if (conv.unread > 0) {
-                    const pluralSuffix = conv.unread === 1 ? "" : "s";
-                    unreadText = `, ${conv.unread} unread message${pluralSuffix}`;
-                  }
-                  return `Chat with ${conv.name}${unreadText}`;
-                })()}
-                {...(isSelected ? { "aria-current": "true" as const } : {})}
-                className={`w-full p-3.5 sm:p-4 text-left transition-colors flex items-center gap-3 cursor-pointer ${
-                  isSelected
-                    ? "bg-muted/90 border-l-4 border-primary"
-                    : "hover:bg-muted/40"
-                }`}
-              >
-                {/* Circular Avatar with online/unread status */}
-                <div className="relative shrink-0">
-                  <div className="relative w-11 h-11 rounded-full overflow-hidden bg-muted border border-border flex items-center justify-center text-foreground font-bold text-sm">
-                    {conv.avatar ? (
-                      <Image
-                        src={conv.avatar}
-                        alt={conv.name || "User avatar"}
-                        fill
-                        unoptimized
-                        className="object-cover rounded-full"
-                      />
-                    ) : (
-                      (conv.name || "U").charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  {conv.unread > 0 ? (
-                    <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-primary rounded-full border-2 border-card" />
-                  ) : (
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-verified rounded-full border border-card" />
-                  )}
-                </div>
+                return (
+                  <button
+                    key={conv.userId}
+                    onClick={() => setSelectedConversation(conv.userId)}
+                    type="button"
+                    aria-label={`Chat with ${conv.name}${hasUnread ? `, ${conv.unread} unread` : ""}`}
+                    {...(isSelected ? { "aria-current": "true" as const } : {})}
+                    className={`w-full px-4 py-3.5 text-left flex items-center gap-3 cursor-pointer transition-all ${
+                      isSelected
+                        ? "bg-primary/8 border-l-[3px] border-primary"
+                        : "hover:bg-muted/40 border-l-[3px] border-transparent"
+                    }`}
+                  >
+                    {/* ── Avatar with status indicators ── */}
+                    <div className="relative shrink-0">
+                      <div className="w-11 h-11 rounded-full overflow-hidden bg-muted border border-border flex items-center justify-center text-foreground font-bold text-sm">
+                        {conv.avatar ? (
+                          <Image
+                            src={conv.avatar}
+                            alt={conv.name || "User avatar"}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                          />
+                        ) : (
+                          <span
+                            className={`w-full h-full flex items-center justify-center text-sm font-black ${
+                              isBrand
+                                ? "bg-primary/15 text-primary"
+                                : "bg-verified-muted text-verified"
+                            }`}
+                          >
+                            {(conv.name || "U").charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-center mb-0.5">
-                    <div className="flex items-center gap-1.5 min-w-0 pr-2">
-                      <span className="font-bold text-sm text-foreground truncate max-w-[130px]">
-                        {conv.name}
-                      </span>
-                      <span
-                        className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase ${
-                          isBrand
-                            ? "bg-primary/10 text-primary"
-                            : "bg-verified-muted text-verified"
-                        }`}
-                      >
-                        {isBrand ? "Brand" : "Creator"}
-                      </span>
+                      {/* Online dot — bottom right (green) */}
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-verified rounded-full border-2 border-card" />
                     </div>
-                    <span className="text-muted-foreground text-[10px] font-medium whitespace-nowrap font-mono">
-                      {formatConversationTime(conv.lastMessageTime)}
-                    </span>
-                  </div>
 
-                  <div className="flex justify-between items-center">
-                    <span
-                      className={`text-xs truncate max-w-[170px] ${
-                        conv.unread > 0
-                          ? "text-foreground font-bold"
-                          : "text-muted-foreground font-normal"
-                      }`}
-                    >
-                      {conv.isTyping ? (
-                        <span className="text-primary font-semibold italic flex items-center gap-1">
-                          <span className="animate-pulse">●</span>
-                          <span>Typing...</span>
+                    {/* ── Conversation Info ── */}
+                    <div className="flex-1 min-w-0">
+                      {/* Top row: name + time */}
+                      <div className="flex justify-between items-center mb-0.5">
+                        <div className="flex items-center gap-1.5 min-w-0 pr-2">
+                          <span
+                            className={`text-sm truncate max-w-[120px] ${
+                              hasUnread
+                                ? "font-extrabold text-foreground"
+                                : "font-semibold text-foreground"
+                            }`}
+                          >
+                            {conv.name}
+                          </span>
+                          {/* Role badge */}
+                          <span
+                            className={`text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wide shrink-0 ${
+                              isBrand
+                                ? "bg-primary/10 text-primary"
+                                : "bg-verified-muted text-verified"
+                            }`}
+                          >
+                            {isBrand ? "Brand" : "Creator"}
+                          </span>
+                        </div>
+                        <span className="text-muted-foreground text-[10px] font-medium whitespace-nowrap font-mono shrink-0">
+                          {formatConversationTime(conv.lastMessageTime)}
                         </span>
-                      ) : (
-                        conv.lastMessage || "Start a conversation"
-                      )}
-                    </span>
-                    {conv.unread > 0 && (
-                      <span className="font-extrabold text-primary-foreground text-[10px] rounded-full px-1.5 py-0.2 bg-primary shadow-sm font-mono tabular-nums">
-                        {conv.unread}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </button>
-            );
-          });
+                      </div>
+
+                      {/* Bottom row: last message preview + unread count */}
+                      <div className="flex justify-between items-center gap-2">
+                        <span
+                          className={`text-xs truncate max-w-[160px] ${
+                            hasUnread
+                              ? "text-foreground font-semibold"
+                              : "text-muted-foreground font-normal"
+                          }`}
+                        >
+                          {conv.isTyping ? (
+                            <span className="inline-flex items-center gap-1.5 text-primary font-semibold italic">
+                              <TypingDots />
+                              <span className="text-xs">typing…</span>
+                            </span>
+                          ) : (
+                            conv.lastMessage || "Start a conversation"
+                          )}
+                        </span>
+
+                        {/* Unread count — numbered pill (WhatsApp/Instagram pattern) */}
+                        {hasUnread && (
+                          <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black bg-primary text-primary-foreground tabular-nums shrink-0 shadow-sm">
+                            {conv.unread > 99 ? "99+" : conv.unread}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          );
         })()}
       </div>
     </aside>
