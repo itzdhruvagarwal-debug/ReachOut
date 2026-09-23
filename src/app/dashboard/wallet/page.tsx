@@ -46,7 +46,6 @@ import {
   RefreshCw,
   Plus,
   TrendingUp,
-  Wallet,
   Zap,
   CheckCircle2,
   Copy,
@@ -91,24 +90,24 @@ function WalletHeroSkeleton() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="rounded-2xl bg-card border border-border p-6 sm:p-7 space-y-4">
           <div className="flex justify-between items-center">
-            <Skeleton className="h-4 w-36 rounded" />
+            <Skeleton className="h-4 w-36 rounded-md" />
             <Skeleton className="h-5 w-24 rounded-full" />
           </div>
           <Skeleton className="h-12 w-64 rounded-lg" />
-          <Skeleton className="h-4 w-48 rounded" />
+          <Skeleton className="h-4 w-48 rounded-md" />
           <Skeleton className="h-11 w-full rounded-xl pt-2" />
         </div>
         <div className="rounded-2xl bg-card border border-border p-6 sm:p-7 space-y-4">
           <div className="flex justify-between items-center">
-            <Skeleton className="h-4 w-36 rounded" />
+            <Skeleton className="h-4 w-36 rounded-md" />
             <Skeleton className="h-5 w-24 rounded-full" />
           </div>
           <Skeleton className="h-12 w-64 rounded-lg" />
-          <Skeleton className="h-4 w-48 rounded" />
+          <Skeleton className="h-4 w-48 rounded-md" />
           <Skeleton className="h-11 w-full rounded-xl pt-2" />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <Skeleton className="h-20 rounded-xl" />
         <Skeleton className="h-20 rounded-xl" />
         <Skeleton className="h-20 rounded-xl" />
@@ -212,7 +211,7 @@ function TransactionReceiptModal({ transaction, isOpen, onClose }: Readonly<Rece
               <button
                 type="button"
                 onClick={handleCopyId}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 title="Copy Transaction ID"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-verified" /> : <Copy className="w-3.5 h-3.5" />}
@@ -231,7 +230,7 @@ function TransactionReceiptModal({ transaction, isOpen, onClose }: Readonly<Rece
   );
 }
 
-/* ── Main Wallet Page (Rebuilt to CRED / PhonePe / Jupiter Benchmark) ─────── */
+/* ── Main Wallet Page (CRED / PhonePe / Jupiter Benchmark) ─────── */
 
 export default function WalletPage() {
   const { data: session } = useSession();
@@ -244,6 +243,7 @@ export default function WalletPage() {
   const [selectedTx, setSelectedTx] = useState<WalletTransactionItem | null>(null);
   const [isAddingFunds, setIsAddingFunds] = useState(false);
   const [isRealtimeActive, setIsRealtimeActive] = useState(false);
+  const [topUpAmount, setTopUpAmount] = useState<string>("");
 
   // ── Toasts ────────────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -306,12 +306,10 @@ export default function WalletPage() {
   // ── Add Funds via Razorpay Gateway ─────────────────────────────────────────
   const handleAddFunds = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
     const fresh = await requireFreshSession();
     if (!fresh) return;
 
-    const amountInput = form.elements.namedItem("amount") as HTMLInputElement;
-    const amountRupees = parseFloat(amountInput.value);
+    const amountRupees = parseFloat(topUpAmount);
 
     if (!amountRupees || amountRupees < MIN_WALLET_TOPUP_RUPEES) {
       showToast("error", `Minimum top-up amount is ₹${MIN_WALLET_TOPUP_RUPEES}`);
@@ -365,6 +363,7 @@ export default function WalletPage() {
               showToast("success", `Successfully added ${formatCurrency(Math.round(amountRupees * 100))} to wallet.`);
               handleRefreshAll();
               setShowAddFundsModal(false);
+              setTopUpAmount("");
             } else {
               showToast("error", "Payment verification pending. Balance will update shortly.");
             }
@@ -391,6 +390,15 @@ export default function WalletPage() {
   const escrowLockedAmount = isBrand ? (walletData?.totalHeld || 0) : (walletData?.pendingBalance || 0);
   const lifetimeTotal = isBrand ? (walletData?.totalDeposited || 0) : (walletData?.totalEarned || 0);
   const lifetimeOutflow = isBrand ? (walletData?.totalSpent || 0) : (walletData?.totalWithdrawn || 0);
+
+  // CRED / Jupiter Escrow Utilization Metric
+  const totalFundsPaise = (walletData?.balance || 0) + escrowLockedAmount;
+  const escrowUtilizationPct = totalFundsPaise > 0 ? Math.round((escrowLockedAmount / totalFundsPaise) * 100) : 0;
+
+  const handleQuickAdd = (increment: number) => {
+    const current = Number(topUpAmount) || 0;
+    setTopUpAmount(String(current + increment));
+  };
 
   return (
     <DashboardShell user={session?.user || undefined}>
@@ -426,7 +434,7 @@ export default function WalletPage() {
             <button
               type="button"
               onClick={() => setShowStatementModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-muted-foreground" />
               <span>Statement</span>
@@ -435,7 +443,7 @@ export default function WalletPage() {
             <button
               type="button"
               onClick={handleRefreshAll}
-              className="p-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-sm cursor-pointer"
+              className="p-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs cursor-pointer"
               title="Refresh wallet balances and transactions"
               aria-label="Refresh wallet balances and transactions"
             >
@@ -450,9 +458,7 @@ export default function WalletPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
             {/* Card A: Available Funds Card (Instant Payout / Add Funds) */}
-            <div className="relative rounded-2xl bg-card border border-border p-6 sm:p-7 shadow-sm overflow-hidden flex flex-col justify-between group hover:border-verified-border transition-all">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-verified/5 rounded-full blur-3xl pointer-events-none" />
-
+            <div className="relative rounded-2xl bg-card border border-border p-6 sm:p-7 shadow-xs overflow-hidden flex flex-col justify-between group hover:border-verified-border transition-all">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-verified">
@@ -481,8 +487,11 @@ export default function WalletPage() {
                   <Button
                     type="button"
                     variant="primary"
-                    onClick={() => setShowAddFundsModal(true)}
-                    className="w-full font-bold justify-center shadow-sm"
+                    onClick={() => {
+                      setTopUpAmount("");
+                      setShowAddFundsModal(true);
+                    }}
+                    className="w-full font-bold justify-center shadow-xs"
                     leftIcon={<Plus className="w-4 h-4" />}
                   >
                     Add Funds via UPI / Cards
@@ -493,7 +502,7 @@ export default function WalletPage() {
                     variant="primary"
                     onClick={() => setShowWithdrawFlow(true)}
                     disabled={!canWithdraw}
-                    className="w-full font-bold justify-center shadow-sm"
+                    className="w-full font-bold justify-center shadow-xs"
                     leftIcon={<ArrowUpRight className="w-4 h-4" />}
                   >
                     {canWithdraw ? "Instant Bank Transfer" : `Min. Withdrawal ₹${MIN_WITHDRAWAL_AMOUNT_PAISE / 100}`}
@@ -502,17 +511,15 @@ export default function WalletPage() {
               </div>
             </div>
 
-            {/* Card B: Escrow Safeguarded Funds Card (Collabr / Upwork Benchmark) */}
-            <div className="relative rounded-2xl bg-card border border-border p-6 sm:p-7 shadow-sm overflow-hidden flex flex-col justify-between group hover:border-escrow-border transition-all">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-escrow/5 rounded-full blur-3xl pointer-events-none" />
-
+            {/* Card B: Escrow Safeguarded Funds Card (Collabr / CRED Benchmark) */}
+            <div className="rounded-2xl bg-escrow-muted/40 border border-escrow-border p-6 sm:p-7 shadow-xs overflow-hidden flex flex-col justify-between group hover:border-escrow transition-all">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-escrow">
                     <Lock className="w-3.5 h-3.5" />
                     Safeguarded in Escrow
                   </span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-escrow px-2 py-0.5 rounded-md bg-escrow-muted/50 border border-escrow-border/40">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-escrow px-2 py-0.5 rounded-md bg-escrow-muted border border-escrow-border">
                     <ShieldCheck className="w-3 h-3" />
                     RBI-Compliant
                   </span>
@@ -528,12 +535,28 @@ export default function WalletPage() {
                       : "Pending deal milestones reserved in escrow. Auto-releases upon deliverable approval."}
                   </p>
                 </div>
+
+                {/* CRED / Jupiter Escrow Utilization Progress Track */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground font-medium">Escrow Allocation</span>
+                    <span className="font-mono font-bold text-escrow tabular-nums">
+                      {escrowUtilizationPct}% of total assets
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-escrow transition-all duration-500"
+                      style={{ width: `${Math.min(100, escrowUtilizationPct)}%` }}
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="pt-6">
                 <Link
                   href="/dashboard/deals?status=active"
-                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-border bg-muted/60 text-foreground hover:bg-muted text-sm font-semibold transition-all shadow-sm"
+                  className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl border border-escrow-border bg-card text-foreground hover:bg-muted text-sm font-semibold transition-all shadow-xs"
                 >
                   <span>View Active Deals Pipeline</span>
                   <ExternalLink className="w-3.5 h-3.5 text-muted-foreground" />
@@ -545,7 +568,7 @@ export default function WalletPage() {
 
         {/* ── 3. FINANCIAL SUMMARY METRICS STRIP (JUPITER STATS) ───────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          <div className="p-4 rounded-xl bg-card border border-border shadow-sm flex flex-col justify-between space-y-1">
+          <div className="p-4 rounded-xl bg-card border border-border shadow-xs flex flex-col justify-between space-y-1">
             <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
               <span>{isBrand ? "Lifetime Deposits" : "Lifetime Earnings"}</span>
               <TrendingUp className="w-3.5 h-3.5 text-verified" />
@@ -556,7 +579,7 @@ export default function WalletPage() {
             <span className="text-[11px] text-muted-foreground">Cumulative gross platform volume</span>
           </div>
 
-          <div className="p-4 rounded-xl bg-card border border-border shadow-sm flex flex-col justify-between space-y-1">
+          <div className="p-4 rounded-xl bg-card border border-border shadow-xs flex flex-col justify-between space-y-1">
             <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
               <span>{isBrand ? "Total Campaign Spend" : "Total Withdrawn"}</span>
               <ArrowDownLeft className="w-3.5 h-3.5 text-pending" />
@@ -567,7 +590,7 @@ export default function WalletPage() {
             <span className="text-[11px] text-muted-foreground">Disbursed to external bank accounts</span>
           </div>
 
-          <div className="p-4 rounded-xl bg-card border border-border shadow-sm flex flex-col justify-between space-y-1">
+          <div className="p-4 rounded-xl bg-card border border-border shadow-xs flex flex-col justify-between space-y-1">
             <div className="flex items-center justify-between text-muted-foreground text-xs font-semibold">
               <span>TDS &amp; Compliance</span>
               <FileText className="w-3.5 h-3.5 text-primary" />
@@ -603,7 +626,7 @@ export default function WalletPage() {
                 onClick={() => setActiveTab("ledger")}
                 className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   activeTab === "ledger"
-                    ? "bg-card text-foreground shadow-sm"
+                    ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -620,7 +643,7 @@ export default function WalletPage() {
                 onClick={() => setActiveTab("accounts")}
                 className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTab === "accounts"
-                    ? "bg-card text-foreground shadow-sm"
+                    ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -680,7 +703,7 @@ export default function WalletPage() {
         onClose={() => setSelectedTx(null)}
       />
 
-      {/* ── Add Funds Modal (Brand / Razorpay Gateway) ────────────────────── */}
+      {/* ── Add Funds Modal (PhonePe / Jupiter Quick Amount Pattern) ─────────── */}
       <Modal
         open={showAddFundsModal}
         onClose={() => setShowAddFundsModal(false)}
@@ -690,34 +713,64 @@ export default function WalletPage() {
         <form onSubmit={handleAddFunds} className="space-y-4">
           <div>
             <label
-              className="text-xs font-semibold text-foreground mb-1 block"
+              className="text-xs font-semibold text-foreground mb-1.5 block"
               htmlFor="add-funds-amount-input"
             >
               Top-Up Amount (INR)
             </label>
-            <Input
-              id="add-funds-amount-input"
-              name="amount"
-              type="number"
-              min="100"
-              required
-              placeholder="e.g. 25000"
-              fullWidth
-              autoFocus
-            />
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-foreground text-sm">
+                ₹
+              </span>
+              <Input
+                id="add-funds-amount-input"
+                name="amount"
+                type="number"
+                min="100"
+                required
+                placeholder="Enter amount (e.g. 10000)"
+                value={topUpAmount}
+                onChange={(e) => setTopUpAmount(e.target.value)}
+                className="pl-8 text-base font-mono font-bold"
+                fullWidth
+                autoFocus
+              />
+            </div>
             <p className="text-[11px] text-muted-foreground mt-1">
-              Minimum top-up is ₹{MIN_WALLET_TOPUP_RUPEES}. Funds are instantly credited and available for escrow locking.
+              Minimum top-up is ₹{MIN_WALLET_TOPUP_RUPEES}. Funds are instantly available for escrow locking.
             </p>
+
+            {/* PhonePe / Jupiter Quick Amount Chips */}
+            <div className="flex items-center gap-1.5 pt-2.5 flex-wrap">
+              {[1000, 5000, 10000, 25000, 50000].map((amt) => (
+                <button
+                  key={amt}
+                  type="button"
+                  onClick={() => handleQuickAdd(amt)}
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors cursor-pointer"
+                >
+                  +₹{amt.toLocaleString("en-IN")}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-muted/40 border border-border text-xs text-muted-foreground space-y-1">
+          <div className="p-3.5 rounded-xl bg-muted/40 border border-border text-xs text-muted-foreground space-y-1.5">
             <span className="font-semibold text-foreground flex items-center gap-1.5">
               <CreditCard className="w-3.5 h-3.5 text-primary" />
               Supported Payment Methods:
             </span>
-            <p className="text-[11px] leading-relaxed">
-              UPI (Google Pay, PhonePe, Paytm, CRED), NetBanking (50+ banks), Corporate Credit &amp; Debit Cards, NEFT.
-            </p>
+            <div className="flex items-center gap-2 pt-0.5 flex-wrap">
+              <span className="px-2 py-0.5 rounded-md bg-card border border-border text-[11px] font-bold text-foreground">
+                UPI (GPay, PhonePe, Paytm, CRED)
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-card border border-border text-[11px] font-bold text-foreground">
+                NetBanking (50+ Banks)
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-card border border-border text-[11px] font-bold text-foreground">
+                Cards &amp; NEFT
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
@@ -743,7 +796,7 @@ export default function WalletPage() {
                   <span>Connecting to Gateway...</span>
                 </>
               ) : (
-                "Proceed to Pay"
+                `Proceed to Pay ${topUpAmount ? `₹${Number(topUpAmount).toLocaleString("en-IN")}` : ""}`
               )}
             </Button>
           </div>

@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Lock,
   Receipt,
+  X,
 } from "lucide-react";
 import { Input, Card } from "@/components/ui";
 import { formatCurrency, formatDateTime } from "@/lib/utils-client";
@@ -30,6 +31,7 @@ interface VirtualizedTransactionListProps {
 
 const CREDIT_TYPES = new Set(["CREDIT", "REFUND"]);
 const DEBIT_TYPES = new Set(["DEBIT", "WITHDRAWAL", "PLATFORM_FEE", "CLAWBACK", "CHARGEBACK"]);
+const ESCROW_TYPES = new Set(["ESCROW_RELEASE", "ESCROW_LOCK", "ESCROW_HOLD", "MILESTONE_PAYMENT"]);
 
 function getDateLabel(dateStr: string): string {
   try {
@@ -47,7 +49,7 @@ function getDateLabel(dateStr: string): string {
 }
 
 function getCategoryIcon(type: string): React.ReactNode {
-  switch (type) {
+  switch (type.toUpperCase()) {
     case "CREDIT":
       return (
         <div className="w-9 h-9 rounded-full bg-verified-muted text-verified flex items-center justify-center shrink-0 border border-verified-border">
@@ -73,6 +75,8 @@ function getCategoryIcon(type: string): React.ReactNode {
         </div>
       );
     case "ESCROW_RELEASE":
+    case "ESCROW_LOCK":
+    case "MILESTONE_PAYMENT":
       return (
         <div className="w-9 h-9 rounded-full bg-escrow-muted text-escrow flex items-center justify-center shrink-0 border border-escrow-border">
           <Lock className="w-4 h-4" />
@@ -99,15 +103,20 @@ export function VirtualizedTransactionList({
   isLoading,
   onRefresh,
   onSelectTransaction,
-}: VirtualizedTransactionListProps) {
-  const [activeFilter, setActiveFilter] = useState<"ALL" | "CREDIT" | "DEBIT" | "PENDING">("ALL");
+}: Readonly<VirtualizedTransactionListProps>) {
+  const [activeFilter, setActiveFilter] = useState<"ALL" | "CREDIT" | "DEBIT" | "ESCROW" | "PENDING">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
       if (activeFilter === "CREDIT" && !CREDIT_TYPES.has(tx.type)) return false;
       if (activeFilter === "DEBIT" && !DEBIT_TYPES.has(tx.type)) return false;
+      if (activeFilter === "ESCROW") {
+        const isEscrow = ESCROW_TYPES.has(tx.type) || (tx.description || "").toLowerCase().includes("escrow");
+        if (!isEscrow) return false;
+      }
       if (activeFilter === "PENDING" && tx.status !== "PENDING") return false;
+
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const descMatch = (tx.description || "").toLowerCase().includes(query);
@@ -138,7 +147,7 @@ export function VirtualizedTransactionList({
   }, [filteredTransactions]);
 
   return (
-    <Card className="p-5 sm:p-6 rounded-2xl border border-border bg-card shadow-sm flex flex-col h-full">
+    <Card className="p-5 sm:p-6 rounded-2xl border border-border bg-card shadow-xs flex flex-col h-full">
       {/* Header with Title and Search */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div>
@@ -158,8 +167,18 @@ export function VirtualizedTransactionList({
               placeholder="Search by ID or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 text-xs sm:text-sm h-9 rounded-xl"
+              className="pl-9 pr-8 text-xs sm:text-sm h-9 rounded-xl"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {onRefresh && (
@@ -177,13 +196,13 @@ export function VirtualizedTransactionList({
       </div>
 
       {/* PhonePe/CRED Categorized Filter Chips */}
-      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted border border-border mb-4 overflow-x-auto text-xs">
+      <div className="flex items-center gap-1.5 p-1 rounded-xl bg-muted border border-border mb-4 overflow-x-auto text-xs scrollbar-none">
         <button
           type="button"
           onClick={() => setActiveFilter("ALL")}
           className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
             activeFilter === "ALL"
-              ? "bg-card text-foreground shadow-sm"
+              ? "bg-card text-foreground shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -194,7 +213,7 @@ export function VirtualizedTransactionList({
           onClick={() => setActiveFilter("CREDIT")}
           className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
             activeFilter === "CREDIT"
-              ? "bg-card text-verified shadow-sm"
+              ? "bg-card text-verified shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -206,7 +225,7 @@ export function VirtualizedTransactionList({
           onClick={() => setActiveFilter("DEBIT")}
           className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
             activeFilter === "DEBIT"
-              ? "bg-card text-foreground shadow-sm"
+              ? "bg-card text-foreground shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -215,10 +234,22 @@ export function VirtualizedTransactionList({
         </button>
         <button
           type="button"
+          onClick={() => setActiveFilter("ESCROW")}
+          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
+            activeFilter === "ESCROW"
+              ? "bg-card text-escrow shadow-xs"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Lock className="w-3.5 h-3.5 text-escrow" />
+          Escrow
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveFilter("PENDING")}
           className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
             activeFilter === "PENDING"
-              ? "bg-card text-pending shadow-sm"
+              ? "bg-card text-pending shadow-xs"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
