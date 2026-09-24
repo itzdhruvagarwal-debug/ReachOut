@@ -5,7 +5,6 @@ import { Badge, Button } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils-client";
 
 import {
-  type ReferralItem as Referral,
   type ReferralsResponse,
 } from "@/lib/schemas";
 

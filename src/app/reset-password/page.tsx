@@ -14,7 +14,6 @@ import {
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
-  ShieldCheck,
   KeyRound,
 } from "lucide-react";
 

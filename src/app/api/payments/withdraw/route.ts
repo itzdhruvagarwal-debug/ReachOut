@@ -1,6 +1,5 @@
 import { apiWrapper, ApiResponse, type AuthenticatedRequest } from "@/lib/api-wrapper";
 import { NextRequest } from "next/server";
-import { z } from "zod";
 import prisma from "@/lib/db";
 import { decrypt } from "@/lib/encryption";
 import { PaymentService } from "@/services/payment.service";
@@ -9,7 +8,6 @@ import { checkTieredRateLimit } from "@/lib/rate-limit";
 import { getSecureClientIp } from "@/lib/ip";
 import { AppError } from "@/lib/errors";
 import { claimIdempotencyKey, releaseIdempotencyKey, saveIdempotencyResponse, type IdempotencyCheckResult } from "@/lib/idempotency";
-import { env } from "@/env";
 
 import { withdrawalSchema } from "@/lib/validations/payment";
 export { withdrawalSchema };

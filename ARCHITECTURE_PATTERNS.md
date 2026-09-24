@@ -245,7 +245,53 @@ Always use the configured root alias `@/` instead of fragile relative paths:
 
 ---
 
-## 6. Definition of Done Checklist for New Features
+## 6. Cross-Cutting Architectural Patterns (Canonical Standards)
+
+To prevent code drift and ensure predictable development across all modules:
+
+### 6.1 Unified Formatting Utilities (`src/lib/utils-client.ts`)
+- **Currency (`formatCurrency`)**: All monetary figures MUST be parsed via `formatCurrency(amountInPaise)`. Never perform manual `Intl.NumberFormat` or inline `₹${...}` strings in components.
+- **Dates (`formatDate`, `formatDateTime`, `formatTime`, `formatRelativeTime`)**: All calendar timestamps MUST use these shared helpers with consistent `en-IN` localization. Direct `.toLocaleDateString()` is strictly forbidden in UI components.
+- **Numbers (`formatNumber`)**: Large counts (followers, views) use `formatNumber` to output clean Indian denominations (`10K`, `1.5L`, `1Cr`).
+
+### 6.2 Standardized API Error Shape & Handling
+- **Backend API Routes**: Standard error response envelope:
+  ```json
+  {
+    "success": false,
+    "error": "BAD_REQUEST",
+    "message": "User-friendly, non-technical error description",
+    "requestId": "req_xyz"
+  }
+  ```
+- **Throwing Errors**: Throw typed `AppError` instances (`throw AppError.badRequest(...)`, `throw AppError.unauthorized(...)`). Caught automatically by `apiWrapper` with structured logging and metrics.
+- **Client Consumption**: Client HTTP transport (`src/lib/api-client/http.ts`) unifies backend errors into `ApiClientError`, exposing `{ status, code, message }` and automatic 401 redirection to `/login`.
+
+### 6.3 Fail-Fast Runtime Contract Safety (Zod Schemas)
+- Every frontend API call must supply a Zod response schema:
+  ```typescript
+  export function listDeals() {
+    return get("/api/deals", { schema: dealsListResponseSchema });
+  }
+  ```
+- When using SWR or React Query, use `createSchemaFetcher(schema)`.
+- If backend payload fields drift or rename, the client immediately throws `ZodError` at the boundary rather than corrupting UI state with `undefined`.
+
+### 6.4 Skeleton Shimmer vs. Spinner Loading States
+- **Data Loading (Pages, Cards, Feeds, Tables)**: MUST render shimmering `<Skeleton className="..." />` placeholders matching the geometric footprint of the expected content. Full-page or container-level spinners are forbidden.
+- **Action Triggers (Buttons)**: `<Spinner size="sm" />` or button loading states (`loading={isSubmitting}`) are strictly reserved for inline user action feedback.
+
+### 6.5 Modal & Sheet Base Component Family
+- All dialogs must be built on `@/components/ui/Modal`:
+  - Portalled to `document.body`
+  - Framer Motion `AnimatePresence` with spring physics
+  - Built-in Escape key listener and body scroll lock (`overflow-hidden`)
+  - ARIA compliance (`role="dialog"`, `aria-modal="true"`)
+- Mobile slide-up sheets extend this pattern via `@/components/discovery/FilterBottomSheet`.
+
+---
+
+## 7. Definition of Done Checklist for New Features
 
 When writing new code or modifying existing code, verify against this checklist:
 
@@ -254,5 +300,8 @@ When writing new code or modifying existing code, verify against this checklist:
 3. [ ] **Export Style**: Does the component provide a named export (`export function MyNewCard`)?
 4. [ ] **Service Pattern**: Is new backend business logic encapsulated in a static class service (`export class FeatureService`) in `src/services/`?
 5. [ ] **Import Aliasing**: Are all imports utilizing `@/...` rather than deep `../../` relative paths?
-6. [ ] **Type Integrity**: Does `npm run typecheck` pass with 0 diagnostics?
-7. [ ] **Test Coverage**: Does `npm test` execute and pass 100% of the test suite?
+6. [ ] **Formatting Utilities**: Does all currency and date rendering use `formatCurrency` and `formatDate` from `@/lib/utils-client`?
+7. [ ] **Loading States**: Are skeleton shimmer loaders (`<Skeleton>`) used for asynchronous data fetching instead of raw full-page spinners?
+8. [ ] **Type Integrity**: Does `npm run typecheck` pass with 0 diagnostics?
+9. [ ] **Test Coverage**: Does `npm test` execute and pass 100% of the test suite?
+

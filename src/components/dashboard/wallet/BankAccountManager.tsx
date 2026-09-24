@@ -332,11 +332,11 @@ export default function BankAccountManager({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-1">
-            <Button variant="danger" size="sm" onClick={handleDeleteConfirm} className="text-xs font-bold">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+            <Button variant="danger" size="sm" onClick={handleDeleteConfirm} className="text-xs font-bold min-h-[44px] px-4 flex items-center justify-center">
               Yes, Delete Account
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setDeleteConfirmId(null)} className="text-xs">
+            <Button variant="secondary" size="sm" onClick={() => setDeleteConfirmId(null)} className="text-xs min-h-[44px] px-4 flex items-center justify-center">
               Cancel
             </Button>
           </div>
@@ -362,11 +362,11 @@ export default function BankAccountManager({
             </div>
 
             {/* Payout Method Toggle */}
-            <div className="flex items-center bg-muted/50 p-1 rounded-xl border border-border self-start sm:self-center">
+            <div className="flex items-center bg-muted/50 p-1 rounded-xl border border-border w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setPayoutType("bank")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all min-h-[44px] cursor-pointer ${
                   payoutType === "bank"
                     ? "bg-card text-foreground shadow-xs border border-border"
                     : "text-muted-foreground hover:text-foreground"
@@ -377,7 +377,7 @@ export default function BankAccountManager({
               <button
                 type="button"
                 onClick={() => setPayoutType("upi")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all min-h-[44px] cursor-pointer ${
                   payoutType === "upi"
                     ? "bg-card text-foreground shadow-xs border border-border"
                     : "text-muted-foreground hover:text-foreground"
@@ -589,7 +589,7 @@ export default function BankAccountManager({
                               copyToClipboard(acc.ifscCode || "");
                               showNotice("IFSC code copied to clipboard!");
                             }}
-                            className="hover:text-primary transition-colors inline-flex items-center gap-1 font-semibold"
+                            className="hover:text-primary transition-colors inline-flex items-center gap-1 font-semibold p-1.5 min-h-[44px] cursor-pointer"
                           >
                             <Copy className="w-3 h-3" /> Copy
                           </button>
@@ -605,12 +605,12 @@ export default function BankAccountManager({
                       <span>Verified Beneficiary</span>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       {onSelectAccount && (
                         <button
                           type="button"
                           onClick={() => onSelectAccount(acc)}
-                          className="text-xs font-bold text-primary hover:underline"
+                          className="text-xs font-bold text-primary hover:underline px-2.5 py-1.5 min-h-[44px] inline-flex items-center cursor-pointer"
                         >
                           Select
                         </button>
@@ -619,7 +619,7 @@ export default function BankAccountManager({
                         <button
                           type="button"
                           onClick={() => handleSetDefault(acc.id)}
-                          className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                          className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors px-2.5 py-1.5 min-h-[44px] inline-flex items-center cursor-pointer"
                         >
                           Set Default
                         </button>
@@ -628,9 +628,9 @@ export default function BankAccountManager({
                         type="button"
                         onClick={() => setDeleteConfirmId(acc.id)}
                         title="Delete account"
-                        className="p-1 text-muted-foreground hover:text-destructive transition-colors rounded-md"
+                        className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors rounded-xl cursor-pointer"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>

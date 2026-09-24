@@ -25,7 +25,7 @@ import {
   Globe,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils-client";
-import { Button, Input, Textarea, Modal, Skeleton, Spinner } from "@/components/ui";
+import { Button, Input, Textarea, Modal, Spinner } from "@/components/ui";
 import { ApplicationsList } from "@/components/dashboard/campaigns/details/ApplicationsList";
 import { useCampaignDetail } from "@/components/dashboard/campaigns/details/useCampaignDetail";
 
@@ -402,6 +402,47 @@ export default function CampaignDetailClient({
                     </div>
                   </div>
                 )}
+              </div>
+            </section>
+          )}
+
+          {/* Kofluence Benchmark: Campaign Performance & Escrow Health Snapshot */}
+          {isOwner && (
+            <section className="bg-card border border-border p-5 rounded-2xl shadow-xs space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-border">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp className="w-4 h-4 text-primary" />
+                  Campaign Aggregate Performance &amp; Delivery Health
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-verified-muted text-verified font-bold">
+                  Escrow Protected
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-muted/40">
+                  <span className="text-[11px] text-muted-foreground block">Slots Filled</span>
+                  <span className="text-base font-bold text-foreground tabular-nums">
+                    {campaign.acceptedCount} / {campaign.maxInfluencers || "Open"}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40">
+                  <span className="text-[11px] text-muted-foreground block">Active Applications</span>
+                  <span className="text-base font-bold text-foreground tabular-nums">
+                    {campaign.totalApplications}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40">
+                  <span className="text-[11px] text-muted-foreground block">Committed Escrow</span>
+                  <span className="text-base font-bold text-primary tabular-nums">
+                    {formatCurrency(campaign.perInfluencerBudget ? campaign.perInfluencerBudget * campaign.acceptedCount : campaign.totalBudget)}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-muted/40">
+                  <span className="text-[11px] text-muted-foreground block">Deliverables / Creator</span>
+                  <span className="text-base font-bold text-foreground tabular-nums">
+                    {campaign.deliverables.length} Deliverables
+                  </span>
+                </div>
               </div>
             </section>
           )}

@@ -1,6 +1,10 @@
 # VyaparMedia User Messaging & Error Handling Guidelines (`MESSAGES.md`)
 
+> **Last Updated**: September 24, 2026  
+> **Status**: Verified & Synchronized with `src/lib/user-messages.ts` (Zero Technical Stack Leaks)
+
 ## 1. Core Principles
+
 
 1. **Zero Technical Leaks**:
    - Stack traces, database column names, table names, SQL keywords, and internal microservice names must **never** be exposed in the UI.

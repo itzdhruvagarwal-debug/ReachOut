@@ -16,12 +16,6 @@ import {
   Award,
   Mail,
   Phone,
-  FileCheck2,
-  Building,
-  Briefcase,
-  AlertTriangle,
-  ArrowRight,
-  Landmark,
 } from "lucide-react";
 
 interface DigiLockerCardProps {

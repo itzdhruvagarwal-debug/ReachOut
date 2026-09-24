@@ -10,9 +10,7 @@ import {
   Upload,
   Lock,
   Award,
-  Shield,
   Sparkles,
-  FileCheck,
 } from "lucide-react";
 
 interface StatusBadgeProps {

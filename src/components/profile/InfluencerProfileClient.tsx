@@ -10,6 +10,7 @@ import {
 } from "./types";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils-client";
 import CampaignProofModal from "./CampaignProofModal";
+import { Modal } from "@/components/ui";
 import {
   ShieldCheck,
   CheckCircle2,
@@ -32,7 +33,6 @@ import {
   Camera,
   Video,
   ArrowRight,
-  ExternalLink,
 } from "lucide-react";
 
 interface InfluencerProfileClientProps {
@@ -92,6 +92,7 @@ export default function InfluencerProfileClient({
   const [activeTab, setActiveTab] = useState<TabKey>("portfolio");
   const [selectedProof, setSelectedProof] = useState<CampaignProofItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState<boolean>(false);
 
   // Mobile swipe navigation across tabs
   const touchStartXRef = useRef<number>(0);
@@ -296,13 +297,14 @@ export default function InfluencerProfileClient({
                 </>
               ) : (
                 <>
-                  <Link
-                    href={`/dashboard/campaigns/create?invite=${profile.id}`}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all"
+                  <button
+                    type="button"
+                    onClick={() => setShowInviteModal(true)}
+                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
                   >
                     <PlusCircle className="w-4 h-4 stroke-[2.5]" />
                     <span>Invite to Campaign</span>
-                  </Link>
+                  </button>
 
                   <Link
                     href={`/dashboard/messages?with=${profile.userId}`}
@@ -322,6 +324,19 @@ export default function InfluencerProfileClient({
                   </button>
                 </>
               )}
+            </div>
+
+            {/* Kofluence Benchmark: Turnaround ETA & Guarantees */}
+            <div className="flex items-center gap-3 pt-1 text-[11px] text-muted-foreground flex-wrap justify-center sm:justify-start">
+              <span className="inline-flex items-center gap-1 font-bold text-verified">
+                <Clock className="w-3 h-3" />
+                <span>Avg Response: &lt; 2h</span>
+              </span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1 font-semibold text-foreground">
+                <ShieldCheck className="w-3 h-3 text-escrow" />
+                <span>100% Escrow Delivery Guarantee</span>
+              </span>
             </div>
           </div>
         </div>
@@ -827,6 +842,59 @@ export default function InfluencerProfileClient({
             </div>
           </div>
         </aside>
+      )}
+
+      {/* Quick Invite to Campaign Modal */}
+      {showInviteModal && (
+        <Modal
+          open={showInviteModal}
+          onClose={() => setShowInviteModal(false)}
+          title={
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              Collaborate with {profile.displayName}
+            </span>
+          }
+          maxWidth="28rem"
+        >
+          <div className="space-y-4">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Choose how you would like to initiate this collaboration under VyaparMedia&apos;s RBI-compliant escrow guarantee.
+            </p>
+
+            <div className="space-y-3 pt-1">
+              <Link
+                href={`/dashboard/campaigns/create?invite=${profile.id}`}
+                className="p-3.5 rounded-2xl bg-muted/40 hover:bg-muted/80 border border-border flex items-center justify-between group transition-all"
+              >
+                <div className="space-y-0.5">
+                  <span className="font-bold text-xs text-foreground block group-hover:text-primary transition-colors">
+                    Dedicated Campaign Invite
+                  </span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Customize deliverables, dates &amp; fund escrow directly
+                  </span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+              </Link>
+
+              <Link
+                href={`/dashboard/messages?with=${profile.userId}`}
+                className="p-3.5 rounded-2xl bg-muted/40 hover:bg-muted/80 border border-border flex items-center justify-between group transition-all"
+              >
+                <div className="space-y-0.5">
+                  <span className="font-bold text-xs text-foreground block group-hover:text-primary transition-colors">
+                    Direct Negotiation Chat
+                  </span>
+                  <span className="text-[11px] text-muted-foreground block">
+                    Discuss brief &amp; deliverables before creating agreement
+                  </span>
+                </div>
+                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+              </Link>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

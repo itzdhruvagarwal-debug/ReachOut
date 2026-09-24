@@ -3,7 +3,7 @@
 import React from "react";
 import { Card, Input, Textarea } from "@/components/ui";
 import { CampaignFormData } from "./CampaignCreateHelpers";
-import { Package, Truck, Sparkles } from "lucide-react";
+import { Package, Truck } from "lucide-react";
 
 interface ProductSeedingCardProps {
   readonly formData: CampaignFormData;

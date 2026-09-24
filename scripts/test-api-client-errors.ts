@@ -167,7 +167,7 @@ async function runTests() {
       );
       console.error("FAIL: Network error did not throw");
       failed++;
-    } catch (err: unknown) {
+    } catch (_err: unknown) {
       if (attemptCount === 3) {
         // Initial try + 2 retries = 3 attempts
         console.log(`PASS: Centralized retry attempted exactly ${attemptCount} times on network error`);

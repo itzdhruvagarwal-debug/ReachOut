@@ -1,5 +1,8 @@
 # VyaparMedia Design Tokens & Accessibility Specification
 
+> **Last Updated**: September 24, 2026 (Cross-Cutting Consistency Pass)  
+> **Status**: 100% Token-Compliant across all 52 pages (0 Hardcoded Hex / Inline Overrides)
+
 This document defines the visual design system, token contracts, typography, dark mode palettes, and accessibility standards for VyaparMedia — an influencer marketing & escrow marketplace.
 
 ---

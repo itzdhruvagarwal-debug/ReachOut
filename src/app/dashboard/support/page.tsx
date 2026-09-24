@@ -7,7 +7,6 @@ import DashboardShell from "@/components/dashboard/DashboardShell";
 import { Button, Input, Select, Textarea } from "@/components/ui";
 import { createSupportSchema } from "@/lib/validations/campaign";
 import { apiClient } from "@/lib/api-client";
-import { ApiClientError } from "@/lib/api-client/errors";
 import { formatUserError } from "@/lib/user-messages";
 import Link from "next/link";
 import {

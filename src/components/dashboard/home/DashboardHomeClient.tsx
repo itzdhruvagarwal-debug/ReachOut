@@ -140,11 +140,11 @@ export default function DashboardHomeClient({
             </div>
 
             {/* View Switcher: Action Feed vs Deep-Dive Analytics */}
-            <div className="flex items-center bg-muted p-1 rounded-xl border border-border">
+            <div className="flex items-center bg-muted p-1 rounded-xl border border-border w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setActiveView("feed")}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   activeView === "feed"
                     ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -156,7 +156,7 @@ export default function DashboardHomeClient({
               <button
                 type="button"
                 onClick={() => setActiveView("analytics")}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 min-h-[44px] px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
                   activeView === "analytics"
                     ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"

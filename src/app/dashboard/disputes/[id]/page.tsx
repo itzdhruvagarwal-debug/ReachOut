@@ -25,17 +25,14 @@ import {
   Scale,
   ArrowLeft,
   Lock,
-  ShieldAlert,
   ShieldCheck,
-  Building2,
-  User,
   Clock,
   ExternalLink,
-  AlertTriangle,
   CheckCircle2,
   AlertCircle,
   Undo2,
   FileQuestion,
+  Handshake,
 } from "lucide-react";
 
 interface DisputeDetailPageProps {
@@ -94,6 +91,9 @@ export default function DisputeDetailPage({ params }: Readonly<DisputeDetailPage
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [escalateReason, setEscalateReason] = useState("");
   const [showEscalateForm, setShowEscalateForm] = useState(false);
+  const [showSettlementForm, setShowSettlementForm] = useState(false);
+  const [settlementOffer, setSettlementOffer] = useState("50");
+  const [settlementNote, setSettlementNote] = useState("");
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const removeToast = (toastId: string) => {
@@ -178,6 +178,29 @@ export default function DisputeDetailPage({ params }: Readonly<DisputeDetailPage
       showToast("error", formatUserError(error, "Failed to process dispute action."));
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleProposeSettlement = async () => {
+    if (!dispute) return;
+    setIsSubmitting(true);
+    try {
+      const statement = `[MUTUAL SETTLEMENT PROPOSAL]: Offered ${settlementOffer}% payout to creator / ${100 - Number(settlementOffer)}% refund to brand.${settlementNote.trim() ? ` Note: "${settlementNote.trim()}"` : ""}`;
+      await apiClient.settings.createDispute({
+        action: "add_evidence",
+        disputeId: dispute.id,
+        type: "CHAT_LOG",
+        url: `/dashboard/disputes/${dispute.id}`,
+        description: statement,
+      });
+      showToast("success", "Settlement proposal registered in case ledger.");
+      setShowSettlementForm(false);
+      setSettlementNote("");
+      fetchDispute();
+    } catch (err) {
+      showToast("error", formatUserError(err, "Failed to submit settlement offer."));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -460,6 +483,81 @@ export default function DisputeDetailPage({ params }: Readonly<DisputeDetailPage
                     >
                       {actionLoading === "withdraw" ? "Withdrawing..." : "Withdraw Dispute Case"}
                     </Button>
+                  </div>
+                )}
+
+                {/* Propose Mutual Settlement Card (Upwork Benchmark) */}
+                {dispute.status !== "RESOLVED" && dispute.status !== "CLOSED" && (
+                  <div className="bg-card border border-border rounded-2xl p-5 shadow-xs space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Handshake className="w-4 h-4 text-primary" />
+                      <h3 className="text-sm font-bold text-foreground">
+                        Propose Mutual Settlement (Upwork Benchmark)
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Prefer a fast mutual compromise without waiting for formal escalation? Offer an agreed escrow split directly to the counterparty.
+                    </p>
+
+                    {showSettlementForm ? (
+                      <div className="space-y-3 pt-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { label: "50% / 50% Split", value: "50" },
+                            { label: "75% to Creator", value: "75" },
+                            { label: "100% Full Refund", value: "0" },
+                          ].map((preset) => (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              onClick={() => setSettlementOffer(preset.value)}
+                              className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                                settlementOffer === preset.value
+                                  ? "bg-primary text-primary-foreground border-primary shadow-xs font-bold"
+                                  : "bg-muted text-foreground border-border hover:bg-muted/80"
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                        <Textarea
+                          rows={2}
+                          placeholder="Add a settlement proposal note..."
+                          value={settlementNote}
+                          onChange={(e) => setSettlementNote(e.target.value)}
+                          fullWidth
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleProposeSettlement}
+                            disabled={!settlementOffer || isSubmitting}
+                            className="flex-1 cursor-pointer font-bold"
+                          >
+                            {isSubmitting ? "Sending Offer..." : "Send Settlement Offer"}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => setShowSettlementForm(false)}
+                            className="cursor-pointer"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setShowSettlementForm(true)}
+                        className="w-full sm:w-auto border border-border cursor-pointer font-semibold"
+                      >
+                        Propose Settlement Offer
+                      </Button>
+                    )}
                   </div>
                 )}
 

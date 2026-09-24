@@ -107,6 +107,39 @@ function SidebarContent({ formData }: CampaignSummarySidebarProps) {
         )}
       </div>
 
+      {/* Kofluence Benchmark: Creator Reach & Tier Estimator */}
+      {(() => {
+        const getCreatorTier = (minFollowers: number) => {
+          if (minFollowers < 10000) return { tier: "Nano Creators", range: "< 10K", reach: 20000 };
+          if (minFollowers < 50000) return { tier: "Micro Creators", range: "10K–50K", reach: 75000 };
+          if (minFollowers < 500000) return { tier: "Mid-Tier Creators", range: "50K–500K", reach: 350000 };
+          return { tier: "Macro Creators", range: "500K+", reach: 1200000 };
+        };
+
+        const tierInfo = getCreatorTier(formData.minFollowers || 0);
+        const totalProjectedReach = tierInfo.reach * (formData.maxInfluencers || 1);
+
+        return (
+          <div className="p-3.5 rounded-2xl bg-muted/40 border border-border text-xs space-y-2">
+            <div className="flex items-center justify-between text-muted-foreground">
+              <span className="font-bold text-foreground flex items-center gap-1.5">
+                <span className="text-primary font-bold">✨</span>
+                <span>{tierInfo.tier}</span>
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-card border border-border">
+                {tierInfo.range}
+              </span>
+            </div>
+            <div className="flex items-center justify-between pt-1 border-t border-border/60">
+              <span className="text-[11px] text-muted-foreground">Projected Reach</span>
+              <span className="font-bold text-primary tabular-nums font-mono text-xs">
+                ~{totalProjectedReach >= 1000000 ? `${(totalProjectedReach / 1000000).toFixed(1)}M` : `${Math.round(totalProjectedReach / 1000)}K`} impressions
+              </span>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Financial Escrow Breakdown */}
       <div className="space-y-2 text-xs">
         <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">

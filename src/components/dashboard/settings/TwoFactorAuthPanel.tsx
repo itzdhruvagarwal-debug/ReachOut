@@ -9,13 +9,10 @@ import { fetcher } from "@/lib/fetcher";
 import { Button, Input } from "@/components/ui";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
-  ShieldCheck,
-  Lock,
   Smartphone,
   CheckCircle2,
   AlertTriangle,
   Copy,
-  KeyRound,
   X,
 } from "lucide-react";
 import { type UserSettingsResponse as SettingsResponse } from "@/lib/schemas";

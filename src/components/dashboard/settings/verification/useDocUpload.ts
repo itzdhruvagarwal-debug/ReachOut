@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react";
 import { apiClient } from "@/lib/api-client";
-import { ApiClientError } from "@/lib/api-client/errors";
 import { formatUserError } from "@/lib/user-messages";
 import { logger } from "@/lib/logger-client";
 import { VerificationData } from "../VerificationTab";

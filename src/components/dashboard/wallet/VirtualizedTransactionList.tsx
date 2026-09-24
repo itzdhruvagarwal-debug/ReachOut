@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { Input, Card } from "@/components/ui";
-import { formatCurrency, formatDateTime } from "@/lib/utils-client";
+import { formatCurrency, formatDateTime, formatDate } from "@/lib/utils-client";
 import type { WalletTransactionItem } from "@/lib/schemas";
 
 export type TransactionItem = WalletTransactionItem;
@@ -42,7 +42,7 @@ function getDateLabel(dateStr: string): string {
     yesterday.setDate(now.getDate() - 1);
     if (d.toDateString() === todayStr) return "Today";
     if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-    return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    return formatDate(d, "Older", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
   } catch {
     return "Older";
   }
@@ -159,7 +159,7 @@ export function VirtualizedTransactionList({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
@@ -167,13 +167,13 @@ export function VirtualizedTransactionList({
               placeholder="Search by ID or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-8 text-xs sm:text-sm h-9 rounded-xl"
+              className="pl-9 pr-8 text-xs sm:text-sm min-h-[44px] h-11 rounded-xl"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
                 aria-label="Clear search"
               >
                 <X className="w-3.5 h-3.5" />
@@ -185,7 +185,7 @@ export function VirtualizedTransactionList({
             <button
               type="button"
               onClick={onRefresh}
-              className="p-2 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer"
+              className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer"
               title="Refresh ledger"
               aria-label="Refresh transaction ledger"
             >
@@ -200,7 +200,7 @@ export function VirtualizedTransactionList({
         <button
           type="button"
           onClick={() => setActiveFilter("ALL")}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors cursor-pointer ${
+          className={`px-3.5 py-2 min-h-[44px] inline-flex items-center justify-center rounded-lg font-semibold shrink-0 transition-colors cursor-pointer ${
             activeFilter === "ALL"
               ? "bg-card text-foreground shadow-xs"
               : "text-muted-foreground hover:text-foreground"
@@ -211,7 +211,7 @@ export function VirtualizedTransactionList({
         <button
           type="button"
           onClick={() => setActiveFilter("CREDIT")}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
+          className={`px-3.5 py-2 min-h-[44px] inline-flex items-center justify-center rounded-lg font-semibold shrink-0 transition-colors gap-1.5 cursor-pointer ${
             activeFilter === "CREDIT"
               ? "bg-card text-verified shadow-xs"
               : "text-muted-foreground hover:text-foreground"
@@ -223,7 +223,7 @@ export function VirtualizedTransactionList({
         <button
           type="button"
           onClick={() => setActiveFilter("DEBIT")}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
+          className={`px-3.5 py-2 min-h-[44px] inline-flex items-center justify-center rounded-lg font-semibold shrink-0 transition-colors gap-1.5 cursor-pointer ${
             activeFilter === "DEBIT"
               ? "bg-card text-foreground shadow-xs"
               : "text-muted-foreground hover:text-foreground"
@@ -235,7 +235,7 @@ export function VirtualizedTransactionList({
         <button
           type="button"
           onClick={() => setActiveFilter("ESCROW")}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
+          className={`px-3.5 py-2 min-h-[44px] inline-flex items-center justify-center rounded-lg font-semibold shrink-0 transition-colors gap-1.5 cursor-pointer ${
             activeFilter === "ESCROW"
               ? "bg-card text-escrow shadow-xs"
               : "text-muted-foreground hover:text-foreground"
@@ -247,7 +247,7 @@ export function VirtualizedTransactionList({
         <button
           type="button"
           onClick={() => setActiveFilter("PENDING")}
-          className={`px-3 py-1.5 rounded-lg font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
+          className={`px-3.5 py-2 min-h-[44px] inline-flex items-center justify-center rounded-lg font-semibold shrink-0 transition-colors gap-1.5 cursor-pointer ${
             activeFilter === "PENDING"
               ? "bg-card text-pending shadow-xs"
               : "text-muted-foreground hover:text-foreground"

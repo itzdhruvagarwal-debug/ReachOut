@@ -1,8 +1,9 @@
 "use client";
 
 import React from "react";
-import { Search, X, ArrowUpDown } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { ALL_CATEGORIES } from "@/lib/categories";
+import { Select } from "@/components/ui";
 
 interface CampaignFiltersBarProps {
   searchQuery: string;
@@ -35,14 +36,14 @@ export function CampaignFiltersBar({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search campaigns by brand, title, or keywords..."
-            className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-input bg-card text-foreground placeholder:text-muted-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+            className="w-full pl-10 pr-10 min-h-[44px] py-2.5 rounded-xl border border-input bg-card text-foreground placeholder:text-muted-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-all"
             aria-label="Search campaigns"
           />
           {searchQuery && (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
               aria-label="Clear campaign search"
             >
               <X className="w-4 h-4" />
@@ -51,20 +52,20 @@ export function CampaignFiltersBar({
         </div>
 
         {/* Sort Select */}
-        <div className="relative sm:w-56 shrink-0">
-          <select
+        <div className="sm:w-56 shrink-0">
+          <Select
             id="sort-campaigns-select"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="w-full py-2.5 pl-3.5 pr-9 rounded-xl border border-input bg-card text-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring font-medium appearance-none cursor-pointer"
             aria-label="Sort campaigns"
-          >
-            <option value="newest">Newest First</option>
-            <option value="budget_high">Budget: High to Low</option>
-            <option value="budget_low">Budget: Low to High</option>
-            <option value="deadline">Deadline: Ending Soon</option>
-          </select>
-          <ArrowUpDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            className="text-xs sm:text-sm font-medium"
+            options={[
+              { value: "newest", label: "Newest First" },
+              { value: "budget_high", label: "Budget: High to Low" },
+              { value: "budget_low", label: "Budget: Low to High" },
+              { value: "deadline", label: "Deadline: Ending Soon" },
+            ]}
+          />
         </div>
       </div>
 
@@ -80,7 +81,7 @@ export function CampaignFiltersBar({
               key={category}
               type="button"
               onClick={() => setSelectedCategory(category)}
-              className={`shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`shrink-0 px-3.5 py-2 min-h-[44px] inline-flex items-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 isActive
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-card text-muted-foreground hover:text-foreground border border-border hover:border-border/80"

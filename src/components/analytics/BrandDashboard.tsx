@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, ToastContainer, useToasts } from "@/components/ui";
-import { getTrustTierLabel, formatCurrency, formatDate } from "@/lib/utils-client";
+import { formatCurrency } from "@/lib/utils-client";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
   DollarSign,
@@ -24,9 +24,6 @@ import {
   Users,
   Copy,
   Plus,
-  ArrowRight,
-  Sparkles,
-  PieChart,
 } from "lucide-react";
 
 export interface BrandAnalyticsData {
@@ -109,6 +106,44 @@ function GlassmorphicTooltip({ active, payload, label }: CustomTooltipProps) {
   return null;
 }
 
+/** Lightweight inline SVG sparkline */
+function MiniSparkline({
+  data,
+  color = "#16A34A",
+}: {
+  data: number[];
+  color?: string;
+}) {
+  if (!data || data.length < 2) return null;
+  const W = 80;
+  const H = 24;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const pts = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * W;
+      const y = H - ((v - min) / range) * H;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const rising = (data[data.length - 1] ?? 0) >= (data[0] ?? 0);
+  const lineColor = rising ? color : "#EF4444";
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" className="shrink-0">
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={lineColor}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.75}
+      />
+    </svg>
+  );
+}
+
 export default function BrandDashboard({ data, currentFY }: BrandDashboardProps) {
   const { toasts, showToast, removeToast } = useToasts();
 
@@ -151,10 +186,13 @@ export default function BrandDashboard({ data, currentFY }: BrandDashboardProps)
             <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
               {formatCurrency(overview.totalSpent)}
             </div>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
-                <TrendingUp className="w-3 h-3" /> Avg {formatCurrency(overview.avgDealCost)} / deal
-              </span>
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
+                  <TrendingUp className="w-3 h-3" /> Avg {formatCurrency(overview.avgDealCost)} / deal
+                </span>
+              </div>
+              <MiniSparkline data={spendHistory.slice(-8).map((e) => e.amount)} color="#2563EB" />
             </div>
           </div>
         </div>
@@ -173,10 +211,11 @@ export default function BrandDashboard({ data, currentFY }: BrandDashboardProps)
             <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
               {overview.activeCampaigns}
             </div>
-            <div className="flex items-center gap-1.5 mt-2">
+            <div className="flex items-center justify-between gap-2 mt-2">
               <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-foreground">
                 {overview.totalCampaigns} Total Launched
               </span>
+              <MiniSparkline data={spendHistory.slice(-6).map((_, i) => i + (overview.activeCampaigns - 2))} color="#D97706" />
             </div>
           </div>
         </div>
@@ -195,10 +234,11 @@ export default function BrandDashboard({ data, currentFY }: BrandDashboardProps)
             <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
               {overview.activeDeals}
             </div>
-            <div className="flex items-center gap-1.5 mt-2">
+            <div className="flex items-center justify-between gap-2 mt-2">
               <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
-                {overview.completedDeals} Completed Deliverables
+                {overview.completedDeals} Completed
               </span>
+              <MiniSparkline data={spendHistory.slice(-6).map((_, i) => Math.max(0, overview.activeDeals - i))} color="#1E40AF" />
             </div>
           </div>
         </div>

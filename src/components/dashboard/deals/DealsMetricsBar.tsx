@@ -20,7 +20,7 @@ export function DealsMetricsBar({
   return (
     <section aria-label="Deal collaboration metrics" className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
       {/* 1. Active Collaborations */}
-      <div className="rounded-2xl border border-primary/20 bg-card p-5 shadow-sm hover:border-primary/40 transition-all flex flex-col justify-between">
+      <div className="rounded-2xl border border-primary/20 bg-card p-5 shadow-xs hover:border-primary/40 transition-all flex flex-col justify-between">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <Layers className="w-3.5 h-3.5 text-primary" /> Active Pipeline
@@ -38,12 +38,12 @@ export function DealsMetricsBar({
       </div>
 
       {/* 2. Completed Deals */}
-      <div className="rounded-2xl border border-verified-border bg-card p-5 shadow-sm hover:border-verified-border/80 transition-all flex flex-col justify-between">
+      <div className="rounded-2xl border border-verified-border bg-card p-5 shadow-xs hover:border-verified-border/80 transition-all flex flex-col justify-between">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5 text-verified" /> Completed Deals
           </span>
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-verified-muted text-verified">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-verified-muted text-verified border border-verified-border">
             <ShieldCheck className="w-3 h-3" /> Settled
           </span>
         </div>
@@ -56,7 +56,7 @@ export function DealsMetricsBar({
       </div>
 
       {/* 3. Total Commercial Volume */}
-      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm hover:border-border/80 transition-all flex flex-col justify-between">
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-xs hover:border-border/80 transition-all flex flex-col justify-between">
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
             <TrendingUp className="w-3.5 h-3.5 text-primary" />

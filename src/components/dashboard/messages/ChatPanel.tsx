@@ -106,7 +106,7 @@ function ChatHeader({ state }: Readonly<ChatPanelProps>) {
             type="button"
             onClick={() => setSelectedConversation(null)}
             aria-label="Back to conversations"
-            className="sm:hidden p-1.5 -ml-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+            className="sm:hidden w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors cursor-pointer"
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
@@ -176,10 +176,9 @@ function ChatHeader({ state }: Readonly<ChatPanelProps>) {
         <div className="flex items-center gap-1.5 shrink-0">
           <Button
             variant="secondary"
-            size="sm"
             onClick={() => setIsReportModalOpen(true)}
             aria-label={`Report ${selectedChat?.name ?? "this user"}`}
-            className="text-xs px-2.5 py-1.5 flex items-center gap-1"
+            className="text-xs min-h-[44px] px-3 py-2 flex items-center gap-1"
           >
             <Flag className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Report</span>
@@ -187,14 +186,13 @@ function ChatHeader({ state }: Readonly<ChatPanelProps>) {
 
           <Button
             variant={isChatUserBlocked ? "secondary" : "ghost"}
-            size="sm"
             onClick={isChatUserBlocked ? handleUnblockUser : handleBlockUser}
             aria-label={
               isChatUserBlocked
                 ? `Unblock ${selectedChat?.name ?? "user"}`
                 : `Block ${selectedChat?.name ?? "user"}`
             }
-            className={`text-xs px-2.5 py-1.5 flex items-center gap-1 ${
+            className={`text-xs min-h-[44px] px-3 py-2 flex items-center gap-1 ${
               isChatUserBlocked
                 ? "text-verified border border-verified-border bg-verified-muted"
                 : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"
@@ -711,7 +709,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className={`p-2.5 rounded-xl transition-colors shrink-0 ${
+            className={`w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl transition-colors shrink-0 cursor-pointer ${
               isUploading
                 ? "text-muted-foreground/40 cursor-not-allowed"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -725,7 +723,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
           <button
             type="button"
             onClick={() => setIsOfferModalOpen(true)}
-            className="p-2.5 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0 cursor-pointer"
             aria-label="Create custom offer"
             title="Send Custom Collaboration Proposal"
           >
@@ -744,7 +742,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
               }
             }}
             placeholder="Message… (Enter to send)"
-            className="flex-1 py-2.5 px-4 rounded-2xl border border-input bg-muted/40 text-foreground placeholder:text-muted-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+            className="flex-1 min-h-[44px] py-2.5 px-4 rounded-2xl border border-input bg-muted/40 text-foreground placeholder:text-muted-foreground text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
             aria-label="Type a message"
           />
 
@@ -752,9 +750,8 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
           <Button
             type="submit"
             variant="primary"
-            size="sm"
             disabled={!newMessage.trim()}
-            className="p-2.5 h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm disabled:opacity-40"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] rounded-xl flex items-center justify-center shrink-0 shadow-sm disabled:opacity-40 p-0 cursor-pointer"
             aria-label="Send message"
           >
             <Send className="w-4 h-4" />
@@ -824,16 +821,16 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
                 fullWidth
               />
             </div>
-            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-border">
               <Button
                 type="button"
                 variant="secondary"
-                size="sm"
                 onClick={() => setIsOfferModalOpen(false)}
+                className="w-full sm:w-auto min-h-[44px]"
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" size="sm" className="font-bold">
+              <Button type="submit" variant="primary" className="w-full sm:w-auto min-h-[44px] font-bold">
                 Send Proposal
               </Button>
             </div>
@@ -890,16 +887,16 @@ export function ReportUserModal({ state }: Readonly<ChatPanelProps>) {
           fullWidth
         />
 
-        <div className="flex justify-end gap-2 pt-3 border-t border-border">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-border">
           <Button
             type="button"
             variant="secondary"
-            size="sm"
             onClick={() => setIsReportModalOpen(false)}
+            className="w-full sm:w-auto min-h-[44px]"
           >
             Cancel
           </Button>
-          <Button type="submit" variant="danger" size="sm" className="font-bold">
+          <Button type="submit" variant="danger" className="w-full sm:w-auto min-h-[44px] font-bold">
             Submit Report
           </Button>
         </div>

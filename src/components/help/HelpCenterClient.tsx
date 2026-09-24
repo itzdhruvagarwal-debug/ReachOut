@@ -1,15 +1,13 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import Link from "next/link";
-import { Button, Input } from "@/components/ui";
+import { Button } from "@/components/ui";
 import {
   Search,
   HelpCircle,
   ShieldCheck,
   Lock,
   AlertCircle,
-  FileCheck2,
   ChevronDown,
   ChevronUp,
   MessageSquare,

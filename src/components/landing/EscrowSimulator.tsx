@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { formatCurrency } from "@/lib/utils-client";
 
 const PRESET_BUDGETS = [25000, 50000, 100000, 250000];
 
@@ -15,13 +16,7 @@ export function EscrowSimulator() {
   const platformFee = Math.round(budget * 0.1);
   const totalBrandDeposit = budget + platformFee;
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(val);
-  };
+  const formatRupees = (val: number) => formatCurrency(val * 100);
 
   return (
     <div className="w-full max-w-5xl mx-auto my-16 p-6 sm:p-10 rounded-2xl border border-border bg-card shadow-lg relative overflow-hidden">
@@ -54,7 +49,7 @@ export function EscrowSimulator() {
             </label>
             <div className="flex items-center justify-between gap-2 mb-4">
               <span className="text-3xl font-black text-foreground">
-                {formatCurrency(budget)}
+                {formatRupees(budget)}
               </span>
               <span className="text-xs px-2.5 py-1 rounded-md font-semibold bg-verified-muted text-verified border border-verified-border">
                 100% Guaranteed
@@ -103,11 +98,11 @@ export function EscrowSimulator() {
           <div className="pt-4 border-t border-border flex flex-col gap-2.5 text-xs">
             <div className="flex justify-between text-muted-foreground">
               <span>Creator Payout (Agreed Fee):</span>
-              <span className="font-semibold text-foreground">{formatCurrency(budget)}</span>
+              <span className="font-semibold text-foreground">{formatRupees(budget)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Transparent Platform Fee (10%):</span>
-              <span className="font-semibold text-foreground">{formatCurrency(platformFee)}</span>
+              <span className="font-semibold text-foreground">{formatRupees(platformFee)}</span>
             </div>
             <div className="flex justify-between text-muted-foreground">
               <span>Creator Deductions:</span>
@@ -115,7 +110,7 @@ export function EscrowSimulator() {
             </div>
             <div className="flex justify-between font-bold text-sm text-foreground pt-2 border-t border-border">
               <span>Total Brand Escrow Deposit:</span>
-              <span className="text-primary">{formatCurrency(totalBrandDeposit)}</span>
+              <span className="text-primary">{formatRupees(totalBrandDeposit)}</span>
             </div>
           </div>
 
@@ -155,7 +150,7 @@ export function EscrowSimulator() {
                 </div>
               </div>
               <span className="text-sm font-extrabold text-foreground flex-shrink-0">
-                {formatCurrency(m1)}
+                {formatRupees(m1)}
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-border">
@@ -187,7 +182,7 @@ export function EscrowSimulator() {
                 </div>
               </div>
               <span className="text-sm font-extrabold text-foreground flex-shrink-0">
-                {formatCurrency(m2)}
+                {formatRupees(m2)}
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-border">
@@ -219,7 +214,7 @@ export function EscrowSimulator() {
                 </div>
               </div>
               <span className="text-sm font-extrabold text-verified flex-shrink-0">
-                {formatCurrency(m3)}
+                {formatRupees(m3)}
               </span>
             </div>
             <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-border">

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import { useRouter } from "next/navigation";
-import { apiClient, ApiClientError } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
 import {
   CampaignApplication,

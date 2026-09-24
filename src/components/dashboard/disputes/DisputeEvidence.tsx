@@ -4,7 +4,7 @@ import React from "react";
 import { Button, Select, Input, Textarea } from "@/components/ui";
 import { DisputeDetail } from "./DisputeHelpers";
 import { formatDate } from "@/lib/utils-client";
-import { Paperclip, ExternalLink, Plus, X, FileText, CheckCircle2 } from "lucide-react";
+import { Paperclip, ExternalLink, Plus, X, FileText } from "lucide-react";
 
 interface DisputeEvidenceProps {
   readonly dispute: DisputeDetail;

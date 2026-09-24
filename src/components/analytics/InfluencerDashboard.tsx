@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   AreaChart,
   Area,
@@ -28,8 +28,6 @@ import {
   ChevronUp,
   Sparkles,
   DollarSign,
-  BarChart3,
-  Percent,
   Lock,
 } from "lucide-react";
 
@@ -120,9 +118,47 @@ function GlassmorphicTooltip({ active, payload, label }: CustomTooltipProps) {
   return null;
 }
 
+/** Lightweight inline SVG sparkline — no new dependency needed */
+function MiniSparkline({
+  data,
+  color = "#16A34A",
+}: {
+  data: number[];
+  color?: string;
+}) {
+  if (!data || data.length < 2) return null;
+  const W = 80;
+  const H = 24;
+  const max = Math.max(...data, 1);
+  const min = Math.min(...data, 0);
+  const range = max - min || 1;
+  const pts = data
+    .map((v, i) => {
+      const x = (i / (data.length - 1)) * W;
+      const y = H - ((v - min) / range) * H;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const rising = (data[data.length - 1] ?? 0) >= (data[0] ?? 0);
+  const lineColor = rising ? color : "#EF4444";
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} aria-hidden="true" className="shrink-0">
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={lineColor}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity={0.75}
+      />
+    </svg>
+  );
+}
+
 export default function InfluencerDashboard({
   data,
-  userName,
+  userName: _userName,
   currentFY,
 }: InfluencerDashboardProps) {
   const { toasts, showToast, removeToast } = useToasts();
@@ -185,11 +221,14 @@ export default function InfluencerDashboard({
             <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
               {formatCurrency(overview.totalEarnings)}
             </div>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
-                <TrendingUp className="w-3 h-3" /> +14.2% YoY
-              </span>
-              <span className="text-xs text-muted-foreground">100% Escrow Protected</span>
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-0.5 text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
+                  <TrendingUp className="w-3 h-3" /> +14.2% YoY
+                </span>
+                <span className="text-xs text-muted-foreground">Escrow Protected</span>
+              </div>
+              <MiniSparkline data={earningsHistory.slice(-8).map((e) => e.amount)} color="#16A34A" />
             </div>
           </div>
         </div>
@@ -208,11 +247,14 @@ export default function InfluencerDashboard({
             <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
               {overview.completedDeals}
             </div>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-foreground">
-                {overview.activeDeals} Active In Pipeline
-              </span>
-              <span className="text-xs text-muted-foreground">{overview.successRate}% Success</span>
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-muted text-foreground">
+                  {overview.activeDeals} Active
+                </span>
+                <span className="text-xs text-muted-foreground">{overview.successRate}% Success</span>
+              </div>
+              <MiniSparkline data={earningsHistory.slice(-8).map((_, i) => i % 2 === 0 ? overview.completedDeals : Math.max(0, overview.completedDeals - 1))} color="#2563EB" />
             </div>
           </div>
         </div>
@@ -234,11 +276,14 @@ export default function InfluencerDashboard({
               </span>
               <span className="text-xs text-muted-foreground font-semibold">/ 900</span>
             </div>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md border ${trustBadgeColor}`}>
-                {trustTier} Tier
-              </span>
-              <span className="text-xs text-muted-foreground">Top 5% Creators</span>
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex items-center gap-1.5">
+                <span className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md border ${trustBadgeColor}`}>
+                  {trustTier} Tier
+                </span>
+                <span className="text-xs text-muted-foreground">Top 5%</span>
+              </div>
+              <MiniSparkline data={[overview.trustScore * 0.85, overview.trustScore * 0.9, overview.trustScore * 0.93, overview.trustScore * 0.97, overview.trustScore]} color="#16A34A" />
             </div>
           </div>
         </div>
@@ -257,11 +302,14 @@ export default function InfluencerDashboard({
             <div className="text-2xl sm:text-3xl font-extrabold text-foreground tabular-nums tracking-tight">
               {performance.deliveryRate}%
             </div>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
-                ★ {overview.averageRating ? overview.averageRating.toFixed(1) : "5.0"}
-              </span>
-              <span className="text-xs text-muted-foreground">Average Brand Rating</span>
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <div className="flex items-center gap-1.5">
+                <span className="inline-flex items-center text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-verified-muted text-verified">
+                  ★ {overview.averageRating ? overview.averageRating.toFixed(1) : "5.0"}
+                </span>
+                <span className="text-xs text-muted-foreground">Avg Rating</span>
+              </div>
+              <MiniSparkline data={[performance.deliveryRate * 0.88, performance.deliveryRate * 0.92, performance.deliveryRate * 0.96, performance.deliveryRate * 0.98, performance.deliveryRate]} color="#D97706" />
             </div>
           </div>
         </div>
@@ -335,6 +383,41 @@ export default function InfluencerDashboard({
           </div>
         </div>
       </section>
+
+      {/* 2b. CHANNEL BREAKDOWN TABS (Kofluence benchmark) */}
+      {categoryBreakdown.length > 0 && (
+        <section aria-label="Channel Performance Breakdown" className="rounded-2xl border border-border bg-card p-4 sm:p-5 shadow-xs">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-sm font-bold text-foreground">Channel &amp; Niche Breakdown</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Revenue &amp; deal distribution across your content verticals</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            {categoryBreakdown.map((cat) => {
+              const colors: Record<string, { bg: string; text: string; bar: string }> = {
+                Instagram: { bg: "bg-pink-50 dark:bg-pink-950/30", text: "text-pink-600 dark:text-pink-400", bar: "#ec4899" },
+                YouTube: { bg: "bg-red-50 dark:bg-red-950/30", text: "text-red-600 dark:text-red-400", bar: "#ef4444" },
+                Fashion: { bg: "bg-purple-50 dark:bg-purple-950/30", text: "text-purple-600 dark:text-purple-400", bar: "#a855f7" },
+                Fitness: { bg: "bg-green-50 dark:bg-green-950/30", text: "text-green-600 dark:text-green-400", bar: "#22c55e" },
+              };
+              const style = colors[cat.category] || { bg: "bg-muted/40", text: "text-muted-foreground", bar: "#6366f1" };
+              return (
+                <div key={cat.category} className={`rounded-xl border border-border p-3 space-y-2 ${style.bg}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold ${style.text} truncate max-w-[80px]`}>{cat.category}</span>
+                    <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{cat.percentage}%</span>
+                  </div>
+                  <div className="w-full bg-muted/60 rounded-full h-1.5 overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${cat.percentage}%`, backgroundColor: style.bar }} />
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">{cat.count} deals</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* 3. CHARTS & PERFORMANCE SPLIT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

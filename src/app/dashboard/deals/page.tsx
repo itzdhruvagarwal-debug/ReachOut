@@ -17,7 +17,7 @@ import { Button } from "@/components/ui";
 import { DealsMetricsBar } from "@/components/dashboard/deals/DealsMetricsBar";
 import { DealsFilterToolbar } from "@/components/dashboard/deals/DealsFilterToolbar";
 import { DealPipelineCard } from "@/components/dashboard/deals/DealPipelineCard";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 
 function normalizeDeal(raw: RawDeal): Deal {
   const campaign = raw?.campaign || {};
@@ -47,9 +47,9 @@ function DealsLoadingSkeleton() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         {[1, 2, 3].map((i) => (
           <div key={i} className="h-28 rounded-2xl bg-card border border-border p-5 flex flex-col justify-between">
-            <div className="w-24 h-4 bg-muted rounded" />
-            <div className="w-32 h-8 bg-muted rounded" />
-            <div className="w-40 h-3 bg-muted rounded" />
+            <div className="w-24 h-4 bg-muted rounded-md" />
+            <div className="w-32 h-8 bg-muted rounded-lg" />
+            <div className="w-40 h-3 bg-muted rounded-md" />
           </div>
         ))}
       </div>
@@ -63,8 +63,8 @@ function DealsLoadingSkeleton() {
           <div className="flex items-center gap-3.5">
             <div className="w-12 h-12 rounded-full bg-muted shrink-0" />
             <div className="space-y-2">
-              <div className="w-48 h-4 bg-muted rounded" />
-              <div className="w-32 h-3 bg-muted rounded" />
+              <div className="w-48 h-4 bg-muted rounded-md" />
+              <div className="w-32 h-3 bg-muted rounded-md" />
             </div>
           </div>
           <div className="w-32 h-9 bg-muted rounded-xl" />
@@ -78,6 +78,7 @@ export default function DealsPage() {
   const { data: session } = useSession();
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("newest");
   const [selectedDeal, setSelectedDeal] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const DEALS_PER_PAGE = 50;
@@ -102,17 +103,42 @@ export default function DealsPage() {
     return { deals: mappedDeals, totalPages: pages, stats: dealStats };
   }, [payload]);
 
-  // Client-side search filter for instantaneous matching
-  const filteredDeals = useMemo(() => {
-    if (!searchQuery.trim()) return deals;
-    const query = searchQuery.toLowerCase();
-    return deals.filter(
-      (d) =>
-        d.campaign.title.toLowerCase().includes(query) ||
-        d.brand.companyName.toLowerCase().includes(query) ||
-        d.status.toLowerCase().includes(query)
-    );
-  }, [deals, searchQuery]);
+  // Compute status counts for toolbar pills
+  const tabCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: deals.length };
+    for (const d of deals) {
+      counts[d.status] = (counts[d.status] || 0) + 1;
+    }
+    return counts;
+  }, [deals]);
+
+  // Client-side search and multi-criteria sorting (Upwork pattern)
+  const sortedAndFilteredDeals = useMemo(() => {
+    let result = deals;
+
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (d) =>
+          d.campaign.title.toLowerCase().includes(query) ||
+          d.brand.companyName.toLowerCase().includes(query) ||
+          d.status.toLowerCase().includes(query)
+      );
+    }
+
+    const list = [...result];
+    switch (sortBy) {
+      case "deadline":
+        return list.sort((a, b) => new Date(a.postingDeadline).getTime() - new Date(b.postingDeadline).getTime());
+      case "amount_desc":
+        return list.sort((a, b) => b.amount - a.amount);
+      case "amount_asc":
+        return list.sort((a, b) => a.amount - b.amount);
+      case "newest":
+      default:
+        return list;
+    }
+  }, [deals, searchQuery, sortBy]);
 
   if (!session) {
     return (
@@ -151,7 +177,7 @@ export default function DealsPage() {
 
   return (
     <DashboardShell user={session.user}>
-      <div className="max-w-7xl mx-auto space-y-6 pb-12">
+      <div className="max-w-7xl mx-auto space-y-6 pb-12 animate-fade-in">
         {/* Page Header */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-5">
           <div>
@@ -170,9 +196,15 @@ export default function DealsPage() {
               href={isInfluencer ? "/dashboard/campaigns" : "/dashboard/campaigns/create"}
               variant="primary"
               size="sm"
-              className="text-xs font-bold gap-1 shadow-sm"
+              className="text-xs font-bold gap-1 shadow-xs"
             >
-              {isInfluencer ? "Explore Campaigns" : "+ New Campaign"}
+              {isInfluencer ? (
+                "Explore Campaigns"
+              ) : (
+                <>
+                  <Plus className="w-3.5 h-3.5" /> New Campaign
+                </>
+              )}
             </Button>
           </div>
         </header>
@@ -189,7 +221,7 @@ export default function DealsPage() {
               isInfluencer={isInfluencer}
             />
 
-            {/* Filter and Search Bar */}
+            {/* Filter and Search Bar with Sort Controls */}
             <DealsFilterToolbar
               statusFilter={statusFilter}
               setStatusFilter={(status) => {
@@ -198,12 +230,15 @@ export default function DealsPage() {
               }}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
+              sortBy={sortBy}
+              setSortBy={setSortBy}
+              tabCounts={tabCounts}
             />
 
             {/* Pipeline Deals List */}
-            {filteredDeals.length > 0 ? (
+            {sortedAndFilteredDeals.length > 0 ? (
               <section aria-label="Deals pipeline list" className="space-y-3.5">
-                {filteredDeals.map((deal) => (
+                {sortedAndFilteredDeals.map((deal) => (
                   <DealPipelineCard
                     key={deal.id}
                     deal={deal}

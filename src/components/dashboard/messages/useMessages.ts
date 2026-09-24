@@ -13,7 +13,6 @@ import {
 } from "@/lib/supabase-messaging-realtime";
 import type { ToastItem, ToastType } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
-import { ApiClientError } from "@/lib/api-client/errors";
 import { formatCurrency, formatTime } from "@/lib/utils-client";
 import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
 import {

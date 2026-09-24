@@ -6,6 +6,7 @@ import Image from "next/image";
 import { formatCurrency } from "@/lib/utils-client";
 import { CreatorDiscoveryItem } from "./types";
 import { apiClient } from "@/lib/api-client";
+import { Card } from "@/components/ui";
 import {
   ShieldCheck,
   Bookmark,
@@ -111,7 +112,7 @@ export default function CreatorDiscoveryCard({
   const startingRate = formatCurrency(creator.startingRatePaise);
 
   return (
-    <article className="relative w-full rounded-2xl border border-border bg-card overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col mb-6 group">
+    <Card as="article" className="relative w-full overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col mb-6 group">
       {/* Toast Notification */}
       {toastMessage && (
         <div
@@ -247,18 +248,18 @@ export default function CreatorDiscoveryCard({
         </div>
 
         {/* Action Row */}
-        <div className="pt-2 border-t border-border flex items-center justify-between">
+        <div className="pt-2 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="text-xs text-muted-foreground font-medium">
             Verified Escrow Payouts
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
             <button
               type="button"
               onClick={handleShareClick}
               title="Share profile"
               aria-label="Share creator profile"
-              className="p-2 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <Share2 className="w-4 h-4" />
             </button>
@@ -269,7 +270,7 @@ export default function CreatorDiscoveryCard({
               disabled={isSaving}
               title={isSaved ? "Remove from saved" : "Save creator"}
               aria-label={isSaved ? "Remove from saved" : "Save creator"}
-              className={`p-2 rounded-xl border transition-all cursor-pointer ${
+              className={`w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl border transition-all cursor-pointer ${
                 isSaved
                   ? "bg-primary text-primary-foreground border-primary"
                   : "border-border hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -281,7 +282,7 @@ export default function CreatorDiscoveryCard({
             {showInviteButton && (
               <Link
                 href={`/dashboard/campaigns/create?invite=${creator.id}`}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl bg-verified text-primary-foreground text-xs font-bold hover:opacity-90 transition-all cursor-pointer shadow-sm"
+                className="inline-flex items-center justify-center gap-1 min-h-[44px] px-3.5 py-2 rounded-xl bg-verified text-primary-foreground text-xs font-bold hover:opacity-90 transition-all cursor-pointer shadow-sm flex-1 sm:flex-initial"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Invite</span>
@@ -290,7 +291,7 @@ export default function CreatorDiscoveryCard({
 
             <Link
               href={`/dashboard/influencers/${creator.id}`}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-sm hover:opacity-90 transition-all"
+              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold shadow-sm hover:opacity-90 transition-all flex-1 sm:flex-initial"
             >
               <span>View Profile</span>
               <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5]" />
@@ -298,6 +299,6 @@ export default function CreatorDiscoveryCard({
           </div>
         </div>
       </div>
-    </article>
+    </Card>
   );
 }

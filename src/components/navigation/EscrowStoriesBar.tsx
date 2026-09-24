@@ -2,7 +2,6 @@
 
 import React, { useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import useSWR from "swr";
 import { createSchemaFetcher } from "@/lib/fetcher";
 import {

@@ -59,6 +59,25 @@ function RegisterContent() {
 
   return (
     <AuthLayout wideCard={step === 1}>
+      {/* Kofluence Benchmark: Micro-progress indicator & time estimate */}
+      <div className="mb-6 space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span className="font-bold text-foreground">
+            Step {step} of 2: {step === 1 ? "Select Account Role" : "Account Setup"}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-verified bg-verified-muted px-2.5 py-0.5 rounded-full border border-verified-border">
+            <span>⚡</span>
+            <span>~2 min quick setup</span>
+          </span>
+        </div>
+        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+          <div
+            className="h-full bg-primary transition-all duration-300 rounded-full"
+            style={{ width: step === 1 ? "50%" : "100%" }}
+          />
+        </div>
+      </div>
+
       {/* Step 1: Choose User Type */}
       {step === 1 && (
         <UserTypeSelection

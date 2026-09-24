@@ -12,7 +12,6 @@ import { formatCurrency, formatDate } from "@/lib/utils-client";
 import { type DisputeItem, type DisputesResponse } from "@/lib/schemas/dispute.schema";
 import {
   Scale,
-  ShieldAlert,
   ArrowRight,
   Search,
   X,
@@ -26,14 +25,18 @@ import {
   HelpCircle,
   AlertTriangle,
   Paperclip,
+  Upload,
+  Activity,
+  TrendingDown,
+  Shield,
 } from "lucide-react";
 
 type FilterTab = "all" | "active" | "resolved";
 
+/* ── Skeleton ───────────────────────────────────────────────────────────── */
 function DisputeSkeleton() {
   return (
     <div className="space-y-4">
-      {/* Metric Cards Skeleton */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[1, 2, 3, 4].map((i) => (
           <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
@@ -42,8 +45,6 @@ function DisputeSkeleton() {
           </div>
         ))}
       </div>
-
-      {/* Disputes List Skeleton */}
       <div className="space-y-3 pt-2">
         {[1, 2, 3].map((i) => (
           <div key={i} className="bg-card border border-border rounded-2xl p-5 space-y-4">
@@ -67,6 +68,7 @@ function DisputeSkeleton() {
   );
 }
 
+/* ── Timeline ───────────────────────────────────────────────────────────── */
 interface TimelineStepProps {
   label: string;
   isComplete: boolean;
@@ -114,6 +116,26 @@ function TimelineStep({ label, isComplete, isActive, isLast = false }: TimelineS
   );
 }
 
+function DisputeTimeline({ status }: { status: string }) {
+  const isResolvedOrClosed = status === "RESOLVED" || status === "CLOSED";
+  const isTier2 = status === "TIER2_MEDIATION";
+  const isOpenOrTier1 = status === "OPEN" || status === "TIER1_AUTO";
+
+  const step2Complete = isTier2 || isResolvedOrClosed;
+  const step3Complete = isResolvedOrClosed;
+  const step4Complete = isResolvedOrClosed;
+
+  return (
+    <div className="hidden sm:flex items-center py-2 px-3 bg-muted/40 rounded-xl border border-border/60">
+      <TimelineStep label="Filed" isComplete isActive={false} />
+      <TimelineStep label="Mutual Talk" isComplete={step2Complete} isActive={isOpenOrTier1} />
+      <TimelineStep label="Escrow Mediation" isComplete={step3Complete} isActive={isTier2} />
+      <TimelineStep label="Resolution" isComplete={step4Complete} isActive={false} isLast />
+    </div>
+  );
+}
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
 function getDisputeCountdown(createdAtStr: string): string {
   try {
     const created = new Date(createdAtStr).getTime();
@@ -129,44 +151,62 @@ function getDisputeCountdown(createdAtStr: string): string {
   }
 }
 
-function DisputeTimeline({ status }: { status: string }) {
-  const isResolvedOrClosed = status === "RESOLVED" || status === "CLOSED";
-  const isTier2 = status === "TIER2_MEDIATION";
-  const isOpenOrTier1 = status === "OPEN" || status === "TIER1_AUTO";
-
-  const step1Complete = true; // Filed is always complete
-  const step2Complete = isTier2 || isResolvedOrClosed;
-  const step2Active = isOpenOrTier1;
-
-  const step3Complete = isResolvedOrClosed;
-  const step3Active = isTier2;
-
-  const step4Complete = isResolvedOrClosed;
-  const step4Active = false;
-
-  return (
-    <div className="hidden sm:flex items-center py-2 px-3 bg-muted/40 rounded-xl border border-border/60">
-      <TimelineStep label="Filed" isComplete={step1Complete} isActive={false} />
-      <TimelineStep
-        label="Mutual Talk"
-        isComplete={step2Complete}
-        isActive={step2Active}
-      />
-      <TimelineStep
-        label="Escrow Mediation"
-        isComplete={step3Complete}
-        isActive={step3Active}
-      />
-      <TimelineStep
-        label="Resolution"
-        isComplete={step4Complete}
-        isActive={step4Active}
-        isLast
-      />
-    </div>
-  );
+/** Returns a relative "X ago" string for last-activity display */
+function timeAgo(dateStr: string): string {
+  try {
+    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days}d ago`;
+  } catch {
+    return "";
+  }
 }
 
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "TIER1_AUTO":
+    case "OPEN":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-pending-muted text-pending border border-pending-border">
+          <Clock className="w-3.5 h-3.5" />
+          Tier 1: Mutual Negotiation
+        </span>
+      );
+    case "TIER2_MEDIATION":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-disputed-muted text-disputed border border-disputed-border animate-pulse">
+          <AlertCircle className="w-3.5 h-3.5" />
+          Tier 2: Escrow Mediation
+        </span>
+      );
+    case "RESOLVED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-verified-muted text-verified border border-verified-border">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          Resolved
+        </span>
+      );
+    case "CLOSED":
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+          Closed
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+          {status.replaceAll("_", " ")}
+        </span>
+      );
+  }
+}
+
+/* ── Main Page ──────────────────────────────────────────────────────────── */
 export default function DisputesPage() {
   const { data: session } = useSession();
   const { data, isLoading } = useSWR<DisputesResponse>("/api/disputes", fetcher);
@@ -175,10 +215,8 @@ export default function DisputesPage() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Filter logic
   const filteredDisputes = useMemo(() => {
     return disputes.filter((dispute) => {
-      // Tab filter
       if (activeTab === "active") {
         const isActive =
           dispute.status === "OPEN" ||
@@ -190,7 +228,6 @@ export default function DisputesPage() {
         if (!isResolved) return false;
       }
 
-      // Search filter
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       const campaignTitle = dispute.deal?.campaign?.title?.toLowerCase() || "";
@@ -213,9 +250,7 @@ export default function DisputesPage() {
     });
   }, [disputes, activeTab, searchQuery]);
 
-  // Aggregate Metrics
   const metrics = useMemo(() => {
-    const totalCount = disputes.length;
     let activeMediationCount = 0;
     let resolvedCount = 0;
     let totalDisputedAmount = 0;
@@ -234,56 +269,18 @@ export default function DisputesPage() {
     }
 
     return {
-      totalCount,
+      totalCount: disputes.length,
       activeMediationCount,
       resolvedCount,
       totalDisputedAmount,
     };
   }, [disputes]);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "TIER1_AUTO":
-      case "OPEN":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-pending-muted text-pending border border-pending-border">
-            <Clock className="w-3.5 h-3.5" />
-            Tier 1: Mutual Negotiation
-          </span>
-        );
-      case "TIER2_MEDIATION":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-disputed-muted text-disputed border border-disputed-border animate-pulse">
-            <AlertCircle className="w-3.5 h-3.5" />
-            Tier 2: Escrow Mediation
-          </span>
-        );
-      case "RESOLVED":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-verified-muted text-verified border border-verified-border">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Resolved
-          </span>
-        );
-      case "CLOSED":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
-            Closed
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
-            {status.replaceAll("_", " ")}
-          </span>
-        );
-    }
-  };
-
   return (
     <DashboardShell user={session?.user}>
       <div className="space-y-6 animate-fade-in max-w-6xl mx-auto pb-12">
-        {/* Header Section */}
+
+        {/* ── HEADER ──────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -297,7 +294,7 @@ export default function DisputesPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-2.5">
               <Scale className="w-7 h-7 text-primary" />
-              Dispute & Resolution Center
+              Dispute &amp; Resolution Center
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
               Escrow-backed dispute arbitration, evidence examination, and neutral mediation
@@ -321,22 +318,25 @@ export default function DisputesPage() {
           </div>
         </div>
 
-        {/* Metric Cards Row */}
+        {/* ── METRIC CARDS ────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Total */}
           <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
-            <span className="text-xs font-medium text-muted-foreground block mb-1">
-              Total Disputes
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+              <Activity className="w-3.5 h-3.5" />
+              Total Cases
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-foreground tabular-nums">
                 {metrics.totalCount}
               </span>
-              <span className="text-xs text-muted-foreground">cases recorded</span>
+              <span className="text-xs text-muted-foreground">recorded</span>
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
-            <span className="text-xs font-medium text-pending block mb-1 flex items-center gap-1">
+          {/* Active */}
+          <div className="bg-card border border-pending-border rounded-2xl p-4 shadow-sm">
+            <span className="text-xs font-medium text-pending flex items-center gap-1.5 mb-2">
               <Clock className="w-3.5 h-3.5" />
               In Mediation
             </span>
@@ -344,14 +344,17 @@ export default function DisputesPage() {
               <span className="text-2xl font-black text-foreground tabular-nums">
                 {metrics.activeMediationCount}
               </span>
-              <span className="text-xs text-pending font-medium">awaiting action</span>
+              {metrics.activeMediationCount > 0 && (
+                <span className="text-xs text-pending font-semibold">need action</span>
+              )}
             </div>
           </div>
 
-          <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
-            <span className="text-xs font-medium text-verified block mb-1 flex items-center gap-1">
+          {/* Resolved */}
+          <div className="bg-card border border-verified-border rounded-2xl p-4 shadow-sm">
+            <span className="text-xs font-medium text-verified flex items-center gap-1.5 mb-2">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              Resolved & Closed
+              Resolved &amp; Closed
             </span>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-black text-foreground tabular-nums">
@@ -361,12 +364,13 @@ export default function DisputesPage() {
             </div>
           </div>
 
+          {/* Escrow */}
           <div className="bg-card border border-border rounded-2xl p-4 shadow-sm">
-            <span className="text-xs font-medium text-muted-foreground block mb-1 flex items-center gap-1">
-              <Lock className="w-3.5 h-3.5 text-primary" />
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mb-2">
+              <Shield className="w-3.5 h-3.5 text-primary" />
               Disputed Escrow
             </span>
-            <div className="flex items-baseline gap-2">
+            <div className="flex items-baseline gap-1">
               <span className="text-xl sm:text-2xl font-black text-foreground tabular-nums">
                 {formatCurrency(metrics.totalDisputedAmount)}
               </span>
@@ -374,8 +378,8 @@ export default function DisputesPage() {
           </div>
         </div>
 
-        {/* Filter Tabs & Search Bar */}
-        <div className="bg-card border border-border rounded-2xl p-3 sm:p-4 shadow-sm space-y-3">
+        {/* ── FILTER BAR ──────────────────────────────────────────────── */}
+        <div className="bg-card border border-border rounded-2xl p-3 sm:p-4 shadow-sm">
           <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
             {/* Tabs */}
             <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border/50">
@@ -401,7 +405,7 @@ export default function DisputesPage() {
               >
                 In Mediation
                 {metrics.activeMediationCount > 0 && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-pending text-white text-[10px]">
+                  <span className="px-1.5 py-0.5 rounded-full bg-pending text-white text-[10px] font-bold leading-none">
                     {metrics.activeMediationCount}
                   </span>
                 )}
@@ -419,11 +423,12 @@ export default function DisputesPage() {
               </button>
             </div>
 
-            {/* Search Box */}
+            {/* Search */}
             <div className="relative flex-1 sm:max-w-xs">
               <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
+                id="disputes-search"
                 placeholder="Search campaign, case #, or party..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -434,6 +439,7 @@ export default function DisputesPage() {
                   type="button"
                   onClick={() => setSearchQuery("")}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
+                  aria-label="Clear search"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -442,65 +448,127 @@ export default function DisputesPage() {
           </div>
         </div>
 
-        {/* Content Section */}
-        {(() => {
-          if (isLoading) {
-            return <DisputeSkeleton />;
-          }
+        {/* ── CONTENT ─────────────────────────────────────────────────── */}
+        {isLoading ? (
+          <DisputeSkeleton />
+        ) : disputes.length === 0 ? (
+          <EmptyState
+            emoji="🛡️"
+            title="No Open Disputes"
+            description="All your escrow deals are running smoothly with zero disputes or hold-ups."
+            actionLabel="View Active Deals"
+            actionHref="/dashboard/deals"
+          />
+        ) : filteredDisputes.length === 0 ? (
+          <div className="bg-card border border-border rounded-2xl p-10 text-center space-y-3">
+            <AlertTriangle className="w-8 h-8 text-pending mx-auto" />
+            <h3 className="text-base font-bold text-foreground">No Disputes Found</h3>
+            <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+              No dispute cases match your current search query or filter tab.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("all");
+                setSearchQuery("");
+              }}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors"
+            >
+              Clear Filters
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-4" role="list" aria-label="Dispute cases">
+            {filteredDisputes.map((dispute) => {
+              const raw = dispute as DisputeItem & Record<string, unknown>;
+              const caseNumber = dispute.id.slice(-6).toUpperCase();
+              const influencerName =
+                dispute.deal?.influencer?.displayName ||
+                dispute.deal?.influencer?.name ||
+                "Creator";
+              const brandName =
+                dispute.deal?.brand?.companyName ||
+                dispute.deal?.brand?.name ||
+                "Brand";
 
-          if (disputes.length === 0) {
-            return (
-              <EmptyState
-                emoji="🛡️"
-                title="No Open Disputes"
-                description="All your escrow deals are running smoothly with zero disputes or hold-ups."
-                actionLabel="View Active Deals"
-                actionHref="/dashboard/deals"
-              />
-            );
-          }
+              const isActive =
+                dispute.status === "OPEN" ||
+                dispute.status === "TIER1_AUTO" ||
+                dispute.status === "TIER2_MEDIATION";
+              const isTier2 = dispute.status === "TIER2_MEDIATION";
+              const isResolved =
+                dispute.status === "RESOLVED" || dispute.status === "CLOSED";
 
-          if (filteredDisputes.length === 0) {
-            return (
-              <div className="bg-card border border-border rounded-2xl p-10 text-center space-y-3">
-                <AlertTriangle className="w-8 h-8 text-pending mx-auto" />
-                <h3 className="text-base font-bold text-foreground">No Disputes Found</h3>
-                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  No dispute cases match your current search query or filter tab.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTab("all");
-                    setSearchQuery("");
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors"
+              // Last-activity: prefer updatedAt from API catchall, else createdAt
+              const lastActivityStr =
+                (typeof raw.updatedAt === "string" ? raw.updatedAt : null) ||
+                dispute.createdAt;
+              const lastActivityLabel = timeAgo(lastActivityStr);
+
+              // Dynamic claim amounts if available from API
+              const brandClaimAmount =
+                typeof raw.brandClaimAmount === "number"
+                  ? raw.brandClaimAmount
+                  : dispute.deal?.amount || 0;
+              const creatorClaimAmount =
+                typeof raw.creatorClaimAmount === "number"
+                  ? raw.creatorClaimAmount
+                  : dispute.deal?.amount || 0;
+              const brandClaimLabel =
+                brandClaimAmount === dispute.deal?.amount
+                  ? `Full Refund (${formatCurrency(brandClaimAmount)})`
+                  : formatCurrency(brandClaimAmount);
+              const creatorClaimLabel =
+                creatorClaimAmount === dispute.deal?.amount
+                  ? `Full Release (${formatCurrency(creatorClaimAmount)})`
+                  : formatCurrency(creatorClaimAmount);
+
+              return (
+                <div
+                  key={dispute.id}
+                  role="listitem"
+                  className={`bg-card border rounded-2xl shadow-sm hover:shadow-md transition-all space-y-4 overflow-hidden ${
+                    isTier2
+                      ? "border-disputed/40"
+                      : isActive
+                      ? "border-pending/30"
+                      : "border-border"
+                  }`}
                 >
-                  Clear Filters
-                </button>
-              </div>
-            );
-          }
+                  {/* ── Urgency strip (Upwork pattern) ────────────────── */}
+                  {isActive && (
+                    <div
+                      className={`flex items-center justify-between px-5 py-2 text-[11px] font-semibold border-b ${
+                        isTier2
+                          ? "bg-disputed-muted border-disputed-border text-disputed"
+                          : "bg-pending-muted border-pending-border text-pending"
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5">
+                        {isTier2 ? (
+                          <>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            Arbiter reviewing — response required
+                          </>
+                        ) : (
+                          <>
+                            <Clock className="w-3.5 h-3.5 animate-pulse" />
+                            Mutual negotiation window: {getDisputeCountdown(dispute.createdAt)}
+                          </>
+                        )}
+                      </span>
+                      {/* Last activity (Upwork benchmark) */}
+                      {lastActivityLabel && (
+                        <span className="flex items-center gap-1 text-muted-foreground font-medium">
+                          <Activity className="w-3 h-3" />
+                          Last activity {lastActivityLabel}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
-          return (
-            <div className="space-y-4">
-              {filteredDisputes.map((dispute) => {
-                const caseNumber = dispute.id.slice(-6).toUpperCase();
-                const influencerName =
-                  dispute.deal?.influencer?.displayName ||
-                  dispute.deal?.influencer?.name ||
-                  "Creator";
-                const brandName =
-                  dispute.deal?.brand?.companyName ||
-                  dispute.deal?.brand?.name ||
-                  "Brand";
-
-                return (
-                  <div
-                    key={dispute.id}
-                    className="bg-card border border-border hover:border-border/80 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all space-y-4"
-                  >
-                    {/* Top Row: Case ID, Status, Escrow Amount, Type */}
+                  <div className="px-5 pb-5 space-y-4">
+                    {/* ── Top row: identifiers + status + escrow amount ── */}
                     <div className="flex flex-wrap items-center justify-between gap-2.5 pb-2 border-b border-border/50">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-foreground border border-border">
@@ -510,7 +578,6 @@ export default function DisputesPage() {
                         <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground border border-border">
                           {dispute.type} Issue
                         </span>
-                        {/* Evidence Status Pill */}
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-md border border-border">
                           <Paperclip className="w-3 h-3 text-primary" />
                           Evidence Vault Active
@@ -518,24 +585,12 @@ export default function DisputesPage() {
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
-                        {/* Urgency Badge */}
-                        {dispute.status === "OPEN" || dispute.status === "TIER1_AUTO" ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-pending bg-pending-muted px-2.5 py-1 rounded-full border border-pending-border">
-                            <Clock className="w-3 h-3 animate-pulse" />
-                            Mutual Window: {getDisputeCountdown(dispute.createdAt)}
-                          </span>
-                        ) : dispute.status === "TIER2_MEDIATION" ? (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-disputed bg-disputed-muted px-2.5 py-1 rounded-full border border-disputed-border animate-pulse">
-                            <AlertCircle className="w-3 h-3" />
-                            Urgent: Arbiter Reviewing
-                          </span>
-                        ) : (
+                        {isResolved && (
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-verified bg-verified-muted px-2.5 py-1 rounded-full border border-verified-border">
                             <CheckCircle2 className="w-3 h-3" />
                             Settlement Disbursed
                           </span>
                         )}
-
                         <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-primary/10 text-primary border border-primary/20 tabular-nums">
                           <Lock className="w-3.5 h-3.5" />
                           {formatCurrency(dispute.deal?.amount || 0)} Protected
@@ -543,11 +598,11 @@ export default function DisputesPage() {
                       </div>
                     </div>
 
-                    {/* Resolution Timeline Progress */}
+                    {/* ── Timeline progress ──────────────────────────── */}
                     <DisputeTimeline status={dispute.status} />
 
-                    {/* Middle Section: Campaign Info & Parties */}
-                    <div className="space-y-2">
+                    {/* ── Campaign info & parties ────────────────────── */}
+                    <div className="space-y-1.5">
                       <h2 className="text-lg font-bold text-foreground hover:text-primary transition-colors">
                         <Link href={`/dashboard/disputes/${dispute.id}`}>
                           {dispute.deal?.campaign?.title || "Campaign Deal"}
@@ -556,65 +611,93 @@ export default function DisputesPage() {
 
                       <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                          <Building2 className="w-3.5 h-3.5" />
                           <strong className="text-foreground font-semibold">Brand:</strong>{" "}
                           {brandName}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <User className="w-3.5 h-3.5 text-muted-foreground" />
+                          <User className="w-3.5 h-3.5" />
                           <strong className="text-foreground font-semibold">Creator:</strong>{" "}
                           {influencerName}
                         </span>
                         <span className="text-muted-foreground/60">
                           Deal #{dispute.deal?.id?.slice(-6)?.toUpperCase()}
                         </span>
+                        {/* Last activity for resolved disputes */}
+                        {isResolved && lastActivityLabel && (
+                          <span className="flex items-center gap-1 text-muted-foreground/70">
+                            <Activity className="w-3 h-3" />
+                            Closed {lastActivityLabel}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Party Claim Amounts (Upwork / Fiverr Dispute Benchmark) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-2.5 rounded-xl bg-muted/40 border border-border/70 text-xs">
-                      <div className="flex items-center justify-between px-2 sm:border-r sm:border-border/60">
-                        <span className="text-muted-foreground text-[11px]">Brand Claim:</span>
-                        <span className="font-semibold font-mono text-pending">
-                          Full Refund ({formatCurrency(dispute.deal?.amount || 0)})
+                    {/* ── Party claim amounts — dynamic (Fiverr benchmark) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 rounded-xl overflow-hidden border border-border/70 text-xs">
+                      <div className="flex items-center justify-between px-3 py-2.5 bg-pending-muted/40 border-b sm:border-b-0 sm:border-r border-border/60">
+                        <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                          <TrendingDown className="w-3.5 h-3.5 text-pending" />
+                          Brand Claim
+                        </span>
+                        <span className="font-bold font-mono text-pending tabular-nums">
+                          {brandClaimLabel}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between px-2">
-                        <span className="text-muted-foreground text-[11px]">Creator Claim:</span>
-                        <span className="font-semibold font-mono text-verified">
-                          Full Escrow Release ({formatCurrency(dispute.deal?.amount || 0)})
+                      <div className="flex items-center justify-between px-3 py-2.5 bg-verified-muted/30">
+                        <span className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-verified" />
+                          Creator Claim
+                        </span>
+                        <span className="font-bold font-mono text-verified tabular-nums">
+                          {creatorClaimLabel}
                         </span>
                       </div>
                     </div>
 
-                    {/* Description Excerpt Quote */}
+                    {/* ── Description excerpt ────────────────────────── */}
                     <div className="bg-background/80 border border-border/80 rounded-xl p-3 text-xs text-muted-foreground leading-relaxed italic">
-                      "{dispute.description.length > 180
+                      &ldquo;{dispute.description.length > 180
                         ? dispute.description.slice(0, 180) + "..."
-                        : dispute.description}"
+                        : dispute.description}&rdquo;
                     </div>
 
-                    {/* Bottom Row: Timestamp and Action CTA */}
+                    {/* ── Bottom row: timestamp + actions (Upwork pattern) */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Clock className="w-3.5 h-3.5" />
                         Filed on {formatDate(dispute.createdAt)}
                       </span>
 
-                      <Link
-                        href={`/dashboard/disputes/${dispute.id}`}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-white hover:bg-primary/90 shadow-sm hover:translate-x-0.5 transition-all"
-                      >
-                        Enter Dispute Room
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
+                      <div className="flex items-center gap-2">
+                        {/* Inline "Submit Evidence" CTA for active disputes (Upwork benchmark) */}
+                        {isActive && (
+                          <Link
+                            href={`/dashboard/disputes/${dispute.id}#evidence`}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-border bg-card text-foreground hover:bg-muted transition-all"
+                            aria-label={`Submit evidence for case #CASE-${caseNumber}`}
+                          >
+                            <Upload className="w-3.5 h-3.5 text-primary" />
+                            Submit Evidence
+                          </Link>
+                        )}
+
+                        <Link
+                          href={`/dashboard/disputes/${dispute.id}`}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-primary text-white hover:bg-primary/90 shadow-sm hover:translate-x-0.5 transition-all"
+                          aria-label={`Enter dispute room for case #CASE-${caseNumber}`}
+                        >
+                          {isResolved ? "View Resolution" : "Enter Dispute Room"}
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          );
-        })()}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </DashboardShell>
   );

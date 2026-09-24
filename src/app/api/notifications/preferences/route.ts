@@ -5,7 +5,6 @@ import prisma from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import {
   normalizeNotificationPreferences,
-  DEFAULT_NOTIFICATION_PREFERENCES,
 } from "@/lib/push-notifications";
 
 export const GET = apiWrapper(async () => {

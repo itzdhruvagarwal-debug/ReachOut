@@ -7,7 +7,7 @@ import { formatCurrency, formatDateTime } from "@/lib/utils-client";
 import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
 import EmptyState from "@/components/ui/EmptyState";
-import { Badge, Button, Textarea } from "@/components/ui";
+import { Badge, Button, Textarea, Modal } from "@/components/ui";
 import { z } from "zod";
 import {
   Banknote,
@@ -16,10 +16,6 @@ import {
   AlertTriangle,
   RefreshCw,
   Building2,
-  ShieldCheck,
-  ShieldAlert,
-  Clock,
-  ExternalLink,
 } from "lucide-react";
 import {
   type AdminWithdrawalItem as Withdrawal,
@@ -165,141 +161,236 @@ export default function PayoutsAdminPage() {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse" aria-label="Payouts queue">
-          <thead>
-            <tr className="border-b border-border bg-muted/30">
-              {["Recipient", "Amount", "Destination", "Risk Assessment", "Requested", "Actions"].map(
-                (heading) => (
-                  <th
-                    key={heading}
-                    scope="col"
-                    className="px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider"
-                  >
-                    {heading}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {withdrawals.map((withdrawal) => {
-              const user = withdrawal.wallet.user;
-              const isActionable =
-                withdrawal.status === "PENDING" ||
-                withdrawal.status === "PENDING_REVIEW" ||
-                withdrawal.status === "PROCESSING";
+      <>
+        {/* Mobile Card Layout (sm:hidden) */}
+        <div className="space-y-3 sm:hidden p-3">
+          {withdrawals.map((withdrawal) => {
+            const user = withdrawal.wallet.user;
+            const isActionable =
+              withdrawal.status === "PENDING" ||
+              withdrawal.status === "PENDING_REVIEW" ||
+              withdrawal.status === "PROCESSING";
 
-              return (
-                <tr
-                  key={withdrawal.id}
-                  className="hover:bg-muted/20 transition-colors group"
-                >
-                  {/* Recipient */}
-                  <td className="px-5 py-4">
+            return (
+              <div
+                key={withdrawal.id}
+                className="p-4 rounded-xl bg-card border border-border shadow-xs space-y-3"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
                     <div className="font-bold text-sm text-foreground">
                       {getUserName(user)}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {user.email}
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px]">
+                      <span className="font-bold uppercase tracking-wider text-primary">
                         {user.userType}
                       </span>
-                      &bull;
-                      <span className="text-[10px] font-semibold text-muted-foreground">
-                        {user.taxCompliance?.panLast4 ? (
-                          <span className="text-verified font-medium">PAN ****{user.taxCompliance.panLast4}</span>
-                        ) : (
-                          <span className="text-disputed font-medium">PAN missing</span>
-                        )}
-                      </span>
-                    </div>
-                  </td>
-
-                  {/* Amount */}
-                  <td className="px-5 py-4 font-black text-foreground text-base">
-                    {formatCurrency(withdrawal.amount)}
-                  </td>
-
-                  {/* Destination */}
-                  <td className="px-5 py-4 text-xs">
-                    <div className="font-bold text-foreground flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
-                      {withdrawal.bankAccountName || "Bank Account"}
-                    </div>
-                    <div className="text-muted-foreground font-mono mt-0.5">
-                      A/c {maskAccount(withdrawal.bankAccountNumber)}
-                    </div>
-                    <div className="text-muted-foreground font-mono">
-                      IFSC: {withdrawal.ifscCode}
-                    </div>
-                    {withdrawal.upiId && (
-                      <div className="text-primary font-mono mt-0.5">
-                        UPI: {withdrawal.upiId}
-                      </div>
-                    )}
-                  </td>
-
-                  {/* Risk */}
-                  <td className="px-5 py-4">
-                    <div className="flex items-center gap-1.5">
-                      <Badge variant={getStatusBadgeVariant(withdrawal.status)}>
-                        {withdrawal.status}
-                      </Badge>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
-                      Risk Score: <strong>{withdrawal.riskScore}</strong>
-                      {withdrawal.isManualReview && (
-                        <span className="text-warning font-bold">(Manual)</span>
+                      <span>&bull;</span>
+                      {user.taxCompliance?.panLast4 ? (
+                        <span className="text-verified font-medium">PAN ****{user.taxCompliance.panLast4}</span>
+                      ) : (
+                        <span className="text-disputed font-medium">PAN missing</span>
                       )}
                     </div>
-                  </td>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-foreground text-base block">
+                      {formatCurrency(withdrawal.amount)}
+                    </span>
+                    <Badge variant={getStatusBadgeVariant(withdrawal.status)} className="mt-1 text-[10px]">
+                      {withdrawal.status}
+                    </Badge>
+                  </div>
+                </div>
 
-                  {/* Requested */}
-                  <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap">
-                    {formatDateTime(withdrawal.createdAt)}
-                  </td>
+                <div className="p-2.5 rounded-lg bg-muted/40 border border-border/60 text-xs space-y-1">
+                  <div className="font-bold text-foreground flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                    {withdrawal.bankAccountName || "Bank Account"}
+                  </div>
+                  <div className="text-muted-foreground font-mono text-[11px]">
+                    A/c {maskAccount(withdrawal.bankAccountNumber)} &bull; IFSC: {withdrawal.ifscCode}
+                  </div>
+                  {withdrawal.upiId && (
+                    <div className="text-primary font-mono text-[11px]">
+                      UPI: {withdrawal.upiId}
+                    </div>
+                  )}
+                </div>
 
-                  {/* Actions */}
-                  <td className="px-5 py-4 text-right whitespace-nowrap">
-                    {isActionable ? (
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          disabled={processing === withdrawal.id}
-                          onClick={() => openAction(withdrawal, "REJECT")}
-                          className="font-bold"
-                        >
-                          Reject
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="success"
-                          size="sm"
-                          disabled={processing === withdrawal.id}
-                          onClick={() => openAction(withdrawal, "APPROVE")}
-                          className="font-bold gap-1 shadow-sm"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          {processing === withdrawal.id ? "Working..." : "Approve"}
-                        </Button>
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1">
+                  <span>Requested: {formatDateTime(withdrawal.createdAt)}</span>
+                  <span>Risk: <strong>{withdrawal.riskScore}</strong></span>
+                </div>
+
+                {isActionable && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-border">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={processing === withdrawal.id}
+                      onClick={() => openAction(withdrawal, "REJECT")}
+                      className="flex-1 min-h-[44px] font-bold text-xs"
+                    >
+                      Reject
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="success"
+                      disabled={processing === withdrawal.id}
+                      onClick={() => openAction(withdrawal, "APPROVE")}
+                      className="flex-1 min-h-[44px] font-bold text-xs gap-1 shadow-sm"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {processing === withdrawal.id ? "Working..." : "Approve"}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop Table (hidden sm:block) */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="w-full text-left border-collapse" aria-label="Payouts queue">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                {["Recipient", "Amount", "Destination", "Risk Assessment", "Requested", "Actions"].map(
+                  (heading) => (
+                    <th
+                      key={heading}
+                      scope="col"
+                      className="px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider"
+                    >
+                      {heading}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {withdrawals.map((withdrawal) => {
+                const user = withdrawal.wallet.user;
+                const isActionable =
+                  withdrawal.status === "PENDING" ||
+                  withdrawal.status === "PENDING_REVIEW" ||
+                  withdrawal.status === "PROCESSING";
+
+                return (
+                  <tr
+                    key={withdrawal.id}
+                    className="hover:bg-muted/20 transition-colors group"
+                  >
+                    {/* Recipient */}
+                    <td className="px-5 py-4">
+                      <div className="font-bold text-sm text-foreground">
+                        {getUserName(user)}
                       </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground font-medium">
-                        Settled
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {user.email}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          {user.userType}
+                        </span>
+                        &bull;
+                        <span className="text-[10px] font-semibold text-muted-foreground">
+                          {user.taxCompliance?.panLast4 ? (
+                            <span className="text-verified font-medium">PAN ****{user.taxCompliance.panLast4}</span>
+                          ) : (
+                            <span className="text-disputed font-medium">PAN missing</span>
+                          )}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Amount */}
+                    <td className="px-5 py-4 font-black text-foreground text-base">
+                      {formatCurrency(withdrawal.amount)}
+                    </td>
+
+                    {/* Destination */}
+                    <td className="px-5 py-4 text-xs">
+                      <div className="font-bold text-foreground flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-muted-foreground" />
+                        {withdrawal.bankAccountName || "Bank Account"}
+                      </div>
+                      <div className="text-muted-foreground font-mono mt-0.5">
+                        A/c {maskAccount(withdrawal.bankAccountNumber)}
+                      </div>
+                      <div className="text-muted-foreground font-mono">
+                        IFSC: {withdrawal.ifscCode}
+                      </div>
+                      {withdrawal.upiId && (
+                        <div className="text-primary font-mono mt-0.5">
+                          UPI: {withdrawal.upiId}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Risk */}
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant={getStatusBadgeVariant(withdrawal.status)}>
+                          {withdrawal.status}
+                        </Badge>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                        Risk Score: <strong>{withdrawal.riskScore}</strong>
+                        {withdrawal.isManualReview && (
+                          <span className="text-warning font-bold">(Manual)</span>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Requested */}
+                    <td className="px-5 py-4 text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(withdrawal.createdAt)}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-5 py-4 text-right whitespace-nowrap">
+                      {isActionable ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            disabled={processing === withdrawal.id}
+                            onClick={() => openAction(withdrawal, "REJECT")}
+                            className="font-bold"
+                          >
+                            Reject
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="success"
+                            size="sm"
+                            disabled={processing === withdrawal.id}
+                            onClick={() => openAction(withdrawal, "APPROVE")}
+                            className="font-bold gap-1 shadow-sm"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {processing === withdrawal.id ? "Working..." : "Approve"}
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground font-medium">
+                          Settled
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </>
     );
   };
 
@@ -343,9 +434,8 @@ export default function PayoutsAdminPage() {
               key={status}
               type="button"
               variant={filter === status ? "primary" : "secondary"}
-              size="sm"
               onClick={() => setFilter(status)}
-              className="font-bold text-xs"
+              className="font-bold text-xs min-h-[44px] px-3.5 py-2"
             >
               {status}
             </Button>
@@ -355,9 +445,8 @@ export default function PayoutsAdminPage() {
         <Button
           type="button"
           variant="ghost"
-          size="sm"
           onClick={() => { fetchWithdrawals(); }}
-          className="gap-1.5 font-bold text-xs"
+          className="gap-1.5 font-bold text-xs min-h-[44px] px-3.5 py-2"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Refresh
@@ -377,28 +466,29 @@ export default function PayoutsAdminPage() {
         {renderContent()}
       </div>
 
-      {/* Decision Modal Backdrop & Dialog */}
+      {/* Decision Modal Dialog */}
       {draft && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <form
-            className="w-full max-w-lg rounded-2xl bg-card border border-border p-6 sm:p-7 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200"
-            onSubmit={handleAction}
-          >
+        <Modal
+          open={Boolean(draft)}
+          onClose={() => setDraft(null)}
+          title={
+            draft.action === "APPROVE" ? (
+              <span className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-verified" />
+                Approve Payout
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <XCircle className="w-5 h-5 text-disputed" />
+                Reject Payout
+              </span>
+            )
+          }
+          maxWidth="32rem"
+        >
+          <form className="space-y-4" onSubmit={handleAction}>
             <div>
-              <h2 className="text-xl font-black text-foreground flex items-center gap-2">
-                {draft.action === "APPROVE" ? (
-                  <>
-                    <CheckCircle2 className="w-5 h-5 text-verified" />
-                    Approve Payout
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="w-5 h-5 text-disputed" />
-                    Reject Payout
-                  </>
-                )}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-sm text-muted-foreground">
                 {formatCurrency(draft.withdrawal.amount)} for{" "}
                 <strong>{getUserName(draft.withdrawal.wallet.user)}</strong>
               </p>
@@ -438,12 +528,13 @@ export default function PayoutsAdminPage() {
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
+            <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-3 border-t border-border">
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => setDraft(null)}
                 disabled={processing === draft.withdrawal.id}
+                className="w-full sm:w-auto min-h-[44px]"
               >
                 Cancel
               </Button>
@@ -451,7 +542,7 @@ export default function PayoutsAdminPage() {
                 type="submit"
                 variant={draft.action === "APPROVE" ? "success" : "danger"}
                 disabled={processing === draft.withdrawal.id}
-                className="font-bold shadow-sm"
+                className="w-full sm:w-auto min-h-[44px] font-bold shadow-sm"
               >
                 {processing === draft.withdrawal.id
                   ? "Processing..."
@@ -461,7 +552,7 @@ export default function PayoutsAdminPage() {
               </Button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -17,10 +17,8 @@ import {
   Copy,
   CheckCheck,
   Share2,
-  ArrowUpRight,
   Zap,
   TrendingUp,
-  ChevronRight,
 } from "lucide-react";
 
 interface ReferralStats {
@@ -198,7 +196,7 @@ export default function ReferralsPage() {
       setCodeCopied(true);
       setTimeout(() => setCodeCopied(false), 2000);
     }
-  }, [stats?.referralCode]);
+  }, [stats]);
 
   const copyLink = useCallback(() => {
     if (referralLink) {
@@ -407,21 +405,71 @@ export default function ReferralsPage() {
                     <Share2 className="w-3.5 h-3.5" />
                     Share via Socials
                   </Button>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(`Join me on VyaparMedia — India's top brand-influencer deal platform! Use my invite code ${stats.referralCode} to claim benefits: ${referralLink}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-verified text-white hover:bg-verified/90 transition-colors shrink-0 shadow-xs"
+                  >
+                    <span>💬</span>
+                    <span>Invite via WhatsApp</span>
+                  </a>
                 </div>
               </div>
 
-              {/* ── Milestone Progress ── */}
+              {/* ── Milestone Progress (CRED Style) ── */}
               <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-extrabold text-foreground">Milestone Progress</h2>
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    <span className="text-base font-extrabold text-verified">{stats.activeReferrals}</span>
-                    {" "}/ {nextTierMin} active partners
-                  </span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {/* Circular Progress Ring */}
+                    <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
+                      <svg className="w-12 h-12 -rotate-90" viewBox="0 0 72 72">
+                        <circle
+                          cx="36"
+                          cy="36"
+                          r="30"
+                          stroke="currentColor"
+                          strokeWidth="6"
+                          fill="transparent"
+                          className="text-muted"
+                        />
+                        <circle
+                          cx="36"
+                          cy="36"
+                          r="30"
+                          stroke="currentColor"
+                          strokeWidth="6"
+                          fill="transparent"
+                          strokeDasharray={2 * Math.PI * 30}
+                          strokeDashoffset={2 * Math.PI * 30 - (progress / 100) * (2 * Math.PI * 30)}
+                          strokeLinecap="round"
+                          className="text-primary transition-all duration-1000 ease-out"
+                        />
+                      </svg>
+                      <span className="absolute text-[11px] font-black text-foreground tabular-nums">
+                        {Math.round(progress)}%
+                      </span>
+                    </div>
+
+                    <div>
+                      <h2 className="text-sm font-extrabold text-foreground">Tier Unlock Progress</h2>
+                      <p className="text-xs text-muted-foreground">
+                        {stats.activeReferrals} of {nextTierMin} active referrals required for next tier
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Pending reward chip */}
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-pending-muted border border-pending-border text-pending text-xs font-bold self-start sm:self-auto">
+                    <Zap className="w-3.5 h-3.5" />
+                    <span>
+                      Next Reward: {TIERS.find((t) => t.min > stats.activeReferrals)?.reward ?? "Maximum Tier Active"}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Progress track */}
-                <div className="h-3 w-full bg-muted rounded-full overflow-hidden">
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                   <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${progress}%` }}

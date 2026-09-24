@@ -3,7 +3,6 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   CheckCheck,
   Settings,
@@ -11,7 +10,6 @@ import {
   Wallet,
   Briefcase,
   MessageSquare,
-  AlertTriangle,
   Star,
   Bell,
   CheckCircle2,
@@ -25,6 +23,7 @@ import {
   getNotificationTypeMeta,
   getNotificationHref,
 } from "@/lib/notification-utils";
+import { Drawer } from "@/components/ui";
 
 interface ActivityFeedDrawerProps {
   isOpen: boolean;
@@ -102,26 +101,16 @@ export default function ActivityFeedDrawer({
   ].filter((s) => s.items.length > 0);
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex justify-end bg-background/50 backdrop-blur-sm animate-fade-in"
-      onClick={onClose}
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      side="right"
+      maxWidth="28rem"
+      aria-label="Activity Feed"
+      showCloseButton={false}
+      className="w-full max-w-md h-full"
     >
-      <motion.div
-        drag="x"
-        dragDirectionLock
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={{ right: 0.6, left: 0 }}
-        onDragEnd={(_, info) => {
-          if (info.offset.x > 80 || info.velocity.x > 250) {
-            onClose();
-          }
-        }}
-        className="w-full max-w-md h-full bg-card border-l border-border shadow-2xl flex flex-col overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Activity Feed"
-      >
+      <div className="flex flex-col h-full overflow-hidden">
         {/* Mobile Swipe Dismiss Indicator */}
         <div className="sm:hidden flex justify-center pt-2.5 pb-1 bg-card/95 shrink-0">
           <div className="w-10 h-1.5 rounded-full bg-muted-foreground/30" />
@@ -296,7 +285,7 @@ export default function ActivityFeedDrawer({
             View all notification history →
           </Link>
         </div>
-      </motion.div>
-    </div>
+      </div>
+    </Drawer>
   );
 }

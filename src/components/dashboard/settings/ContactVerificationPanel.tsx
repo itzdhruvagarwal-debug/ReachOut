@@ -12,10 +12,7 @@ import {
   Phone,
   CheckCircle2,
   Clock,
-  AlertCircle,
   X,
-  Send,
-  Check,
 } from "lucide-react";
 
 interface ContactVerificationPanelProps {

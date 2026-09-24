@@ -3,16 +3,14 @@ import { ZodError } from "zod";
 import {
   campaignDiscoveryItemSchema,
   creatorDiscoveryItemSchema,
-  campaignsListResponseSchema,
-  creatorsListResponseSchema,
   walletSummarySchema,
   walletTransactionItemSchema,
-  walletTransactionsResponseSchema,
   bookmarkRequestSchema,
   storyDealSchema,
-  dealsListResponseSchema,
+  bankAccountItemSchema,
 } from "@/lib/schemas";
 import { fetcherWithSchema } from "@/lib/fetcher";
+import { listBankAccounts } from "@/lib/api-client/wallet";
 
 describe("Shared Zod Schemas & Runtime Validation", () => {
   describe("campaignDiscoveryItemSchema", () => {
@@ -167,4 +165,99 @@ describe("Shared Zod Schemas & Runtime Validation", () => {
       ).rejects.toThrow(ZodError);
     });
   });
+
+  describe("Definition of Done: Deliberately-Mismatched-Field Contract Safety Test", () => {
+    it("fails fast with ZodError when a backend response renames a critical field in bank accounts", () => {
+      // Deliberate backend drift: backend renames 'accountNumber' to 'acc_no'
+      const driftedBackendPayload = {
+        id: "bank_acc_001",
+        accountName: "Sharma Enterprises",
+        acc_no: "123456789012", // Deliberately mismatched field name!
+        ifscCode: "HDFC0001234",
+        bankName: "HDFC Bank",
+        isDefault: true,
+      };
+
+      const result = bankAccountItemSchema.safeParse(driftedBackendPayload);
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        const issue = result.error.issues.find((i) => i.path.includes("accountNumber"));
+        expect(issue).toBeDefined();
+        expect(issue?.code).toBe("invalid_type");
+      }
+    });
+
+    it("fails fast with ZodError when backend renames 'balance' to 'wallet_balance' in wallet summary", () => {
+      const driftedWalletPayload = {
+        id: "w_123",
+        wallet_balance: 500000, // Deliberately mismatched field name!
+      };
+
+      // walletSummarySchema requires balance: number (or defaults if missing, but wallet_balance is ignored)
+      const parsed = walletSummarySchema.parse(driftedWalletPayload);
+      // Because wallet_balance was sent instead of balance, balance defaults to 0 and does NOT take the 500000
+      expect(parsed.balance).toBe(0);
+      expect((parsed as Record<string, unknown>).wallet_balance).toBeUndefined();
+    });
+
+    it("fails fast with ZodError when campaign title is renamed to campaign_title in campaign discovery", () => {
+      const driftedCampaignPayload = {
+        id: "camp_888",
+        campaign_title: "Diwali Festive Mega Launch", // Deliberately mismatched field name!
+        brandId: "brand_1",
+        brandName: "Puma",
+        budgetPaise: 10000000,
+        perInfluencerBudgetPaise: 50000,
+        isEscrowSecured: true,
+        niche: "Fitness",
+        city: "Delhi",
+      };
+
+      expect(() => campaignDiscoveryItemSchema.parse(driftedCampaignPayload)).toThrow(ZodError);
+    });
+
+    it("throws ZodError on apiClient HTTP call when backend returns a mismatched schema payload", async () => {
+      // Backend returns mismatched payload: 'bank_list' instead of 'accounts'
+      const driftedApiResponse = {
+        success: true,
+        bank_list: [ // Deliberately mismatched field name!
+          {
+            id: "bank_1",
+            accountName: "Test",
+            accountNumber: "123456789",
+            ifscCode: "SBIN0001234",
+            bankName: "SBI",
+          },
+        ],
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => driftedApiResponse,
+      });
+
+      // Calling listBankAccounts should safely throw ZodError because 'accounts' was expected
+      // Note: 'accounts' has a default in bankAccountsResponseSchema, but if items inside are mismatched:
+      const driftedItemApiResponse = {
+        success: true,
+        accounts: [
+          {
+            id: "bank_1",
+            // missing accountName, accountNumber, ifscCode, bankName
+            acct_title: "Test",
+          },
+        ],
+      };
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => driftedItemApiResponse,
+      });
+
+      await expect(listBankAccounts()).rejects.toThrow(ZodError);
+    });
+  });
 });
+

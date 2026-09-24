@@ -15,11 +15,8 @@ import {
   Users,
   Search,
   Award,
-  ShieldCheck,
-  ShieldAlert,
   ChevronLeft,
   ChevronRight,
-  Filter,
 } from "lucide-react";
 
 type AdminUserListElement = Prisma.PromiseReturnType<typeof AdminService.listUsers>["users"][number];
@@ -170,7 +167,7 @@ function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRo
               <input type="hidden" name="userId" value={user.id} />
               <Select
                 name="badgeId"
-                className="text-xs py-1 h-8 max-w-[130px]"
+                className="text-xs py-1 min-h-[44px] h-11 max-w-[130px]"
                 defaultValue=""
                 required
                 disabled={Boolean(isActionLoading)}
@@ -191,12 +188,12 @@ function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRo
               </Select>
               <Button
                 variant="secondary"
-                size="sm"
                 type="submit"
-                className="h-8 px-2.5 font-bold"
+                className="min-h-[44px] min-w-[44px] px-3 font-bold flex items-center justify-center cursor-pointer"
                 disabled={Boolean(isActionLoading)}
+                aria-label="Award badge"
               >
-                <Award className="w-3.5 h-3.5" />
+                <Award className="w-4 h-4" />
               </Button>
             </form>
           )}
@@ -206,9 +203,8 @@ function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRo
               {user.status === "FLAGGED" && (
                 <Button
                   variant="success"
-                  size="sm"
                   onClick={() => onUnban(user.id)}
-                  className="h-8 font-bold"
+                  className="min-h-[44px] px-3.5 font-bold cursor-pointer"
                   disabled={Boolean(isActionLoading)}
                 >
                   Approve
@@ -217,9 +213,8 @@ function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRo
               {isBanned ? (
                 <Button
                   variant="secondary"
-                  size="sm"
                   onClick={() => onUnban(user.id)}
-                  className="h-8 font-bold"
+                  className="min-h-[44px] px-3.5 font-bold cursor-pointer"
                   disabled={Boolean(isActionLoading)}
                 >
                   Unban
@@ -227,9 +222,8 @@ function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRo
               ) : (
                 <Button
                   variant="danger"
-                  size="sm"
                   onClick={() => onBan(user.id)}
-                  className="h-8 font-bold"
+                  className="min-h-[44px] px-3.5 font-bold cursor-pointer"
                   disabled={Boolean(isActionLoading)}
                 >
                   Ban
@@ -353,37 +347,132 @@ export default function AdminUsersPage() {
     }
 
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse" aria-label="Platform users">
-          <thead>
-            <tr className="border-b border-border bg-muted/30">
-              {["User", "Role", "Status", "Tax Compliance", "Trust", "Joined", "Actions"].map(
-                (heading) => (
-                  <th
-                    key={heading}
-                    scope="col"
-                    className="px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider"
-                  >
-                    {heading}
-                  </th>
-                )
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {users.map((user: AdminUserListElement) => (
-              <UserRow
+      <>
+        {/* Mobile Card Layout (sm:hidden) */}
+        <div className="space-y-3 sm:hidden p-3">
+          {users.map((user: AdminUserListElement) => {
+            const name =
+              user.influencerProfile?.displayName ||
+              user.brandProfile?.companyName ||
+              (user.userType === "ADMIN" ? user.email?.split("@")[0] : null) ||
+              "Unknown user";
+            const avatar = user.influencerProfile?.avatar || user.brandProfile?.logo;
+            const isBanned = user.status === "BANNED";
+
+            return (
+              <div
                 key={user.id}
-                user={user}
-                isActionLoading={loadingAction === user.id}
-                onBan={handleBan}
-                onUnban={handleUnban}
-                onAwardBadge={handleAwardBadge}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+                className="p-4 rounded-xl bg-card border border-border shadow-xs space-y-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary text-sm shrink-0 overflow-hidden relative">
+                      {avatar ? (
+                        <Image src={avatar} alt="" fill unoptimized className="object-cover" />
+                      ) : (
+                        name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-sm text-foreground truncate">{name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{user.email}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <Badge variant="primary" className="text-[10px] uppercase font-bold">
+                      {user.userType}
+                    </Badge>
+                    <Badge variant={user.status === "ACTIVE" ? "success" : user.status === "BANNED" ? "danger" : "warning"} className="text-[10px] uppercase">
+                      {user.status}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs pt-1.5 border-t border-border/60">
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-muted-foreground">Tax Status</span>
+                    <Badge variant={taxStatusTone(user)} className="text-[10px] mt-0.5">
+                      {taxStatusLabel(user)}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-muted-foreground">Trust Score</span>
+                    <span className="font-black text-sm text-foreground">{user.trustScore}</span>
+                    <span className="text-[10px] text-muted-foreground"> /900</span>
+                  </div>
+                </div>
+
+                {user.userType !== "ADMIN" && (
+                  <div className="flex items-center gap-2 pt-2 border-t border-border">
+                    {user.status === "FLAGGED" && (
+                      <Button
+                        variant="success"
+                        onClick={() => handleUnban(user.id)}
+                        className="flex-1 min-h-[44px] font-bold text-xs cursor-pointer"
+                        disabled={loadingAction === user.id}
+                      >
+                        Approve
+                      </Button>
+                    )}
+                    {isBanned ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleUnban(user.id)}
+                        className="flex-1 min-h-[44px] font-bold text-xs cursor-pointer"
+                        disabled={loadingAction === user.id}
+                      >
+                        Unban
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="danger"
+                        onClick={() => handleBan(user.id)}
+                        className="flex-1 min-h-[44px] font-bold text-xs cursor-pointer"
+                        disabled={loadingAction === user.id}
+                      >
+                        Ban Account
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Desktop Table (hidden sm:block) */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table className="w-full text-left border-collapse" aria-label="Platform users">
+            <thead>
+              <tr className="border-b border-border bg-muted/30">
+                {["User", "Role", "Status", "Tax Compliance", "Trust", "Joined", "Actions"].map(
+                  (heading) => (
+                    <th
+                      key={heading}
+                      scope="col"
+                      className="px-5 py-3.5 text-xs font-bold text-muted-foreground uppercase tracking-wider"
+                    >
+                      {heading}
+                    </th>
+                  )
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {users.map((user: AdminUserListElement) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  isActionLoading={loadingAction === user.id}
+                  onBan={handleBan}
+                  onUnban={handleUnban}
+                  onAwardBadge={handleAwardBadge}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </>
     );
   };
 
@@ -432,7 +521,7 @@ export default function AdminUsersPage() {
           />
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Select
             name="type"
             value={type}
@@ -440,7 +529,7 @@ export default function AdminUsersPage() {
               setType(e.target.value);
               setPage(1);
             }}
-            className="w-36"
+            className="w-full sm:w-36 min-h-[44px]"
           >
             <option value="ALL">All roles</option>
             <option value="INFLUENCER">Influencers</option>
@@ -454,7 +543,7 @@ export default function AdminUsersPage() {
               setStatus(e.target.value);
               setPage(1);
             }}
-            className="w-44"
+            className="w-full sm:w-44 min-h-[44px]"
           >
             <option value="ALL">All statuses</option>
             <option value="ACTIVE">Active</option>
@@ -473,15 +562,14 @@ export default function AdminUsersPage() {
 
       {/* Pagination Footer */}
       <div className="flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-muted-foreground px-1">
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           <Button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             variant="secondary"
-            size="sm"
             aria-label="Previous page"
             aria-disabled={page <= 1}
             disabled={page <= 1}
-            className="gap-1 font-bold"
+            className="gap-1 font-bold min-h-[44px] px-4 flex-1 sm:flex-initial"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
             Previous
@@ -489,11 +577,10 @@ export default function AdminUsersPage() {
           <Button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             variant="secondary"
-            size="sm"
             aria-label="Next page"
             aria-disabled={page >= totalPages}
             disabled={page >= totalPages}
-            className="gap-1 font-bold"
+            className="gap-1 font-bold min-h-[44px] px-4 flex-1 sm:flex-initial"
           >
             Next
             <ChevronRight className="w-3.5 h-3.5" />

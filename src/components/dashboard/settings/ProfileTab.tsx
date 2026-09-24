@@ -22,7 +22,6 @@ import {
   CheckCircle2,
   Copy,
   Award,
-  Globe,
   Briefcase,
   Plus,
 } from "lucide-react";

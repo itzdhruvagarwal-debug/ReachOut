@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { apiClient, ApiClientError } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
 import { useDeal } from "@/hooks/api/useDeal";
 

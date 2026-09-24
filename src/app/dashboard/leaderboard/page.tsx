@@ -13,21 +13,15 @@ import {
   Medal,
   Sparkles,
   MapPin,
-  Tag,
-  Star,
   ShieldCheck,
-  Briefcase,
   Users,
   Building2,
-  Calendar,
-  CheckCircle2,
   ChevronRight,
-  TrendingUp,
 } from "lucide-react";
 import { fetcher } from "@/lib/fetcher";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import EmptyState from "@/components/ui/EmptyState";
-import { Button, Select, Skeleton } from "@/components/ui";
+import { Select } from "@/components/ui";
 import { formatNumber } from "@/lib/utils-client";
 import { ALL_CATEGORIES } from "@/lib/categories";
 
@@ -573,6 +567,47 @@ export default function LeaderboardPage() {
             </div>
           )}
         </div>
+
+        {/* Instagram Benchmark: Sticky "Your Rank" Floating Dock */}
+        {session?.user && (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[calc(100%-2rem)] max-w-lg">
+            <div className="flex items-center justify-between gap-3 p-3 px-4 rounded-2xl bg-card/95 backdrop-blur-md border border-primary/40 shadow-xl text-foreground">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 text-primary font-black text-xs flex items-center justify-center shrink-0">
+                  {activeList.findIndex((u) => u.id === session.user?.id) >= 0
+                    ? `#${activeList.findIndex((u) => u.id === session.user?.id) + 1}`
+                    : "—"}
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5 text-xs font-bold truncate">
+                    <span>{session.user.name || "Your Ranking"}</span>
+                    <span className="text-2xs text-muted-foreground font-normal">
+                      {activeList.findIndex((u) => u.id === session.user?.id) >= 0
+                        ? `(Top ${Math.max(1, Math.round(((activeList.findIndex((u) => u.id === session.user?.id) + 1) / Math.max(activeList.length, 1)) * 100))}%)`
+                        : "(Unranked this period)"}
+                    </span>
+                  </div>
+                  <div className="text-2xs text-muted-foreground truncate">
+                    {activeList.find((u) => u.id === session.user?.id) ? (
+                      <span>
+                        {formatNumber(activeList.find((u) => u.id === session.user?.id)!.score)} {scoreLabel} · Lv.{activeList.find((u) => u.id === session.user?.id)!.level}
+                      </span>
+                    ) : (
+                      <span>Complete escrow deals to climb the leaderboard</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                href="/dashboard/deals"
+                className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+              >
+                Climb Rank
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardShell>
   );

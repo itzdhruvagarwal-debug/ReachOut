@@ -91,9 +91,9 @@ export default function AdminFrame({ children, user }: Readonly<AdminFrameProps>
             type="button"
             aria-label="Close navigation"
             onClick={closeSidebar}
-            className="lg:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            className="lg:hidden p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -166,7 +166,7 @@ export default function AdminFrame({ children, user }: Readonly<AdminFrameProps>
         <header className="sticky top-0 z-20 flex items-center gap-4 px-4 py-3 bg-card/95 backdrop-blur-sm border-b border-border lg:hidden">
           <button
             type="button"
-            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             onClick={() => setSidebarOpen(true)}
             aria-label="Open admin navigation"
           >

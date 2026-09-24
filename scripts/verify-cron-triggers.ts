@@ -14,7 +14,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { CRON_JOBS } from "./setup-qstash-crons";
-import { validateCronSecret } from "@/app/api/cron/guard";
 
 // Mock next/headers for node script execution
 const _mockHeadersStore: Record<string, string> = {};

@@ -16,7 +16,7 @@ import {
   Plus,
   AlertCircle,
 } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, Modal } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils-client";
 import {
   MIN_WITHDRAWAL_AMOUNT_PAISE,
@@ -189,21 +189,22 @@ export function FullScreenWithdrawFlow({
   if (!isOpen) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Deliberate Withdrawal Flow"
-      className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4 bg-background/80 backdrop-blur-md animate-in fade-in duration-200"
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      maxWidth="42rem"
+      className="p-0 overflow-hidden sm:max-w-2xl sm:max-h-[92vh] sm:rounded-2xl border-0 sm:border border-border bg-card shadow-2xl text-foreground"
+      bodyClassName="p-0 flex flex-col overflow-hidden max-h-[92vh]"
     >
-      <div className="relative w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl bg-card border-0 sm:border border-border sm:rounded-2xl shadow-2xl flex flex-col overflow-hidden text-foreground">
+      <div className="relative w-full h-full sm:h-auto sm:max-h-[92vh] flex flex-col overflow-hidden text-foreground">
         {/* Header */}
         <header className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-border bg-card/90 backdrop-blur-md sticky top-0 z-20">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             {step !== "amount" && step !== "success" && (
               <button
                 type="button"
                 onClick={() => setStep(step === "confirm" ? "destination" : "amount")}
-                className="p-1.5 -ml-1 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors cursor-pointer"
+                className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center -ml-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors cursor-pointer"
                 aria-label="Previous step"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -226,7 +227,7 @@ export function FullScreenWithdrawFlow({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors cursor-pointer"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center -mr-2 text-muted-foreground hover:text-foreground rounded-xl hover:bg-muted transition-colors cursor-pointer"
             aria-label="Close withdrawal flow"
           >
             <X className="w-5 h-5" />
@@ -347,7 +348,7 @@ export function FullScreenWithdrawFlow({
                         type="button"
                         onClick={() => setQuickAmount(amtPaise)}
                         disabled={!isAvailable}
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-bold font-mono transition-all cursor-pointer ${
+                        className={`px-3.5 py-2 min-h-[44px] inline-flex items-center justify-center rounded-xl border text-xs font-bold font-mono transition-all cursor-pointer ${
                           isAvailable
                             ? "border-border bg-muted/40 hover:bg-muted text-foreground"
                             : "border-border/40 opacity-40 cursor-not-allowed text-muted-foreground"
@@ -361,7 +362,7 @@ export function FullScreenWithdrawFlow({
                     type="button"
                     onClick={() => setQuickAmount(availableBalanceInPaise)}
                     disabled={availableBalanceInPaise < MIN_WITHDRAWAL_PAISE}
-                    className="px-3 py-1.5 rounded-xl border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold font-mono transition-all cursor-pointer"
+                    className="px-3.5 py-2 min-h-[44px] inline-flex items-center justify-center rounded-xl border border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 text-xs font-bold font-mono transition-all cursor-pointer"
                   >
                     All Available
                   </button>
@@ -656,13 +657,13 @@ export function FullScreenWithdrawFlow({
 
         {/* Footer Actions */}
         {step !== "success" && (
-          <footer className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-t border-border bg-card/90 backdrop-blur-md sticky bottom-0 z-20">
+          <footer className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-t border-border bg-card/90 backdrop-blur-md sticky bottom-0 z-20 gap-3">
             <Button
               type="button"
               variant="secondary"
-              size="sm"
               onClick={onClose}
               disabled={isSubmitting}
+              className="min-h-[44px] px-4"
             >
               Cancel
             </Button>
@@ -671,10 +672,9 @@ export function FullScreenWithdrawFlow({
               <Button
                 type="button"
                 variant="primary"
-                size="sm"
                 disabled={!amountValidation.valid}
                 onClick={() => setStep("destination")}
-                className="gap-1 font-bold"
+                className="gap-1 font-bold min-h-[44px] px-5"
               >
                 <span>Select Bank</span>
                 <ArrowRight className="w-4 h-4" />
@@ -685,10 +685,9 @@ export function FullScreenWithdrawFlow({
               <Button
                 type="button"
                 variant="primary"
-                size="sm"
                 disabled={!selectedAccount || !selectedAccount.isVerified}
                 onClick={() => setStep("confirm")}
-                className="gap-1 font-bold"
+                className="gap-1 font-bold min-h-[44px] px-5"
               >
                 <span>Review &amp; Confirm</span>
                 <ArrowRight className="w-4 h-4" />
@@ -699,10 +698,9 @@ export function FullScreenWithdrawFlow({
               <Button
                 type="button"
                 variant="primary"
-                size="sm"
                 disabled={!userConfirmed || isSubmitting}
                 onClick={handleExecuteWithdrawal}
-                className="gap-1.5 font-bold"
+                className="gap-1.5 font-bold min-h-[44px] px-5"
               >
                 {isSubmitting ? (
                   <>
@@ -720,6 +718,6 @@ export function FullScreenWithdrawFlow({
           </footer>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

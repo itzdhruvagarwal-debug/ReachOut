@@ -68,66 +68,109 @@ export default function AdminAuditLogsPage() {
     );
   } else {
     content = (
-      <div className="rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse" aria-label="Audit log entries">
-            <thead>
-              <tr className="bg-muted/30 border-b border-border">
-                {["Actor ID", "Action Type", "Entity Type", "Entity ID", "Timestamp", "Details"].map(
-                  (heading) => (
-                    <th
-                      key={heading}
-                      className="text-left px-4 py-3 text-xs font-extrabold text-muted-foreground uppercase tracking-wider"
-                    >
-                      {heading}
-                    </th>
-                  )
+      <>
+        {/* Mobile Card Layout (sm:hidden) */}
+        <div className="space-y-3 sm:hidden">
+          {auditLogs.map((log: AdminAuditLogElement) => (
+            <div key={log.id} className="p-4 rounded-xl bg-card border border-border shadow-xs space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-sm text-foreground">{log.actionType}</span>
+                <Badge
+                  variant={getEntityBadgeVariant(log.entityType)}
+                  className="uppercase text-[10px]"
+                >
+                  {log.entityType}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs pt-1.5 border-t border-border/60">
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-muted-foreground">Actor ID</span>
+                  <span className="font-mono text-foreground truncate block">{log.actorId}</span>
+                </div>
+                <div>
+                  <span className="block text-[10px] uppercase font-bold text-muted-foreground">Entity ID</span>
+                  <span className="font-mono text-foreground truncate block">{log.entityId || "—"}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40">
+                <span>{formatDateTime(log.timestamp)}</span>
+                {log.beforeJSON || log.afterJSON ? (
+                  <span
+                    className="font-mono text-[10px] text-primary truncate max-w-[140px]"
+                    title={JSON.stringify({ before: log.beforeJSON, after: log.afterJSON })}
+                  >
+                    Details available
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-muted-foreground">No diff</span>
                 )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {auditLogs.map((log: AdminAuditLogElement) => (
-                <tr key={log.id} className="hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono truncate max-w-[120px]">
-                    {log.actorId}
-                  </td>
-                  <td className="px-4 py-3 font-bold text-sm text-foreground whitespace-nowrap">
-                    {log.actionType}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge
-                      variant={getEntityBadgeVariant(log.entityType)}
-                      className="uppercase text-xs"
-                    >
-                      {log.entityType}
-                    </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono truncate max-w-[100px]">
-                    {log.entityId || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                    {formatDateTime(log.timestamp)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div
-                      className="text-xs text-foreground overflow-hidden whitespace-nowrap max-w-[200px] text-ellipsis font-mono"
-                      title={
-                        log.beforeJSON || log.afterJSON
-                          ? JSON.stringify({ before: log.beforeJSON, after: log.afterJSON })
-                          : ""
-                      }
-                    >
-                      {log.beforeJSON || log.afterJSON
-                        ? JSON.stringify({ before: log.beforeJSON, after: log.afterJSON })
-                        : "—"}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+
+        {/* Desktop Table (hidden sm:block) */}
+        <div className="hidden sm:block rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse" aria-label="Audit log entries">
+              <thead>
+                <tr className="bg-muted/30 border-b border-border">
+                  {["Actor ID", "Action Type", "Entity Type", "Entity ID", "Timestamp", "Details"].map(
+                    (heading) => (
+                      <th
+                        key={heading}
+                        className="text-left px-4 py-3 text-xs font-extrabold text-muted-foreground uppercase tracking-wider"
+                      >
+                        {heading}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {auditLogs.map((log: AdminAuditLogElement) => (
+                  <tr key={log.id} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-3 text-muted-foreground text-xs font-mono truncate max-w-[120px]">
+                      {log.actorId}
+                    </td>
+                    <td className="px-4 py-3 font-bold text-sm text-foreground whitespace-nowrap">
+                      {log.actionType}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge
+                        variant={getEntityBadgeVariant(log.entityType)}
+                        className="uppercase text-xs"
+                      >
+                        {log.entityType}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs font-mono truncate max-w-[100px]">
+                      {log.entityId || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
+                      {formatDateTime(log.timestamp)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div
+                        className="text-xs text-foreground overflow-hidden whitespace-nowrap max-w-[200px] text-ellipsis font-mono"
+                        title={
+                          log.beforeJSON || log.afterJSON
+                            ? JSON.stringify({ before: log.beforeJSON, after: log.afterJSON })
+                            : ""
+                        }
+                      >
+                        {log.beforeJSON || log.afterJSON
+                          ? JSON.stringify({ before: log.beforeJSON, after: log.afterJSON })
+                          : "—"}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -152,8 +195,8 @@ export default function AdminAuditLogsPage() {
           <Filter className="w-3.5 h-3.5" />
           Filters
         </div>
-        <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-[180px]">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-stretch sm:items-end">
+          <div className="w-full sm:flex-1 sm:min-w-[180px]">
             <Input
               label="Actor ID"
               id="filter-actor-id"
@@ -163,7 +206,7 @@ export default function AdminAuditLogsPage() {
               fullWidth
             />
           </div>
-          <div className="w-48">
+          <div className="w-full sm:w-48">
             <Select
               label="Entity Type"
               id="filter-entity-type"
@@ -181,7 +224,7 @@ export default function AdminAuditLogsPage() {
               <option value="BUG">Bug Report</option>
             </Select>
           </div>
-          <div className="flex-1 min-w-[180px]">
+          <div className="w-full sm:flex-1 sm:min-w-[180px]">
             <Input
               label="Entity ID"
               id="filter-entity-id"

@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useCallback } from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { createSchemaFetcher } from "@/lib/fetcher";
 import {
@@ -20,6 +19,7 @@ import {
   type CreatorDiscoveryItem,
   type DiscoveryFilters,
 } from "@/components/discovery/types";
+import { apiClient } from "@/lib/api-client";
 import {
   Search,
   SlidersHorizontal,
@@ -29,8 +29,12 @@ import {
   ShieldCheck,
   Zap,
   TrendingUp,
-  Flame,
+  Bookmark,
   Users,
+  Flame,
+  ArrowUpDown,
+  Clock,
+  Award,
 } from "lucide-react";
 
 const CATEGORY_CHIPS = [
@@ -43,6 +47,16 @@ const CATEGORY_CHIPS = [
   "Travel & Hospitality",
   "Gaming & Esports",
   "Fintech & Crypto",
+] as const;
+
+type SortOption = "recency" | "relevance" | "followers" | "rating" | "rate";
+
+const SORT_OPTIONS: { id: SortOption; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "recency", label: "Recently Active", icon: Clock },
+  { id: "relevance", label: "Top Match", icon: Sparkles },
+  { id: "followers", label: "Audience Reach", icon: Users },
+  { id: "rating", label: "Trust Score", icon: Award },
+  { id: "rate", label: "Starting Rate", icon: Flame },
 ];
 
 export function normalizeCreatorItem(inf: RawInfluencerApiItem): CreatorDiscoveryItem {
@@ -88,7 +102,9 @@ export default function DiscoverInfluencersPage() {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
-  const [filters, setFilters] = useState<DiscoveryFilters>({});
+  const [filters, setFilters] = useState<DiscoveryFilters>({ sortBy: "recency" });
+  const [viewTab, setViewTab] = useState<"all" | "saved">("all");
+  const [savedOverrides, setSavedOverrides] = useState<Record<string, boolean>>({});
 
   const isBrandOrAdmin =
     session?.user?.userType === "BRAND" || session?.user?.userType === "ADMIN";
@@ -120,12 +136,28 @@ export default function DiscoverInfluencersPage() {
     { revalidateOnFocus: false },
   );
 
-  const rawInfluencers: RawInfluencerApiItem[] =
-    payload?.influencers || payload?.data?.influencers || [];
-  const creators = useMemo(
-    () => rawInfluencers.map(normalizeCreatorItem),
-    [rawInfluencers],
-  );
+  const creators = useMemo(() => {
+    const rawInfluencers: RawInfluencerApiItem[] =
+      payload?.influencers || payload?.data?.influencers || [];
+    return rawInfluencers.map((raw) => {
+      const normalized = normalizeCreatorItem(raw);
+      if (typeof savedOverrides[normalized.id] === "boolean") {
+        return { ...normalized, isSaved: savedOverrides[normalized.id] };
+      }
+      return normalized;
+    });
+  }, [payload, savedOverrides]);
+
+  const savedCount = useMemo(() => {
+    return creators.filter((c) => Boolean(c.isSaved)).length;
+  }, [creators]);
+
+  const displayedCreators = useMemo(() => {
+    if (viewTab === "saved") {
+      return creators.filter((c) => Boolean(c.isSaved));
+    }
+    return creators;
+  }, [creators, viewTab]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -133,14 +165,30 @@ export default function DiscoverInfluencersPage() {
     if (filters.city) count++;
     if (filters.minFollowers) count++;
     if (filters.minBudget || filters.maxBudget) count++;
-    if (filters.sortBy) count++;
+    if (filters.sortBy && filters.sortBy !== "recency") count++;
     return count;
   }, [selectedCategory, filters]);
 
   const handleClearAllFilters = useCallback(() => {
     setSearch("");
     setSelectedCategory("All");
-    setFilters({});
+    setFilters({ sortBy: "recency" });
+    setViewTab("all");
+  }, []);
+
+  const handleToggleBookmark = useCallback(async (id: string, nextState: boolean) => {
+    setSavedOverrides((prev) => ({ ...prev, [id]: nextState }));
+    try {
+      await apiClient.users.toggleBookmark({
+        targetId: id,
+        targetType: "creator",
+        isSaved: nextState,
+      });
+    } catch {
+      // Revert optimistic update
+      setSavedOverrides((prev) => ({ ...prev, [id]: !nextState }));
+      throw new Error("Failed to toggle bookmark");
+    }
   }, []);
 
   if (!session) {
@@ -177,32 +225,62 @@ export default function DiscoverInfluencersPage() {
   return (
     <DashboardShell user={session.user}>
       <div className="max-w-7xl mx-auto space-y-6 pb-16 animate-fade-in">
-
         {/* ── 1. HEADER (INSTAGRAM + COLLABR BENCHMARK) ───────────────────── */}
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-2xl sm:text-3xl font-heading font-black tracking-tight text-foreground">
-                Creator Directory
+                Creator Discovery
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-verified-muted text-verified border border-verified-border">
                 <ShieldCheck className="w-3.5 h-3.5" /> KYC &amp; DRS Verified
               </span>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Discover top Indian content creators with audited engagement rates, public rate-cards, and guaranteed escrow protection.
+              Discover verified Indian creators with audited engagement, pre-negotiated rate cards, and escrow protection.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
+            {/* View Tab Segment: All Creators vs Saved Shortlist (Kofluence Benchmark) */}
+            <div className="inline-flex items-center p-1 rounded-xl bg-muted border border-border text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setViewTab("all")}
+                className={`px-3.5 py-2 min-h-[44px] inline-flex items-center justify-center rounded-lg transition-all cursor-pointer ${
+                  viewTab === "all"
+                    ? "bg-card text-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All Creators
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewTab("saved")}
+                className={`inline-flex items-center justify-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-lg transition-all cursor-pointer ${
+                  viewTab === "saved"
+                    ? "bg-card text-foreground shadow-xs font-bold"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Bookmark className={`w-3.5 h-3.5 ${viewTab === "saved" ? "fill-current text-primary" : ""}`} />
+                <span>Shortlist</span>
+                {savedCount > 0 && (
+                  <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-primary/10 text-primary">
+                    {savedCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
             <Button
               variant="secondary"
-              size="sm"
               onClick={() => setIsFilterSheetOpen(true)}
-              className="gap-2 text-xs font-semibold cursor-pointer shadow-xs"
+              className="gap-2 text-xs font-semibold cursor-pointer shadow-xs min-h-[44px] px-3.5 py-2"
             >
               <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-              <span>Advanced Filters</span>
+              <span>Filters</span>
               {activeFilterCount > 0 && (
                 <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
                   {activeFilterCount}
@@ -245,28 +323,57 @@ export default function DiscoverInfluencersPage() {
           </div>
         </div>
 
-        {/* ── 3. SEARCH BAR & INSTAGRAM CATEGORY CAROUSEL ─────────────────── */}
+        {/* ── 3. SEARCH BAR, RECENT SORT PILLS & INSTAGRAM CATEGORY CAROUSEL ─── */}
         <div className="space-y-3.5">
-          {/* Live Search Input */}
-          <div className="relative w-full">
-            <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder="Search creators by name, Instagram handle, niche, or city..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 pr-10 text-sm h-11 rounded-2xl"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
-                aria-label="Clear search input"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+            {/* Live Search Input */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder="Search creators by name, Instagram handle, niche, or city..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 pr-10 text-sm min-h-[44px] h-11 rounded-2xl"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
+                  aria-label="Clear search input"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Quick Sort Selector (Kofluence Benchmark — Recency Default) */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none text-xs">
+              <span className="text-muted-foreground font-semibold flex items-center gap-1 shrink-0 px-1">
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                <span>Sort:</span>
+              </span>
+              {SORT_OPTIONS.map((opt) => {
+                const isSelected = (filters.sortBy || "recency") === opt.id;
+                const IconComponent = opt.icon;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setFilters((prev) => ({ ...prev, sortBy: opt.id }))}
+                    className={`shrink-0 inline-flex items-center gap-1 px-3 py-2 min-h-[44px] rounded-xl font-semibold border transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-foreground text-background border-foreground shadow-xs font-bold"
+                        : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted"
+                    }`}
+                  >
+                    <IconComponent className="w-3.5 h-3.5" />
+                    <span>{opt.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Horizontally Scrollable Category Chips Carousel */}
@@ -281,7 +388,7 @@ export default function DiscoverInfluencersPage() {
                   key={chip}
                   type="button"
                   onClick={() => setSelectedCategory(chip)}
-                  className={`shrink-0 px-3.5 py-1.5 rounded-full font-bold whitespace-nowrap transition-all cursor-pointer border ${
+                  className={`shrink-0 px-3.5 py-2 min-h-[44px] inline-flex items-center rounded-full font-bold whitespace-nowrap transition-all cursor-pointer border ${
                     isSelected
                       ? "bg-primary text-primary-foreground border-primary shadow-xs"
                       : "bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted"
@@ -322,6 +429,14 @@ export default function DiscoverInfluencersPage() {
                 </button>
               </span>
             )}
+            {filters.sortBy && filters.sortBy !== "recency" && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-muted text-foreground font-semibold border border-border">
+                Sorted: {SORT_OPTIONS.find((s) => s.id === filters.sortBy)?.label || filters.sortBy}
+                <button type="button" onClick={() => setFilters((p) => ({ ...p, sortBy: "recency" }))} className="hover:opacity-75 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
             <button
               type="button"
               onClick={handleClearAllFilters}
@@ -333,29 +448,39 @@ export default function DiscoverInfluencersPage() {
           </div>
         )}
 
-        {/* ── 5. CREATOR SHOWCASE GRID (INSTAGRAM + COLLABR CARDS) ────────── */}
+        {/* ── 5. CREATOR SHOWCASE GRID (INSTAGRAM + KOFLUENCE CARDS) ──────── */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <DiscoveryCardSkeleton />
             <DiscoveryCardSkeleton />
             <DiscoveryCardSkeleton />
           </div>
-        ) : creators.length === 0 ? (
+        ) : displayedCreators.length === 0 ? (
           <div className="py-12">
-            <EmptyState
-              title="Zero Creators Match Filters"
-              description="No creator dossiers match your active category, keyword, or reach filters. Try clearing criteria or exploring other niches."
-              actionLabel="Reset All Filters"
-              onActionClick={handleClearAllFilters}
-            />
+            {viewTab === "saved" ? (
+              <EmptyState
+                title="No Shortlisted Creators Yet"
+                description="Click the bookmark icon on any creator card to save them to your shortlist for fast campaign outreach."
+                actionLabel="Explore All Creators"
+                onActionClick={() => setViewTab("all")}
+              />
+            ) : (
+              <EmptyState
+                title="Zero Creators Match Filters"
+                description="No creator dossiers match your active category, keyword, or reach filters. Try clearing criteria or exploring other niches."
+                actionLabel="Reset All Filters"
+                onActionClick={handleClearAllFilters}
+              />
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {creators.map((creator) => (
+            {displayedCreators.map((creator) => (
               <CreatorDiscoveryCard
                 key={creator.id}
                 creator={creator}
                 showInviteButton={true}
+                onToggleBookmark={handleToggleBookmark}
               />
             ))}
           </div>

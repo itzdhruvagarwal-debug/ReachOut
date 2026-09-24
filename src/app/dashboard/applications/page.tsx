@@ -25,14 +25,13 @@ import {
 } from "lucide-react";
 import { createSchemaFetcher } from "@/lib/fetcher";
 import {
-  type ApplicationItem,
   type ApplicationsResponse,
   applicationsResponseSchema,
 } from "@/lib/schemas";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { formatCurrency, formatDate } from "@/lib/utils-client";
 import EmptyState from "@/components/ui/EmptyState";
-import { Button, Spinner } from "@/components/ui";
+import { Button, Skeleton } from "@/components/ui";
 
 type FilterTab = "ALL" | "REVIEW" | "OFFERS" | "ARCHIVED";
 type ViewMode = "cards" | "table";
@@ -201,8 +200,16 @@ export default function ApplicationsPage() {
 
   if (!session) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Spinner size="lg" />
+      <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-64 rounded-lg" />
+          <Skeleton className="h-10 w-36 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-64 rounded-2xl" />
+          <Skeleton className="h-64 rounded-2xl" />
+        </div>
       </div>
     );
   }
@@ -504,12 +511,20 @@ export default function ApplicationsPage() {
                         </div>
                       </div>
 
-                      <span
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border flex-shrink-0 ${meta.badgeClass}`}
-                      >
-                        <StatusIcon className="w-3.5 h-3.5" />
-                        {meta.label}
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shrink-0 ${meta.badgeClass}`}
+                        >
+                          <StatusIcon className="w-3.5 h-3.5" />
+                          {meta.label}
+                        </span>
+                        {isApproved && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-verified-muted text-verified border border-verified-border shrink-0">
+                            <Sparkles className="w-3 h-3" />
+                            Escrow Funded
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Upwork/Kofluence Pipeline Stepper */}

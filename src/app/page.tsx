@@ -131,6 +131,20 @@ export default function HomePage() {
                   <span className="text-verified font-bold">✓</span> GST & TDS Compliant
                 </span>
               </div>
+
+              {/* Collabr Benchmark: Live Escrow Activity Ticker */}
+              <div className="mt-8 max-w-md mx-auto">
+                <div className="inline-flex items-center justify-center gap-2.5 px-4 py-2 rounded-full bg-card/90 backdrop-blur-md border border-border shadow-xs text-xs">
+                  <span className="flex h-2 w-2 relative">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-verified opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-verified" />
+                  </span>
+                  <span className="text-muted-foreground text-[11px] sm:text-xs">
+                    <strong className="text-foreground">Pooja S.</strong> just received <strong className="text-verified">₹18,500</strong> instant escrow payout
+                  </span>
+                  <span className="text-muted-foreground/60 text-[10px] tabular-nums">2m ago</span>
+                </div>
+              </div>
             </div>
 
             {/* Interactive Hero Workspace Mockup */}

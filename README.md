@@ -136,20 +136,23 @@ Robots directives (`src/app/robots.ts`) grant crawler access to public pages whi
 ## 5. Development & Verification Commands
 
 ```bash
+# Setup environment configuration
+cp .env.example .env
+
 # Install dependencies
 npm install
 
 # Run development server (http://localhost:3000)
 npm run dev
 
-# Run full project validation (Lint + Typecheck + Prisma Validate)
+# Run full project validation (ESLint + TypeScript + Prisma Validate)
 npm run validate
 
-# Run automated Vitest test battery (29 test suites, 355 passing tests)
+# Run automated Vitest test battery (35 test files, 396 passed tests)
 npm test
 
-# Run build bundle check
-npm run build
+# Run full pre-deployment pipeline (validate + test + build)
+npm run deploy:check
 ```
 
 ---
@@ -157,7 +160,10 @@ npm run build
 ## 6. Architecture & Product Documentation
 
 For deep technical specifications, refer to canonical repository references:
-- **[PRD.md](./PRD.md)** — Comprehensive Master Product Requirements Document (v3.1)
+- **[PRD.md](./PRD.md)** — Comprehensive Master Product Requirements Document (v3.3)
+- **[PAGE_INVENTORY.md](./PAGE_INVENTORY.md)** — 52-Page Master Catalog & Verified Route Directory
+- **[ARCHITECTURE_PATTERNS.md](./ARCHITECTURE_PATTERNS.md)** — Codebase Architecture, File Conventions & Cross-Cutting Standards
 - **[DESIGN_TOKENS.md](./DESIGN_TOKENS.md)** — Design Tokens, Typography, Dark Mode Palettes, and WCAG AA Specifications
-- **[ARCHITECTURE_PATTERNS.md](./ARCHITECTURE_PATTERNS.md)** — Codebase Architecture & File/Folder Organization Standards
 - **[MESSAGES.md](./MESSAGES.md)** — Centralized User-Facing Message Architecture & Error Sanitization Catalog
+- **[.env.example](./.env.example)** — Master Environment Variable Template (18 sections, 0 drift)
+

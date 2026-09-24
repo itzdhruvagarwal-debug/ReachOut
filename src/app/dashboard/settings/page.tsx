@@ -2,10 +2,10 @@
 
 import { logger } from "@/lib/logger-client";
 import { apiClient } from "@/lib/api-client";
-import { ApiClientError } from "@/lib/api-client/errors";
 import { formatUserError } from "@/lib/user-messages";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import useSWR from "swr";
+import Link from "next/link";
 import { fetcher } from "@/lib/fetcher";
 import { useSession, signOut } from "next-auth/react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
@@ -33,6 +33,10 @@ import {
   CheckCircle2,
   Palette,
   LogOut,
+  Sparkles,
+  ExternalLink,
+  AlertCircle,
+  TrendingUp,
 } from "lucide-react";
 
 interface TabDef {
@@ -200,6 +204,31 @@ export default function SettingsPage() {
   const activeTabDef = visibleTabs.find((t) => t.id === activeTab);
   const isSelfManaged = activeTabDef?.selfManaged ?? false;
 
+  // Account health metrics calculation (Kofluence Benchmark)
+  const isKycVerified = Boolean(
+    (session?.user?.verificationLevel && session.user.verificationLevel !== "NONE") ||
+    (verificationData?.verificationLevel && verificationData.verificationLevel !== "NONE") ||
+    (typeof verificationData?.tier === "number" && verificationData.tier >= 1)
+  );
+
+  const trustScore = session?.user?.trustScore ?? verificationData?.trustScore ?? 750;
+
+  const healthScore = useMemo(() => {
+    let score = 0;
+    if (profile?.displayName) score += 20;
+    if (profile?.bio) score += 20;
+    if (profile?.city) score += 10;
+    if (profile?.profileImage) score += 20;
+    if (isKycVerified) score += 30;
+    return score;
+  }, [profile, isKycVerified]);
+
+  const publicProfileUrl = useMemo(() => {
+    const handle = profile?.instagramHandle || user?.name || profile?.displayName;
+    if (!handle) return "/creator/me";
+    return `/creator/${encodeURIComponent(handle.replace(/^@/, "").toLowerCase())}`;
+  }, [profile, user]);
+
   // Loading skeleton
   if (loading) {
     return (
@@ -243,156 +272,252 @@ export default function SettingsPage() {
     <DashboardShell user={session?.user || user}>
       <ToastContainer toasts={toasts} onClose={handleRemoveToast} />
 
-      <div className="settings-page-layout">
-        {/* ── Sidebar ── */}
-        <aside className="settings-sidebar">
-          <div className="settings-sidebar-header">
-            <Settings className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Settings</span>
+      <div className="max-w-7xl mx-auto space-y-5 pb-16 animate-fade-in">
+        {/* ── 1. KOFLUENCE BENCHMARK: ACCOUNT HEALTH SUMMARY BANNER ─────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 rounded-2xl bg-card border border-border shadow-xs text-xs">
+          {/* KYC Status Tile */}
+          <div className="p-3 rounded-xl bg-muted/40 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                isKycVerified ? "bg-verified-muted text-verified" : "bg-pending-muted text-pending"
+              }`}>
+                {isKycVerified ? <ShieldCheck className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+              </div>
+              <div className="min-w-0">
+                <span className="font-bold text-foreground block truncate">
+                  {isKycVerified ? "KYC Verified" : "KYC Pending"}
+                </span>
+                <span className="text-[11px] text-muted-foreground block truncate">
+                  {isKycVerified ? "Full payout access" : "Action required"}
+                </span>
+              </div>
+            </div>
+            {!isKycVerified && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("verification")}
+                className="px-2 py-1 rounded-lg bg-primary/10 text-primary font-bold text-[10px] hover:bg-primary/20 transition-colors cursor-pointer"
+              >
+                Verify
+              </button>
+            )}
           </div>
 
-          <nav className="settings-sidebar-nav" role="tablist" aria-label="Settings sections">
-            {visibleTabs.map((tab) => {
-              const Icon = tab.Icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="settings-sidebar-item"
-                  data-active={isActive}
-                  id={`settings-tab-${tab.id}`}
-                >
-                  <span className="settings-sidebar-item-icon">
-                    <Icon className="w-4 h-4" />
-                  </span>
-                  <span className="settings-sidebar-item-label">{tab.label}</span>
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-60 shrink-0" />}
-                </button>
-              );
-            })}
-          </nav>
-
-          {/* Quick theme & logout footer for sidebar (Desktop) */}
-          <div className="hidden md:block p-3 border-t border-border mt-auto space-y-2.5">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                Theme
-              </span>
-              <ThemeToggle size="sm" />
+          {/* DRS Trust Score Tile */}
+          <div className="p-3 rounded-xl bg-muted/40 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="font-bold text-foreground block truncate">
+                  DRS Trust: {trustScore}
+                </span>
+                <span className="text-[11px] text-muted-foreground block truncate">
+                  Platform reputation index
+                </span>
+              </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => signOut({ callbackUrl: "/login" })}
-              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold text-destructive hover:bg-destructive/10 border border-destructive/20 hover:border-destructive/30 transition-all focus:outline-none"
-              title="Sign Out"
-              aria-label="Sign Out"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span>Log Out</span>
-            </button>
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-verified-muted text-verified font-mono">
+              Tier 1
+            </span>
           </div>
 
-          {/* Mini profile card */}
-          <div className="settings-sidebar-profile">
-            <div className="settings-sidebar-avatar">
-              {profile.profileImage ? (
-                <img src={profile.profileImage} alt="Profile" className="w-full h-full object-cover rounded-full" />
-              ) : (
-                <UserIcon className="w-5 h-5 text-muted-foreground" />
-              )}
+          {/* Profile Completeness Tile */}
+          <div className="p-3 rounded-xl bg-muted/40 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-escrow-muted text-escrow flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <span className="font-bold text-foreground block truncate">
+                  {healthScore}% Complete
+                </span>
+                <span className="text-[11px] text-muted-foreground block truncate">
+                  Dossier strength
+                </span>
+              </div>
             </div>
+            <div className="w-12 h-1.5 rounded-full bg-muted overflow-hidden border border-border">
+              <div
+                className="h-full bg-primary rounded-full transition-all duration-500"
+                style={{ width: `${healthScore}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Instagram Benchmark: Public Profile Preview Button */}
+          <div className="p-3 rounded-xl bg-muted/40 flex items-center justify-between">
             <div className="min-w-0">
-              <p className="text-xs font-bold text-foreground truncate">{profile.displayName || user.name || "—"}</p>
-              <p className="text-[11px] text-muted-foreground truncate">{user.email || ""}</p>
+              <span className="font-bold text-foreground block truncate">
+                Public Profile
+              </span>
+              <span className="text-[11px] text-muted-foreground block truncate">
+                View brand preview
+              </span>
             </div>
+            <Link
+              href={publicProfileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-card border border-border text-foreground font-semibold text-xs hover:bg-muted transition-all cursor-pointer shadow-xs"
+            >
+              <span>Preview</span>
+              <ExternalLink className="w-3 h-3 text-muted-foreground" />
+            </Link>
           </div>
-        </aside>
+        </div>
 
-        {/* ── Content area ── */}
-        <main
-          className="settings-content-area"
-          role="tabpanel"
-          aria-labelledby={`settings-tab-${activeTab}`}
-        >
-          <div className="settings-content-header">
-            <div>
-              <h1 className="text-xl font-extrabold text-foreground tracking-tight">
-                {activeTabDef?.label ?? "Settings"}
-              </h1>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {getTabSubtitle(activeTab, user.userType)}
-              </p>
+        {/* ── 2. SETTINGS MAIN LAYOUT ───────────────────────────────────────── */}
+        <div className="settings-page-layout">
+          {/* ── Sidebar ── */}
+          <aside className="settings-sidebar">
+            <div className="settings-sidebar-header">
+              <Settings className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Settings</span>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
-              {/* Quick Theme Toggle in Header */}
-              <ThemeToggle size="md" />
+            <nav className="settings-sidebar-nav" role="tablist" aria-label="Settings sections">
+              {visibleTabs.map((tab) => {
+                const Icon = tab.Icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    onClick={() => setActiveTab(tab.id)}
+                    className="settings-sidebar-item cursor-pointer"
+                    data-active={isActive}
+                    id={`settings-tab-${tab.id}`}
+                  >
+                    <span className="settings-sidebar-item-icon">
+                      <Icon className="w-4 h-4" />
+                    </span>
+                    <span className="settings-sidebar-item-label">{tab.label}</span>
+                    {isActive && <ChevronRight className="w-3.5 h-3.5 ml-auto opacity-60 shrink-0" />}
+                  </button>
+                );
+              })}
+            </nav>
 
-              {/* Quick Sign Out button in Header */}
+            {/* Quick theme & logout footer for sidebar (Desktop) */}
+            <div className="hidden md:block p-3 border-t border-border mt-auto space-y-2.5">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Theme
+                </span>
+                <ThemeToggle size="sm" />
+              </div>
+
               <button
                 type="button"
                 onClick={() => signOut({ callbackUrl: "/login" })}
+                className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold text-destructive hover:bg-destructive/10 border border-destructive/20 hover:border-destructive/30 transition-all focus:outline-none cursor-pointer"
                 title="Sign Out"
                 aria-label="Sign Out"
-                className="px-2.5 py-2 sm:px-3 sm:py-2 rounded-xl border border-destructive/25 text-destructive hover:bg-destructive/10 hover:border-destructive/40 transition-all text-xs font-semibold flex items-center gap-1.5 focus:outline-none shadow-xs"
               >
-                <LogOut className="w-4 h-4" />
-                <span className="hidden sm:inline">Log Out</span>
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Log Out</span>
               </button>
+            </div>
 
-              {!isSelfManaged && (
-                <div className="flex items-center gap-3">
-                  <ConfirmationBadge show={showSavedBadge} message="Saved" />
-                  <Button
-                    variant="primary"
-                    aria-label={isSaving ? "Saving changes" : "Save Changes"}
-                    aria-busy={isSaving}
-                    onClick={handleSave}
-                    disabled={isSaving}
-                  >
-                    {isSaving ? <span className="loading" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Save Changes</>}
-                  </Button>
+            {/* Mini profile card */}
+            <div className="settings-sidebar-profile">
+              <div className="settings-sidebar-avatar">
+                {profile.profileImage ? (
+                  <img src={profile.profileImage} alt="Profile" className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  <UserIcon className="w-5 h-5 text-muted-foreground" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold text-foreground truncate">{profile.displayName || user.name || "—"}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{user.email || ""}</p>
+              </div>
+            </div>
+          </aside>
+
+          {/* ── Content area ── */}
+          <main
+            className="settings-content-area"
+            role="tabpanel"
+            aria-labelledby={`settings-tab-${activeTab}`}
+          >
+            <div className="settings-content-header">
+              <div>
+                <h1 className="text-xl font-extrabold text-foreground tracking-tight">
+                  {activeTabDef?.label ?? "Settings"}
+                </h1>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {getTabSubtitle(activeTab, user.userType)}
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-3">
+                {/* Quick Theme Toggle in Header */}
+                <ThemeToggle size="md" />
+
+                {/* Quick Sign Out button in Header */}
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  title="Sign Out"
+                  aria-label="Sign Out"
+                  className="px-2.5 py-2 sm:px-3 sm:py-2 rounded-xl border border-destructive/25 text-destructive hover:bg-destructive/10 hover:border-destructive/40 transition-all text-xs font-semibold flex items-center gap-1.5 focus:outline-none shadow-xs cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">Log Out</span>
+                </button>
+
+                {!isSelfManaged && (
+                  <div className="flex items-center gap-3">
+                    <ConfirmationBadge show={showSavedBadge} message="Saved" />
+                    <Button
+                      variant="primary"
+                      aria-label={isSaving ? "Saving changes" : "Save Changes"}
+                      aria-busy={isSaving}
+                      onClick={handleSave}
+                      disabled={isSaving}
+                    >
+                      {isSaving ? <span className="loading" /> : <><CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />Save Changes</>}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="settings-panel-body">
+              {activeTab === "profile" && (
+                <ProfileTab profile={profile} setProfile={setProfile} user={user} referralCode={referralCode} badgesCount={badgesCount} showToast={showToast} />
+              )}
+              {activeTab === "social" && (
+                <SocialTab profile={profile} setProfile={setProfile} socialConnections={socialConnections} setSocialConnections={setSocialConnections} isSaving={isSaving} setIsSaving={setIsSaving} showToast={showToast} />
+              )}
+              {activeTab === "rates" && (
+                <RatesTab profile={profile} setProfile={setProfile} />
+              )}
+              {activeTab === "bank" && (
+                <div className="max-w-4xl">
+                  <BankAccountManager />
                 </div>
               )}
+              {activeTab === "verification" && (
+                <VerificationTab user={user} verificationData={verificationData} setVerificationData={setVerificationData} showToast={showToast} />
+              )}
+              {activeTab === "tax" && <IndiaTaxCompliancePanel />}
+              {activeTab === "notifications" && <NotificationPreferencesPanel />}
+              {activeTab === "appearance" && (
+                <AppearanceTab user={user} showToast={showToast} />
+              )}
+              {activeTab === "security" && (
+                <SecurityTab user={user} setUser={setUser} isSaving={isSaving} setIsSaving={setIsSaving} showToast={showToast} />
+              )}
             </div>
-          </div>
-
-          <div className="settings-panel-body">
-            {activeTab === "profile" && (
-              <ProfileTab profile={profile} setProfile={setProfile} user={user} referralCode={referralCode} badgesCount={badgesCount} showToast={showToast} />
-            )}
-            {activeTab === "social" && (
-              <SocialTab profile={profile} setProfile={setProfile} socialConnections={socialConnections} setSocialConnections={setSocialConnections} isSaving={isSaving} setIsSaving={setIsSaving} showToast={showToast} />
-            )}
-            {activeTab === "rates" && (
-              <RatesTab profile={profile} setProfile={setProfile} />
-            )}
-            {activeTab === "bank" && (
-              <div className="max-w-4xl">
-                <BankAccountManager />
-              </div>
-            )}
-            {activeTab === "verification" && (
-              <VerificationTab user={user} verificationData={verificationData} setVerificationData={setVerificationData} showToast={showToast} />
-            )}
-            {activeTab === "tax" && <IndiaTaxCompliancePanel />}
-            {activeTab === "notifications" && <NotificationPreferencesPanel />}
-            {activeTab === "appearance" && (
-              <AppearanceTab user={user} showToast={showToast} />
-            )}
-            {activeTab === "security" && (
-              <SecurityTab user={user} setUser={setUser} isSaving={isSaving} setIsSaving={setIsSaving} showToast={showToast} />
-            )}
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     </DashboardShell>
   );
 }
-
-

@@ -25,19 +25,19 @@ import {
 import { formatUserError } from "@/lib/user-messages";
 import Logo from "@/components/Logo";
 
-const NICHE_OPTIONS = [
-  "Tech & Gadgets",
-  "Fashion & Style",
-  "Beauty & Skincare",
-  "Fitness & Health",
-  "Food & Cooking",
-  "Travel & Vlogs",
-  "Finance & Investing",
-  "Gaming & Esports",
-  "Comedy & Entertainment",
-  "Education & Career",
-  "Parenting & Family",
-  "Automobile",
+const NICHE_ITEMS = [
+  { name: "Tech & Gadgets", icon: "💻" },
+  { name: "Fashion & Style", icon: "👗" },
+  { name: "Beauty & Skincare", icon: "✨" },
+  { name: "Fitness & Health", icon: "💪" },
+  { name: "Food & Cooking", icon: "🍳" },
+  { name: "Travel & Vlogs", icon: "✈️" },
+  { name: "Finance & Investing", icon: "📈" },
+  { name: "Gaming & Esports", icon: "🎮" },
+  { name: "Comedy & Entertainment", icon: "🎭" },
+  { name: "Education & Career", icon: "📚" },
+  { name: "Parenting & Family", icon: "👨‍👩‍👧" },
+  { name: "Automobile", icon: "🚗" },
 ];
 
 const LANGUAGE_OPTIONS = [
@@ -428,28 +428,36 @@ export default function OnboardingPage() {
 
               {userType === "INFLUENCER" ? (
                 <>
-                  {/* Category Pills */}
+                  {/* Category Cards with visual icons */}
                   <div className="space-y-2">
-                    <label className="block text-xs font-bold text-foreground flex items-center gap-1.5">
-                      <Tag className="w-3.5 h-3.5 text-primary" />
-                      <span>Content Niches (Pick up to 5)</span>
+                    <label className="block text-xs font-bold text-foreground flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-primary" />
+                        <span>Content Niches (Pick up to 5)</span>
+                      </span>
+                      <span className="text-[11px] text-muted-foreground font-normal">
+                        {selectedCategories.length}/5 selected
+                      </span>
                     </label>
-                    <div className="flex flex-wrap gap-1.5">
-                      {NICHE_OPTIONS.map((cat) => {
-                        const isSelected = selectedCategories.includes(cat);
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {NICHE_ITEMS.map((niche) => {
+                        const isSelected = selectedCategories.includes(niche.name);
                         return (
                           <button
-                            key={cat}
+                            key={niche.name}
                             type="button"
-                            onClick={() => toggleCategory(cat)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all flex items-center gap-1.5 ${
+                            onClick={() => toggleCategory(niche.name)}
+                            className={`p-3 rounded-xl text-left border transition-all flex items-center justify-between ${
                               isSelected
-                                ? "bg-primary border-primary text-primary-foreground shadow-xs"
-                                : "bg-muted border-border text-foreground hover:border-primary/50"
+                                ? "bg-primary/10 border-primary text-primary shadow-xs font-bold"
+                                : "bg-muted/40 border-border text-foreground hover:border-primary/50 text-xs font-medium"
                             }`}
                           >
-                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
-                            <span>{cat}</span>
+                            <span className="flex items-center gap-2 text-xs truncate">
+                              <span className="text-base shrink-0">{niche.icon}</span>
+                              <span className="truncate">{niche.name}</span>
+                            </span>
+                            {isSelected && <Check className="w-3.5 h-3.5 shrink-0 stroke-[3]" />}
                           </button>
                         );
                       })}
@@ -656,7 +664,7 @@ export default function OnboardingPage() {
                 </div>
               )}
 
-              <div className="pt-4 flex items-center justify-between">
+              <div className="pt-4 flex items-center justify-between flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => setStep(2)}
@@ -665,24 +673,33 @@ export default function OnboardingPage() {
                   <ArrowLeft className="w-4 h-4" />
                   <span>Back</span>
                 </button>
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={handleSubmit}
-                  className="px-7 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-primary/25 transition-all disabled:opacity-50 active:scale-95"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Saving Profile...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Complete Setup</span>
-                      <Sparkles className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Skip &amp; Finish
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={handleSubmit}
+                    className="px-7 py-3 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-primary/25 transition-all disabled:opacity-50 active:scale-95"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Saving Profile...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Complete Setup</span>
+                        <Sparkles className="w-4 h-4" />
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}

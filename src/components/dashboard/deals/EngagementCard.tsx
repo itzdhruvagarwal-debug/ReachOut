@@ -3,7 +3,7 @@
 import React from "react";
 import { Card } from "@/components/ui";
 import { formatCurrency, formatNumber } from "@/lib/utils-client";
-import { BarChart3, TrendingUp, DollarSign } from "lucide-react";
+import { BarChart3, DollarSign } from "lucide-react";
 import { EngagementReport, EngagementSnapshot } from "./DealDetailHelpers";
 
 export function EngagementCard({

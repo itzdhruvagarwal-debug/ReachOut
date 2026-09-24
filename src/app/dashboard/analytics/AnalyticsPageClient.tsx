@@ -116,7 +116,7 @@ export default function AnalyticsPageClient({
       document.body.removeChild(a);
 
       showToast("success", `FY ${activeFY} report exported successfully.`);
-    } catch (err) {
+    } catch {
       showToast("error", "Unable to download report. Please try again.");
     } finally {
       setIsExporting(false);

@@ -2,7 +2,6 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import DashboardShell from "@/components/dashboard/DashboardShell";
-import AdminAnalyticsView from "@/components/analytics/AdminAnalyticsView";
 import {
   getInfluencerAnalytics,
   getBrandAnalytics,

@@ -10,14 +10,10 @@ import {
   ShieldCheck,
   Send,
   Paperclip,
-  CheckCircle2,
-  AlertCircle,
-  Sparkles,
   ExternalLink,
   MessageSquare,
-  FileText,
 } from "lucide-react";
-import { Button, Textarea } from "@/components/ui";
+import { Button } from "@/components/ui";
 
 interface ThreePartyArbitrationFeedProps {
   readonly dispute: DisputeDetail;
@@ -46,7 +42,7 @@ interface FeedItem {
 export function ThreePartyArbitrationFeed({
   dispute,
   analysis,
-  currentUserId,
+  currentUserId: _currentUserId,
   onAddStatement,
 }: Readonly<ThreePartyArbitrationFeedProps>) {
   const [statementText, setStatementText] = useState("");

@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import useSWR from "swr";
-import Link from "next/link";
 import { createSchemaFetcher } from "@/lib/fetcher";
 import {
   type DashboardCampaign as Campaign,
@@ -21,10 +20,10 @@ import {
   PlusCircle,
   ShieldCheck,
   Zap,
-  TrendingUp,
-  Sparkles,
   Layers,
-  CheckCircle2,
+  LayoutGrid,
+  List,
+  Sparkles,
 } from "lucide-react";
 
 export function buildCampaignQueryParams(
@@ -96,9 +95,14 @@ export function mapRawCampaigns(rawCampaigns: RawCampaign[]): Campaign[] {
   }));
 }
 
-function CampaignGridSkeleton() {
+function CampaignGridSkeleton({ listView }: { listView: boolean }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 animate-pulse" aria-hidden="true">
+    <div
+      className={`animate-pulse ${
+        listView ? "space-y-3" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+      }`}
+      aria-hidden="true"
+    >
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-4">
           <div className="flex items-center gap-3">
@@ -135,6 +139,7 @@ export default function CampaignsClient({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortBy, setSortBy] = useState("newest");
   const [page, setPage] = useState(1);
+  const [listView, setListView] = useState(false);
 
   const canCreateCampaign = user?.userType === "BRAND";
 
@@ -181,9 +186,20 @@ export default function CampaignsClient({
     setPage(1);
   }, []);
 
+  // Split into "recommended" (top 3 on page 1 with no filters) and rest
+  const isDefaultView =
+    !canCreateCampaign &&
+    selectedCategory === "All" &&
+    !debouncedSearch.trim() &&
+    sortBy === "newest" &&
+    page === 1;
+
+  const recommendedCampaigns = isDefaultView ? campaigns.slice(0, 3) : [];
+  const remainingCampaigns = isDefaultView ? campaigns.slice(3) : campaigns;
+
   return (
     <div className="max-w-7xl mx-auto space-y-6 pb-16 animate-fade-in">
-      {/* ── 1. KOFLUENCE DISCOVERY HEADER ───────────────────────────────── */}
+      {/* ── 1. HEADER ───────────────────────────────────────────────── */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-5">
         <div>
           <div className="flex items-center gap-2.5">
@@ -201,18 +217,52 @@ export default function CampaignsClient({
           </p>
         </div>
 
-        {canCreateCampaign && (
-          <Button
-            href="/dashboard/campaigns/create"
-            variant="primary"
-            className="font-bold text-xs gap-1.5 shadow-sm self-start sm:self-center shrink-0"
-          >
-            <PlusCircle className="w-4 h-4" /> Create New Brief
-          </Button>
-        )}
+        <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+          {/* Grid/List toggle (Instagram Explore pattern) */}
+          {!canCreateCampaign && (
+            <div className="flex items-center gap-0.5 bg-muted p-1 rounded-xl border border-border">
+              <button
+                type="button"
+                id="campaign-grid-view-toggle"
+                onClick={() => setListView(false)}
+                aria-label="Grid view"
+                className={`p-1.5 rounded-lg transition-all ${
+                  !listView
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                id="campaign-list-view-toggle"
+                onClick={() => setListView(true)}
+                aria-label="List view"
+                className={`p-1.5 rounded-lg transition-all ${
+                  listView
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <List className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {canCreateCampaign && (
+            <Button
+              href="/dashboard/campaigns/create"
+              variant="primary"
+              className="font-bold text-xs gap-1.5 shadow-sm"
+            >
+              <PlusCircle className="w-4 h-4" /> Create New Brief
+            </Button>
+          )}
+        </div>
       </header>
 
-      {/* ── 2. TRUST HIGHLIGHT RIBBON (KOFLUENCE BENCHMARK) ──────────────── */}
+      {/* ── 2. TRUST HIGHLIGHT RIBBON (KOFLUENCE BENCHMARK) ────────── */}
       {!canCreateCampaign && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-card border border-border shadow-xs text-xs">
           <div className="flex items-center gap-2.5 p-2 rounded-xl bg-muted/40">
@@ -247,7 +297,7 @@ export default function CampaignsClient({
         </div>
       )}
 
-      {/* ── 3. FILTER & CATEGORY CAROUSEL ───────────────────────────────── */}
+      {/* ── 3. FILTER & CATEGORY CAROUSEL ───────────────────────────── */}
       <CampaignFiltersBar
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
@@ -257,8 +307,8 @@ export default function CampaignsClient({
         setSortBy={handleSortChange}
       />
 
-      {/* ── 4. CAMPAIGN CARDS GRID ───────────────────────────────────────── */}
-      {loading && <CampaignGridSkeleton />}
+      {/* ── 4. CAMPAIGN CARDS ────────────────────────────────────────── */}
+      {loading && <CampaignGridSkeleton listView={listView} />}
 
       {!loading && error && (
         <EmptyState
@@ -292,17 +342,66 @@ export default function CampaignsClient({
 
       {!loading && !error && campaigns.length > 0 && (
         <>
-          <section aria-label="Campaign opportunities" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {campaigns.map((campaign) => (
-              <CampaignDiscoveryCard
-                key={campaign.id}
-                campaign={campaign}
-                isBrand={canCreateCampaign}
-              />
-            ))}
-          </section>
+          {/* Recommended for You section (Kofluence pattern) — page 1 default view */}
+          {recommendedCampaigns.length > 0 && (
+            <section aria-label="Recommended campaigns">
+              <div className="flex items-center gap-2 mb-3">
+                <Sparkles className="w-4 h-4 text-pending" />
+                <h2 className="text-sm font-bold text-foreground">Recommended for You</h2>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-pending-muted text-pending border border-pending-border">
+                  Top Match
+                </span>
+              </div>
+              <div
+                className={
+                  listView
+                    ? "space-y-3"
+                    : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+                }
+              >
+                {recommendedCampaigns.map((campaign) => (
+                  <CampaignDiscoveryCard
+                    key={campaign.id}
+                    campaign={campaign}
+                    isBrand={canCreateCampaign}
+                    listView={listView}
+                    isRecommended
+                  />
+                ))}
+              </div>
+            </section>
+          )}
 
-          {/* ── 5. ACCESSIBLE PAGINATION CONTROLS ──────────────────────────── */}
+          {/* Remaining campaigns */}
+          {remainingCampaigns.length > 0 && (
+            <section
+              aria-label={isDefaultView ? "More campaigns" : "Campaign opportunities"}
+            >
+              {isDefaultView && (
+                <div className="flex items-center gap-2 mb-3">
+                  <h2 className="text-sm font-bold text-foreground">All Active Briefs</h2>
+                </div>
+              )}
+              <div
+                className={
+                  listView
+                    ? "space-y-3"
+                    : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"
+                }
+              >
+                {remainingCampaigns.map((campaign) => (
+                  <CampaignDiscoveryCard
+                    key={campaign.id}
+                    campaign={campaign}
+                    isBrand={canCreateCampaign}
+                    listView={listView}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Pagination */}
           {totalPages > 1 && (
             <nav aria-label="Campaigns pagination" className="flex justify-center items-center gap-3 pt-8">
               <Button
@@ -315,7 +414,8 @@ export default function CampaignsClient({
                 <ChevronLeft className="w-3.5 h-3.5" /> Previous
               </Button>
               <span className="text-xs font-medium text-muted-foreground px-3">
-                Page <strong className="text-foreground font-mono">{page}</strong> of <span className="font-mono">{totalPages}</span>
+                Page <strong className="text-foreground font-mono">{page}</strong> of{" "}
+                <span className="font-mono">{totalPages}</span>
               </span>
               <Button
                 variant="secondary"

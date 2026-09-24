@@ -9,7 +9,6 @@ import {
   Sparkles,
   ArrowRight,
   TrendingUp,
-  CheckCircle2,
   Building2,
   Users2,
   Scale,

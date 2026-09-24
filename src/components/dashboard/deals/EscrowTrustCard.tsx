@@ -4,6 +4,8 @@ import React from "react";
 import { ShieldCheck, Lock, CheckCircle2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils-client";
 
+import { Card } from "@/components/ui";
+
 export interface EscrowTrustCardProps {
   amountInPaise: number;
   totalAmountInPaise?: number | undefined;
@@ -44,7 +46,7 @@ export function EscrowTrustCard({
   const netCreatorPayout = creatorPayoutInPaise ?? Math.max(0, principal - platformFeeInPaise);
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-5 sm:p-6 shadow-sm mb-6 transition-colors">
+    <Card className="p-5 sm:p-6 mb-6 transition-colors">
       {/* Escrow Status Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-border">
         <div className="flex items-center gap-3">
@@ -162,6 +164,6 @@ export function EscrowTrustCard({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

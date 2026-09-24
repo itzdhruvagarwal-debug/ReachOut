@@ -30,6 +30,10 @@ export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 
 export { Modal } from "./Modal";
+export { Drawer } from "./Drawer";
+export type { DrawerProps } from "./Drawer";
+export { ListItem } from "./ListItem";
+export type { ListItemProps } from "./ListItem";
 
 // Pagination component
 export { Pagination } from "./Pagination";

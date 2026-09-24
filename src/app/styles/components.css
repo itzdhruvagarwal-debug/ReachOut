@@ -255,6 +255,10 @@
 
   .hamburger {
     display: flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
   }
 
   .mobile-nav-overlay,
@@ -321,6 +325,10 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   color: var(--color-text-secondary);
   font-size: 18px;
@@ -844,7 +852,13 @@ dialog.pwa-install-overlay {
   font-size: 22px;
   cursor: pointer;
   line-height: 1;
-  padding: 4px;
+  padding: 8px;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
   transition: color 0.15s ease;
 }

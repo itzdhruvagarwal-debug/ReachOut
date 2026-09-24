@@ -434,7 +434,7 @@ export default function WalletPage() {
             <button
               type="button"
               onClick={() => setShowStatementModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-card border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-card border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors shadow-xs cursor-pointer min-h-[44px]"
             >
               <Download className="w-3.5 h-3.5 text-muted-foreground" />
               <span>Statement</span>
@@ -443,7 +443,7 @@ export default function WalletPage() {
             <button
               type="button"
               onClick={handleRefreshAll}
-              className="p-2 rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs cursor-pointer"
+              className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shadow-xs cursor-pointer shrink-0"
               title="Refresh wallet balances and transactions"
               aria-label="Refresh wallet balances and transactions"
             >
@@ -619,12 +619,12 @@ export default function WalletPage() {
 
         {/* ── 5. SEGMENTED TABS: TRANSACTIONS VS BANK ACCOUNTS ──────────────── */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div className="flex items-center gap-2 bg-muted/60 p-1 rounded-xl border border-border/60">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-2">
+            <div className="flex items-center gap-2 bg-muted/60 p-1 rounded-xl border border-border/60 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={() => setActiveTab("ledger")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-lg text-xs font-bold transition-all cursor-pointer min-h-[44px] flex items-center justify-center ${
                   activeTab === "ledger"
                     ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -641,7 +641,7 @@ export default function WalletPage() {
               <button
                 type="button"
                 onClick={() => setActiveTab("accounts")}
-                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                className={`flex-1 sm:flex-initial px-4 py-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer min-h-[44px] ${
                   activeTab === "accounts"
                     ? "bg-card text-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
@@ -741,15 +741,15 @@ export default function WalletPage() {
             </p>
 
             {/* PhonePe / Jupiter Quick Amount Chips */}
-            <div className="flex items-center gap-1.5 pt-2.5 flex-wrap">
+            <div className="flex items-center gap-2 pt-2.5 flex-wrap">
               {[1000, 5000, 10000, 25000, 50000].map((amt) => (
                 <button
                   key={amt}
                   type="button"
                   onClick={() => handleQuickAdd(amt)}
-                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors cursor-pointer"
+                  className="px-3 py-2 min-h-[44px] inline-flex items-center justify-center rounded-lg text-xs font-semibold bg-muted hover:bg-muted/80 text-foreground border border-border transition-colors cursor-pointer"
                 >
-                  +₹{amt.toLocaleString("en-IN")}
+                  +{formatCurrency(amt * 100)}
                 </button>
               ))}
             </div>
@@ -773,22 +773,21 @@ export default function WalletPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+          <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-border">
             <Button
               type="button"
               variant="secondary"
-              size="sm"
               disabled={isAddingFunds}
               onClick={() => setShowAddFundsModal(false)}
+              className="w-full sm:w-auto min-h-[44px]"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               variant="primary"
-              size="sm"
               disabled={isAddingFunds}
-              className="font-bold"
+              className="w-full sm:w-auto min-h-[44px] font-bold"
             >
               {isAddingFunds ? (
                 <>
@@ -796,7 +795,7 @@ export default function WalletPage() {
                   <span>Connecting to Gateway...</span>
                 </>
               ) : (
-                `Proceed to Pay ${topUpAmount ? `₹${Number(topUpAmount).toLocaleString("en-IN")}` : ""}`
+                `Proceed to Pay ${topUpAmount ? formatCurrency(Number(topUpAmount) * 100) : ""}`
               )}
             </Button>
           </div>

@@ -12,7 +12,7 @@ import {
   TierStatusCardComponent,
   Step1MandatoryCardComponent,
 } from "./verification/VerificationCards";
-import { ShieldCheck, Lock, AlertCircle, HelpCircle } from "lucide-react";
+import { ShieldCheck, HelpCircle } from "lucide-react";
 import Link from "next/link";
 
 export interface VerificationData {

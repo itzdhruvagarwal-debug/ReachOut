@@ -20,6 +20,8 @@ import {
   Lock,
   Calendar,
   Package,
+  Flame,
+  Zap,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui";
 
@@ -131,6 +133,18 @@ export function getDealProgressStep(status: string): { step: number; total: numb
   }
 }
 
+function checkIsDueSoon(deadlineStr?: string | null): boolean {
+  if (!deadlineStr) return false;
+  try {
+    const deadline = new Date(deadlineStr).getTime();
+    const now = Date.now();
+    const diffHours = (deadline - now) / (1000 * 60 * 60);
+    return diffHours > 0 && diffHours <= 48;
+  } catch {
+    return false;
+  }
+}
+
 export function DealPipelineCard({
   deal,
   isSelected,
@@ -144,10 +158,20 @@ export function DealPipelineCard({
   const canSubmitContent =
     isInfluencer && ["ACTIVE", "PAYMENT_HELD", "REVISION_REQUESTED"].includes(deal.status);
 
+  const dueSoon = checkIsDueSoon(deal.postingDeadline);
+
+  const isActionRequired =
+    (isInfluencer && ["PENDING_SIGNATURE", "REVISION_REQUESTED", "CONTENT_APPROVED"].includes(deal.status)) ||
+    (isBrand && ["CONTENT_SUBMITTED", "POSTED"].includes(deal.status));
+
   return (
     <article
       className={`rounded-2xl border transition-all bg-card overflow-hidden ${
-        isSelected ? "border-primary shadow-md" : "border-border hover:border-border/80 shadow-sm"
+        isSelected
+          ? "border-primary shadow-md"
+          : isActionRequired
+          ? "border-pending-border/90 bg-card hover:border-pending shadow-xs"
+          : "border-border hover:border-border/90 shadow-xs"
       }`}
     >
       {/* Primary Clickable Header Row */}
@@ -168,7 +192,7 @@ export function DealPipelineCard({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Left: Brand/Counterparty Avatar & Metadata */}
           <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
-            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted border border-border shrink-0 flex items-center justify-center text-foreground font-bold text-base">
+            <div className="relative w-12 h-12 rounded-full overflow-hidden bg-muted border border-border shrink-0 flex items-center justify-center text-foreground font-bold text-base shadow-2xs">
               {deal.brand?.logo ? (
                 <Image
                   src={deal.brand.logo}
@@ -190,6 +214,16 @@ export function DealPipelineCard({
                   {statusInfo.icon}
                   {statusInfo.label}
                 </Badge>
+                {dueSoon && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pending-muted text-pending border border-pending-border">
+                    <Flame className="w-3 h-3 fill-current" /> Due Soon
+                  </span>
+                )}
+                {isActionRequired && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-pending-muted text-pending border border-pending-border">
+                    <Zap className="w-3 h-3 fill-current" /> Action Required
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
@@ -234,7 +268,7 @@ export function DealPipelineCard({
               <Link
                 href={`/dashboard/messages?deal=${deal.id}`}
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center justify-center h-9 w-9 rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                className="inline-flex items-center justify-center min-h-[44px] min-w-[44px] rounded-xl border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                 aria-label={`Message about ${deal.campaign.title}`}
               >
                 <MessageSquare className="w-4 h-4" />
@@ -242,14 +276,14 @@ export function DealPipelineCard({
               <Link
                 href={`/dashboard/deals/${deal.id}`}
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm"
+                className="inline-flex items-center gap-1 px-3.5 min-h-[44px] rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
               >
-                Deal Room
+                <span>Deal Room</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
               <button
                 type="button"
-                className="text-muted-foreground hover:text-foreground p-1"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
                 aria-label={isSelected ? "Collapse deal details" : "Expand deal details"}
               >
                 {isSelected ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -265,7 +299,7 @@ export function DealPipelineCard({
               <span>Pipeline:</span>
               <span className="text-foreground font-medium">{progress.label}</span>
             </span>
-            <span className="font-mono font-bold text-muted-foreground">
+            <span className="font-mono font-bold text-muted-foreground tabular-nums">
               Step {progress.step} of {progress.total} ({Math.round((progress.step / progress.total) * 100)}%)
             </span>
           </div>
@@ -326,13 +360,13 @@ export function DealPipelineCard({
           </div>
 
           {/* Contextual Action CTAs */}
-          <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-border">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-2 border-t border-border">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <Button
                 href={`/dashboard/messages?deal=${deal.id}`}
                 variant="secondary"
                 size="sm"
-                className="text-xs font-semibold gap-1"
+                className="w-full sm:w-auto min-h-[44px] text-xs font-semibold gap-1.5 justify-center"
               >
                 <MessageSquare className="w-3.5 h-3.5" /> Message Partner
               </Button>
@@ -340,35 +374,35 @@ export function DealPipelineCard({
                 href={`/dashboard/deals/${deal.id}`}
                 variant="ghost"
                 size="sm"
-                className="text-xs font-semibold"
+                className="w-full sm:w-auto min-h-[44px] text-xs font-semibold justify-center"
               >
                 Full Agreement →
               </Button>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               {deal.status === "PENDING_SIGNATURE" && (
-                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center">
                   ✍️ Sign Contract
                 </Button>
               )}
               {canSubmitContent && (
-                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center">
                   📤 Submit Content
                 </Button>
               )}
               {isInfluencer && deal.status === "CONTENT_APPROVED" && (
-                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center">
                   🔗 Submit Post URL
                 </Button>
               )}
               {isBrand && deal.status === "CONTENT_SUBMITTED" && (
-                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center">
                   👀 Review Content
                 </Button>
               )}
               {isBrand && ["POSTED", "VERIFIED", "VERIFICATION_PENDING"].includes(deal.status) && (
-                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="font-bold text-xs">
+                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center">
                   💰 Release Payment
                 </Button>
               )}

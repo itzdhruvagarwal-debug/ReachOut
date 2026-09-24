@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { DiscoveryFilters, DiscoveryMode } from "./types";
 import { X, SlidersHorizontal, RotateCcw } from "lucide-react";
+import { Drawer } from "@/components/ui";
 
 interface FilterBottomSheetProps {
   isOpen: boolean;
@@ -69,16 +69,6 @@ export default function FilterBottomSheet({
     }
   }, [isOpen, filters]);
 
-  // Lock body scroll while open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.classList.add("overflow-hidden");
-    } else {
-      document.body.classList.remove("overflow-hidden");
-    }
-    return () => document.body.classList.remove("overflow-hidden");
-  }, [isOpen]);
-
   const handleNicheSelect = (niche: string) => {
     setLocalFilters((prev) => ({
       ...prev,
@@ -115,57 +105,37 @@ export default function FilterBottomSheet({
   const activeCount = Object.values(localFilters).filter(Boolean).length;
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center">
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-background/80 backdrop-blur-xs transition-opacity"
-            aria-hidden="true"
-          />
-
-          {/* Slide-Up Bottom Sheet */}
-          <motion.div
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 320 }}
-            className="relative w-full max-w-lg bg-card rounded-t-3xl border-t border-border shadow-2xl z-10 flex flex-col max-h-[85vh] overflow-hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Filter & Sort Options"
-          >
-            {/* Grab Handle */}
-            <div className="pt-3 pb-1 flex items-center justify-center">
-              <div className="w-12 h-1.5 rounded-full bg-muted-foreground/30" />
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-border/60">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-4 h-4 text-primary" />
-                <h3 className="text-base font-bold text-foreground">
-                  Filters & Sorting
-                </h3>
-                {activeCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                    {activeCount}
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Close filters"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+    <Drawer
+      isOpen={isOpen}
+      onClose={onClose}
+      side="bottom"
+      maxWidth="32rem"
+      aria-label="Filter & Sort Options"
+      showCloseButton={false}
+      className="max-h-[85vh]"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-3 border-b border-border/60">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="w-4 h-4 text-primary" />
+          <h3 className="text-base font-bold text-foreground">
+            Filters & Sorting
+          </h3>
+          {activeCount > 0 && (
+            <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+              {activeCount}
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          aria-label="Close filters"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
 
             {/* Scrollable Filters Content */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
@@ -346,9 +316,6 @@ export default function FilterBottomSheet({
                 Apply Filters
               </button>
             </div>
-          </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+    </Drawer>
   );
 }

@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger-client";
 import { useEffect, useRef } from "react";
 import type { Profile } from "./ProfileTab";
 import SocialPlatformCard from "./SocialPlatformCard";
-import { apiClient, ApiClientError } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
 
 export interface SocialConnections {

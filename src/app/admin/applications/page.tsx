@@ -49,15 +49,15 @@ export default async function AdminApplicationsPage() {
         <Button
           href="/admin"
           variant="secondary"
-          size="sm"
           aria-label="Back to Admin Dashboard"
+          className="min-h-[44px]"
         >
           ← Admin Dashboard
         </Button>
       </div>
 
       {/* Summary stats strip */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="flex items-center gap-4 p-4 rounded-xl bg-card border border-disputed-border shadow-sm">
           <div className="w-10 h-10 rounded-xl bg-disputed/10 border border-disputed-border flex items-center justify-center">
             <AlertTriangle className="w-5 h-5 text-disputed" />
@@ -143,7 +143,7 @@ export default async function AdminApplicationsPage() {
                 </div>
 
                 {/* Influencer info */}
-                <div className="flex justify-between items-center flex-wrap gap-3 p-4 rounded-xl bg-muted/30 border border-border">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 p-4 rounded-xl bg-muted/30 border border-border">
                   <div>
                     <div className="font-bold text-sm text-foreground mb-1">
                       {app.influencer.displayName}
@@ -169,28 +169,28 @@ export default async function AdminApplicationsPage() {
                   <Button
                     href={`/admin/users?search=${encodeURIComponent(app.influencer.user.email)}`}
                     variant="secondary"
-                    size="sm"
                     aria-label={`View profile for ${app.influencer.displayName}`}
+                    className="w-full sm:w-auto min-h-[44px]"
                   >
                     View User Profile
                   </Button>
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex justify-end items-center gap-3 flex-wrap border-t border-border pt-4">
-                  <form action={approveAction}>
-                    <Button type="submit" variant="success" size="sm">
+                <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 border-t border-border pt-4">
+                  <form action={approveAction} className="w-full sm:w-auto">
+                    <Button type="submit" variant="success" className="w-full sm:w-auto min-h-[44px] font-bold">
                       Approve Application
                     </Button>
                   </form>
-                  <form action={rejectAction} className="flex gap-2 items-center">
+                  <form action={rejectAction} className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center w-full sm:w-auto">
                     <Input
                       type="text"
                       name="reason"
                       placeholder="Rejection reason (optional)..."
-                      className="text-sm"
+                      className="text-sm min-h-[44px]"
                     />
-                    <Button type="submit" variant="danger" size="sm">
+                    <Button type="submit" variant="danger" className="min-h-[44px] px-5 font-bold">
                       Reject
                     </Button>
                   </form>

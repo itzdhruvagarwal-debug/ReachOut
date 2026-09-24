@@ -9,10 +9,7 @@ import { useState, useMemo } from "react";
 import {
   Laptop,
   Smartphone,
-  ShieldCheck,
-  CheckCircle2,
   Clock,
-  AlertCircle,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";

@@ -8,6 +8,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button, Input, Select, Textarea, Card } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
+import { formatCurrency } from "@/lib/utils-client";
 import {
   CampaignFormData,
   validateCampaignForm,
@@ -915,7 +916,7 @@ export default function CreateCampaignClient() {
                           Budget Per Influencer (₹)
                         </label>
                         <div className="p-3 rounded-xl bg-muted/60 border border-border font-black text-base tabular-nums text-foreground">
-                          ₹{formData.perInfluencerBudget.toLocaleString("en-IN")}
+                          {formatCurrency(formData.perInfluencerBudget * 100)}
                         </div>
                         <span className="text-[10px] text-muted-foreground mt-1 block">
                           Auto-calculated from selected deliverables
@@ -927,7 +928,7 @@ export default function CreateCampaignClient() {
                           Total Creator Pool (₹)
                         </label>
                         <div className="p-3 rounded-xl bg-muted/60 border border-border font-black text-base tabular-nums text-foreground">
-                          ₹{formData.totalBudget.toLocaleString("en-IN")}
+                          {formatCurrency(formData.totalBudget * 100)}
                         </div>
                         <span className="text-[10px] text-muted-foreground mt-1 block">
                           For {formData.maxInfluencers || 1} creator slots

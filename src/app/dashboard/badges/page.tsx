@@ -185,6 +185,74 @@ export default function BadgesPage() {
           </div>
         )}
 
+        {/* ── Next Badges to Unlock (CRED Style Milestone Track) ── */}
+        {!loading && badges.filter((b) => !b.earned).length > 0 && (
+          <div className="p-5 rounded-2xl bg-card border border-border shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
+                <h2 className="text-sm font-extrabold text-foreground">Nearest Milestones to Unlock</h2>
+              </div>
+              <span className="text-xs text-muted-foreground">Level up by completing these actions</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {badges
+                .filter((b) => !b.earned)
+                .sort((a, b) => {
+                  const progA = a.hasProgress ? (a.currentProgress || 0) / (a.targetProgress || 1) : 0;
+                  const progB = b.hasProgress ? (b.currentProgress || 0) / (b.targetProgress || 1) : 0;
+                  return progB - progA;
+                })
+                .slice(0, 3)
+                .map((nextBadge) => {
+                  const pct = nextBadge.hasProgress
+                    ? Math.min(100, Math.round(((nextBadge.currentProgress || 0) / (nextBadge.targetProgress || 1)) * 100))
+                    : 0;
+
+                  return (
+                    <div
+                      key={nextBadge.id}
+                      className="p-3.5 rounded-xl bg-muted/40 border border-border flex flex-col justify-between space-y-3"
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl shrink-0 p-1.5 rounded-lg bg-card border border-border">
+                          {nextBadge.icon}
+                        </span>
+                        <div className="min-w-0">
+                          <h3 className="text-xs font-bold text-foreground truncate">{nextBadge.name}</h3>
+                          <p className="text-[11px] text-muted-foreground line-clamp-1">{nextBadge.description}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-[10px] text-muted-foreground">
+                          <span className="font-semibold">Next unlock progress</span>
+                          <span className="font-bold text-foreground tabular-nums">
+                            {nextBadge.hasProgress ? `${pct}%` : "In Progress"}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all duration-700"
+                            style={{ width: `${Math.max(5, pct)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px]">
+                        <span className="font-bold uppercase tracking-wider text-muted-foreground">
+                          {nextBadge.category}
+                        </span>
+                        <span className="font-bold text-primary tabular-nums">+{nextBadge.xpReward} XP</span>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
         {/* ── Category Filter Tabs ── */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           {CATEGORY_ITEMS.map((cat) => {

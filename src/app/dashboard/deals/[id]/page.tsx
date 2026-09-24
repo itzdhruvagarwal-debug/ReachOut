@@ -16,9 +16,10 @@ import {
   Zap,
   Calendar,
   Layers,
-  FileCheck2,
   Star,
-  ExternalLink,
+  FileText,
+  AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { useTokenRefreshGuard } from "@/hooks/useTokenRefreshGuard";
@@ -36,8 +37,7 @@ import { ContentSubmissionModal } from "@/components/dashboard/deals/ContentSubm
 import { DealModals } from "@/components/dashboard/deals/DealModals";
 import { Button, Skeleton, Textarea, ToastContainer } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
-import { formatUserError } from "@/lib/user-messages";
-import { formatCurrency } from "@/lib/utils-client";
+import { formatCurrency, formatDate, formatUserError } from "@/lib/utils-client";
 
 // ─── Status Helpers ────────────────────────────────────────────────────────────
 
@@ -200,9 +200,9 @@ export default function DealDetailPage() {
     handleProductAction,
     shippingAddress: shippingForm,
     setShippingAddress: setShippingForm,
-    itemizedUrls,
+    itemizedUrls: _itemizedUrls,
     setItemizedUrls,
-    contentForm,
+    contentForm: _contentForm,
     setContentForm,
     postUrl,
     setPostUrl,
@@ -321,14 +321,14 @@ export default function DealDetailPage() {
                 <span>•</span>
                 <span className="flex items-center gap-1.5">
                   <Calendar className="w-3.5 h-3.5 text-primary" />
-                  <span>Created {new Date(deal.createdAt).toLocaleDateString("en-IN", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  <span>Created {formatDate(deal.createdAt, undefined, { month: "short", day: "numeric", year: "numeric" })}</span>
                 </span>
               </div>
             </div>
 
             {/* Counterparty Dossier Chip + Realtime Sync */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="flex items-center gap-3 p-2.5 px-3.5 rounded-2xl bg-card border border-border text-xs shadow-sm">
+            <div className="flex items-center flex-wrap gap-2.5 sm:gap-3 shrink-0">
+              <div className="flex items-center gap-3 p-2.5 px-3.5 rounded-2xl bg-card border border-border text-xs shadow-sm w-full sm:w-auto">
                 <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-sm shrink-0">
                   {isClient ? <User className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
                 </div>
@@ -342,9 +342,20 @@ export default function DealDetailPage() {
                 </div>
               </div>
 
+              {/* Contract Summary PDF CTA (Upwork Benchmark) */}
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3.5 min-h-[44px] rounded-xl bg-card border border-border text-xs font-semibold text-foreground hover:bg-muted transition-all cursor-pointer shadow-xs"
+                title="Print or save digital contract summary"
+              >
+                <FileText className="w-3.5 h-3.5 text-primary" />
+                <span>Contract PDF</span>
+              </button>
+
               {/* Live Sync Beacon */}
               <div
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted/80 text-[11px] font-bold text-muted-foreground border border-border"
+                className="flex items-center gap-1.5 px-3 min-h-[44px] rounded-xl bg-muted/80 text-[11px] font-bold text-muted-foreground border border-border"
                 title="Live Supabase deal synchronization active"
               >
                 <span className="relative flex h-2 w-2">
@@ -420,7 +431,7 @@ export default function DealDetailPage() {
                 </div>
 
                 {/* 5-Star Interactive Selector */}
-                <div className="flex items-center gap-2 py-1">
+                <div className="flex items-center gap-1.5 py-1 flex-wrap">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
@@ -430,7 +441,7 @@ export default function DealDetailPage() {
                       onMouseLeave={() => setHoverRating(0)}
                       aria-label={`Rate ${star} star${star > 1 ? "s" : ""}`}
                       aria-pressed={(hoverRating || reviewRating) >= star ? "true" : "false"}
-                      className={`text-3xl p-1 transition-transform hover:scale-110 cursor-pointer ${
+                      className={`w-11 h-11 flex items-center justify-center text-3xl rounded-xl transition-transform hover:scale-110 cursor-pointer ${
                         (hoverRating || reviewRating) >= star
                           ? "text-pending fill-pending"
                           : "text-muted-foreground/30"
@@ -599,6 +610,33 @@ export default function DealDetailPage() {
             showToast("success", "Content submitted for review!");
           }}
         />
+      )}
+
+      {/* ── Persistent Raise Dispute & Mediation Footer Bar (Collabr / Upwork Benchmark) ── */}
+      {deal && !["COMPLETED", "DISPUTED", "CANCELLED"].includes(deal.status) && (
+        <aside
+          aria-label="Dispute Support"
+          className="fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur-md border-t border-border px-4 py-3 shadow-lg"
+        >
+          <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <AlertTriangle className="w-4 h-4 text-pending shrink-0" />
+              <span className="hidden sm:inline">
+                Facing deliverable delays, quality issues, or unresponsive counterparty?
+              </span>
+              <span className="sm:hidden">Collaboration dispute support:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/deals/${deal.id}/dispute`}
+                className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-xl bg-card border border-disputed-border text-disputed font-bold hover:bg-disputed-muted/30 transition-all cursor-pointer shadow-xs"
+              >
+                <ShieldAlert className="w-3.5 h-3.5" />
+                <span>Raise Dispute</span>
+              </Link>
+            </div>
+          </div>
+        </aside>
       )}
     </DashboardShell>
   );

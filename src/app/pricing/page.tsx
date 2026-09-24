@@ -79,6 +79,7 @@ const FAQS = [
 
 export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [billingCycle, setBillingCycle] = useState<"standard" | "volume">("standard");
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -121,11 +122,47 @@ export default function PricingPage() {
         {/* ── Pricing Cards ─────────────────────────────────── */}
         <section className="section">
           <div className="container">
+            {/* Standard vs Enterprise Volume Toggle */}
+            <div className="flex flex-col items-center justify-center mb-10 space-y-3">
+              <div className="inline-flex items-center p-1 rounded-2xl bg-muted border border-border shadow-xs">
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle("standard")}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    billingCycle === "standard"
+                      ? "bg-card text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Pay-As-You-Go (Standard)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle("volume")}
+                  className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    billingCycle === "volume"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span>Agency & Volume Plan</span>
+                  <span className="text-[10px] bg-verified text-white px-1.5 py-0.2 rounded-full font-black uppercase tracking-wider">
+                    Save 25%
+                  </span>
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {billingCycle === "volume"
+                  ? "For agencies & brands managing > ₹10L annual escrow volume. 7.5% reduced fee + dedicated account manager."
+                  : "Zero upfront commitment. Standard 10% escrow fee charged solely upon successful deliverable sign-off."}
+              </p>
+            </div>
+
             <div className="pricing-cards-grid grid gap-6 max-w-4xl mx-auto">
 
               {/* Creator Card */}
-              <article className="pricing-card pricing-card--creator card rounded-2xl p-8 flex flex-col">
-                <div className="pricing-card-icon pricing-card-icon--creator w-12 h-12 rounded-2xl flex items-center justify-center mb-5">
+              <article className="pricing-card pricing-card--creator card rounded-2xl p-8 flex flex-col border border-border">
+                <div className="pricing-card-icon pricing-card-icon--creator w-12 h-12 rounded-2xl flex items-center justify-center mb-5 bg-primary/10 text-primary">
                   <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                     <circle cx="12" cy="7" r="4" />
@@ -137,7 +174,7 @@ export default function PricingPage() {
                   Build your verified portfolio, discover brand deals, sign smart contracts, and get 100% guaranteed escrow payouts — completely free.
                 </p>
 
-                <div className="pricing-price-block rounded-xl p-5 mb-7 text-center">
+                <div className="pricing-price-block rounded-xl p-5 mb-7 text-center bg-muted/40 border border-border">
                   <div className="text-5xl font-extrabold text-foreground mb-1">₹0</div>
                   <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Free forever to join & apply</div>
                 </div>
@@ -161,10 +198,12 @@ export default function PricingPage() {
               </article>
 
               {/* Brand Card */}
-              <article className="pricing-card pricing-card--brand card rounded-2xl p-8 flex flex-col relative">
-                <div className="pricing-popular-badge">Most Popular</div>
+              <article className="pricing-card pricing-card--brand card rounded-2xl p-8 flex flex-col relative border-2 border-primary shadow-lg bg-card">
+                <div className="absolute -top-3.5 right-6 px-3 py-1 rounded-full bg-primary text-primary-foreground text-[11px] font-black uppercase tracking-wider shadow-md">
+                  Most Popular
+                </div>
 
-                <div className="pricing-card-icon pricing-card-icon--brand w-12 h-12 rounded-2xl flex items-center justify-center mb-5">
+                <div className="pricing-card-icon pricing-card-icon--brand w-12 h-12 rounded-2xl flex items-center justify-center mb-5 bg-primary/10 text-primary">
                   <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
                     <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
@@ -176,10 +215,18 @@ export default function PricingPage() {
                   Run high-ROI influencer marketing with zero risk. Connect with verified creators, lock escrow securely, and approve content with confidence.
                 </p>
 
-                <div className="pricing-price-block pricing-price-block--brand rounded-xl p-5 mb-7 text-center">
-                  <div className="text-5xl font-extrabold text-foreground mb-1">10%</div>
-                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Flat fee per completed deal</div>
-                  <div className="text-xs text-muted-foreground mt-1.5">Only charged on success · No upfront cost</div>
+                <div className="pricing-price-block pricing-price-block--brand rounded-xl p-5 mb-7 text-center bg-primary/5 border border-primary/20">
+                  <div className="text-5xl font-extrabold text-foreground mb-1">
+                    {billingCycle === "volume" ? "7.5%" : "10%"}
+                  </div>
+                  <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                    {billingCycle === "volume" ? "Discounted volume escrow fee" : "Flat fee per completed deal"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1.5">
+                    {billingCycle === "volume"
+                      ? "Dedicated CA tax support · Dedicated account executive"
+                      : "Only charged on success · No upfront cost"}
+                  </div>
                 </div>
 
                 <ul className="flex-1 space-y-3 mb-8">
@@ -210,27 +257,29 @@ export default function PricingPage() {
             <p className="section-subtitle">Everything included, no upsells.</p>
 
             <div className="card rounded-2xl overflow-hidden">
-              <table className="pricing-table w-full text-sm">
-                <thead>
-                  <tr className="pricing-table-head border-b border-border">
-                    <th className="text-left px-6 py-4 font-extrabold text-foreground">Feature</th>
-                    <th className="text-center px-6 py-4 font-extrabold text-primary">Creator</th>
-                    <th className="text-center px-6 py-4 font-extrabold text-primary">Brand</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {COMPARISON.map((row, i) => (
-                    <tr
-                      key={row.feature}
-                      className={`border-b border-border last:border-0 ${i % 2 === 0 ? "bg-transparent" : "bg-secondary/30"}`}
-                    >
-                      <td className="px-6 py-3.5 text-foreground font-medium">{row.feature}</td>
-                      <td className="px-6 py-3.5 text-center text-muted-foreground">{row.creator}</td>
-                      <td className="px-6 py-3.5 text-center text-muted-foreground">{row.brand}</td>
+              <div className="overflow-x-auto">
+                <table className="pricing-table w-full text-sm min-w-[500px]">
+                  <thead>
+                    <tr className="pricing-table-head border-b border-border">
+                      <th className="text-left px-6 py-4 font-extrabold text-foreground">Feature</th>
+                      <th className="text-center px-6 py-4 font-extrabold text-primary">Creator</th>
+                      <th className="text-center px-6 py-4 font-extrabold text-primary">Brand</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {COMPARISON.map((row, i) => (
+                      <tr
+                        key={row.feature}
+                        className={`border-b border-border last:border-0 ${i % 2 === 0 ? "bg-transparent" : "bg-secondary/30"}`}
+                      >
+                        <td className="px-6 py-3.5 text-foreground font-medium">{row.feature}</td>
+                        <td className="px-6 py-3.5 text-center text-muted-foreground">{row.creator}</td>
+                        <td className="px-6 py-3.5 text-center text-muted-foreground">{row.brand}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>

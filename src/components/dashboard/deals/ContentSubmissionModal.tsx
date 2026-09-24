@@ -13,8 +13,6 @@ import {
   ArrowLeft,
   ArrowRight,
   ExternalLink,
-  Lock,
-  Clock,
   ShieldCheck,
   RefreshCw,
   Eye,
@@ -23,13 +21,11 @@ import {
 import { Button, Input, Textarea, Modal } from "@/components/ui";
 import { formatCurrency } from "@/lib/utils-client";
 import { apiClient } from "@/lib/api-client";
-import { ApiClientError } from "@/lib/api-client/errors";
 import { formatUserError } from "@/lib/user-messages";
 import {
   formatFileSize,
   uploadFileDirectly,
   validateDeliverableFile,
-  MAX_DELIVERABLE_SIZE_BYTES,
 } from "@/lib/direct-upload";
 import { detectContactLeak } from "@/lib/contact-leak-detector";
 import {
@@ -75,7 +71,6 @@ export function ContentSubmissionModal({
   // Step state
   const [step, setStep] = useState<Step>("media");
   const [showHistory, setShowHistory] = useState(false);
-  const [selectedPreviewItem, setSelectedPreviewItem] = useState<string | null>(null);
 
   // Form metadata
   const [notes, setNotes] = useState("");
@@ -160,9 +155,8 @@ export function ContentSubmissionModal({
   const canSubmit = canProceedToDetails && !isSubmitting && !contactLeak.hasLeak;
 
   // Active item for media preview
-  const previewItem = selectedPreviewItem
-    ? deliverablesState[selectedPreviewItem]
-    : deliverableItems.find((d) => d.previewUrl || d.url) || deliverableItems[0];
+  const previewItem =
+    deliverableItems.find((d) => d.previewUrl || d.url) || deliverableItems[0];
 
   // Helper for type-safe deliverable state updates
   const updateItem = (type: string, updater: (item: DeliverableItemState) => DeliverableItemState) => {
@@ -346,13 +340,13 @@ export function ContentSubmissionModal({
       />
         
         {/* ==================== MODAL HEADER ==================== */}
-        <header className="flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20">
+        <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-2.5">
             {step !== "media" && step !== "success" && (
               <button
                 type="button"
                 onClick={() => setStep(step === "review" ? "details" : "media")}
-                className="p-1.5 -ml-1 text-secondary hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
+                className="w-11 h-11 -ml-1 text-secondary hover:text-foreground rounded-xl hover:bg-secondary transition-colors flex items-center justify-center cursor-pointer"
                 aria-label="Previous step"
               >
                 <ArrowLeft className="w-5 h-5" />
@@ -371,18 +365,18 @@ export function ContentSubmissionModal({
                   {step === "success" ? `v${submittedVersion}` : `v${nextVersionNumber}`}
                 </span>
               </div>
-              <p className="text-xs text-secondary truncate max-w-[240px] sm:max-w-md">
+              <p className="text-xs text-secondary truncate max-w-[200px] sm:max-w-md">
                 {deal?.campaign?.title || "Collaboration Deliverable"}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {pastSubmissions.length > 0 && step !== "success" && (
               <button
                 type="button"
                 onClick={() => setShowHistory(!showHistory)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
+                className={`flex items-center gap-1.5 px-3 min-h-[44px] rounded-xl text-xs font-semibold transition-colors border cursor-pointer ${
                   showHistory
                     ? "bg-primary text-primary-foreground border-primary"
                     : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
@@ -397,7 +391,7 @@ export function ContentSubmissionModal({
             <button
               type="button"
               onClick={handleModalClose}
-              className="p-1.5 text-secondary hover:text-foreground rounded-lg hover:bg-secondary transition-colors"
+              className="w-11 h-11 text-secondary hover:text-foreground rounded-xl hover:bg-secondary transition-colors flex items-center justify-center cursor-pointer"
               aria-label="Close modal"
             >
               <X className="w-5 h-5" />
@@ -407,12 +401,12 @@ export function ContentSubmissionModal({
 
         {/* ==================== STEP PROGRESS BAR ==================== */}
         {step !== "success" && (
-          <div className="flex items-center border-b border-border bg-secondary/30 px-4 sm:px-6 py-2 text-xs">
+          <div className="flex items-center border-b border-border bg-secondary/30 px-3 sm:px-6 py-1.5 text-xs">
             <div className="flex items-center justify-between w-full max-w-md mx-auto">
               <button
                 type="button"
                 onClick={() => setStep("media")}
-                className={`flex items-center gap-1.5 font-medium transition-colors ${
+                className={`flex items-center gap-1.5 font-medium min-h-[44px] px-2 rounded-lg transition-colors cursor-pointer ${
                   step === "media"
                     ? "text-primary font-bold"
                     : "text-secondary hover:text-foreground"
@@ -426,17 +420,17 @@ export function ContentSubmissionModal({
                 <span>Upload Media</span>
               </button>
 
-              <div className={`h-0.5 flex-1 mx-3 ${canProceedToDetails ? "bg-primary/50" : "bg-border"}`} />
+              <div className={`h-0.5 flex-1 mx-2 ${canProceedToDetails ? "bg-primary/50" : "bg-border"}`} />
 
               <button
                 type="button"
                 disabled={!canProceedToDetails}
                 onClick={() => setStep("details")}
-                className={`flex items-center gap-1.5 font-medium transition-colors ${
+                className={`flex items-center gap-1.5 font-medium min-h-[44px] px-2 rounded-lg transition-colors ${
                   step === "details"
-                    ? "text-primary font-bold"
+                    ? "text-primary font-bold cursor-pointer"
                     : canProceedToDetails
-                    ? "text-secondary hover:text-foreground"
+                    ? "text-secondary hover:text-foreground cursor-pointer"
                     : "text-muted-foreground/50 cursor-not-allowed"
                 }`}
               >
@@ -445,20 +439,20 @@ export function ContentSubmissionModal({
                 }`}>
                   2
                 </span>
-                <span>Caption & Notes</span>
+                <span>Details</span>
               </button>
 
-              <div className={`h-0.5 flex-1 mx-3 ${canProceedToDetails ? "bg-primary/50" : "bg-border"}`} />
+              <div className={`h-0.5 flex-1 mx-2 ${canProceedToDetails ? "bg-primary/50" : "bg-border"}`} />
 
               <button
                 type="button"
                 disabled={!canProceedToDetails}
                 onClick={() => setStep("review")}
-                className={`flex items-center gap-1.5 font-medium transition-colors ${
+                className={`flex items-center gap-1.5 font-medium min-h-[44px] px-2 rounded-lg transition-colors ${
                   step === "review"
-                    ? "text-primary font-bold"
+                    ? "text-primary font-bold cursor-pointer"
                     : canProceedToDetails
-                    ? "text-secondary hover:text-foreground"
+                    ? "text-secondary hover:text-foreground cursor-pointer"
                     : "text-muted-foreground/50 cursor-not-allowed"
                 }`}
               >
@@ -467,7 +461,7 @@ export function ContentSubmissionModal({
                 }`}>
                   3
                 </span>
-                <span>Review & Submit</span>
+                <span>Review</span>
               </button>
             </div>
           </div>
@@ -1117,6 +1111,7 @@ export function ContentSubmissionModal({
                 size="sm"
                 onClick={onClose}
                 disabled={isSubmitting}
+                className="min-h-[44px] px-3.5"
               >
                 Cancel
               </Button>
@@ -1128,7 +1123,7 @@ export function ContentSubmissionModal({
                   size="sm"
                   disabled={!canProceedToDetails}
                   onClick={() => setStep("details")}
-                  className="gap-1 font-semibold"
+                  className="gap-1 font-semibold min-h-[44px] px-4"
                 >
                   <span>Next: Details</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1142,7 +1137,7 @@ export function ContentSubmissionModal({
                   size="sm"
                   disabled={contactLeak.hasLeak}
                   onClick={() => setStep("review")}
-                  className="gap-1 font-semibold"
+                  className="gap-1 font-semibold min-h-[44px] px-4"
                 >
                   <span>Next: Review</span>
                   <ArrowRight className="w-4 h-4" />
@@ -1156,7 +1151,7 @@ export function ContentSubmissionModal({
                   size="sm"
                   disabled={!canSubmit}
                   onClick={handleSubmitContent}
-                  className="gap-1.5 font-bold"
+                  className="gap-1.5 font-bold min-h-[44px] px-4"
                 >
                   {isSubmitting ? (
                     <>

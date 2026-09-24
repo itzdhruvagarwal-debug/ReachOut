@@ -9,12 +9,8 @@ import {
   XCircle,
   Sparkles,
   ArrowUpRight,
-  TrendingUp,
-  Award,
-  Users,
-  Briefcase,
 } from "lucide-react";
-import { Button, Spinner, Skeleton } from "@/components/ui";
+import { Button, Spinner, ListItem } from "@/components/ui";
 import EmptyState from "@/components/ui/EmptyState";
 import { formatCurrency, formatNumber } from "@/lib/utils-client";
 import { CampaignApplication } from "./CampaignDetailHelpers";
@@ -78,9 +74,10 @@ export function ApplicationsList({
         const matchScore = application.matchScore;
 
         return (
-          <article
+          <ListItem
+            as="article"
             key={application.id}
-            className="p-5 bg-card rounded-2xl border border-border hover:border-primary/40 transition-all shadow-xs space-y-4"
+            className="space-y-4 shadow-xs"
           >
             {/* Top Row: Creator Identity & Status */}
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -262,7 +259,7 @@ export function ApplicationsList({
                 )}
               </div>
             </div>
-          </article>
+          </ListItem>
         );
       })}
     </div>

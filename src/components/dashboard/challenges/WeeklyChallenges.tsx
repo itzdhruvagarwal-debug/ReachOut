@@ -3,7 +3,6 @@ import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui";
 import {
-  type ChallengeItem as Challenge,
   type ChallengesResponse,
 } from "@/lib/schemas";
 import { formatDate } from "@/lib/utils-client";

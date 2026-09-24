@@ -80,79 +80,137 @@ export default function AdminViolationsPage() {
     );
   } else {
     content = (
-      <div className="rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse" aria-label="User violations list">
-            <thead>
-              <tr className="bg-muted/30 border-b border-border">
-                {["User", "Type", "Severity", "Action", "Description", "Date", "Expires"].map(
-                  (heading) => (
-                    <th
-                      key={heading}
-                      scope="col"
-                      className="text-left px-4 py-3 text-xs font-extrabold text-muted-foreground uppercase tracking-wider"
-                    >
-                      {heading}
-                    </th>
-                  )
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {violations.map((violation: AdminViolationElement) => {
-                const name =
-                  violation.user.influencerProfile?.displayName ||
-                  violation.user.brandProfile?.companyName ||
-                  violation.user.email;
+      <>
+        {/* Mobile Card Layout (sm:hidden) */}
+        <div className="space-y-3 sm:hidden">
+          {violations.map((violation: AdminViolationElement) => {
+            const name =
+              violation.user.influencerProfile?.displayName ||
+              violation.user.brandProfile?.companyName ||
+              violation.user.email;
 
-                return (
-                  <tr key={violation.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="font-bold text-sm text-foreground">{name}</div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {violation.user.email} · {violation.user.userType}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-sm text-foreground">
-                      {violation.type}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        variant={getSeverityVariant(violation.severity)}
-                        className="font-extrabold text-xs uppercase"
-                      >
-                        {violation.severity}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        variant={getActionVariant(violation.action)}
-                        className="font-extrabold text-xs uppercase"
-                      >
-                        {violation.action}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-foreground">
-                      <div
-                        className="overflow-hidden whitespace-nowrap max-w-[200px] text-ellipsis"
-                        title={violation.description}
-                      >
-                        {violation.description}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                      {formatDate(violation.createdAt)}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
-                      {formatDate(violation.expiresAt, "Never")}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            return (
+              <div
+                key={violation.id}
+                className="p-4 rounded-xl bg-card border border-border shadow-xs space-y-2.5"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <div className="font-bold text-sm text-foreground">{name}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {violation.user.email} · {violation.user.userType}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                    <Badge
+                      variant={getSeverityVariant(violation.severity)}
+                      className="font-extrabold text-[10px] uppercase"
+                    >
+                      {violation.severity}
+                    </Badge>
+                    <Badge
+                      variant={getActionVariant(violation.action)}
+                      className="font-extrabold text-[10px] uppercase"
+                    >
+                      {violation.action}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="text-xs text-foreground font-semibold">
+                  Type: <span className="font-normal text-muted-foreground">{violation.type}</span>
+                </div>
+
+                {violation.description && (
+                  <p className="text-xs text-foreground/90 p-2.5 rounded-lg bg-muted/40 border border-border/60">
+                    {violation.description}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-1 border-t border-border/40">
+                  <span>Logged: {formatDate(violation.createdAt)}</span>
+                  <span>Expires: {formatDate(violation.expiresAt, "Never")}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      </div>
+
+        {/* Desktop Table (hidden sm:block) */}
+        <div className="hidden sm:block rounded-2xl bg-card border border-border shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse" aria-label="User violations list">
+              <thead>
+                <tr className="bg-muted/30 border-b border-border">
+                  {["User", "Type", "Severity", "Action", "Description", "Date", "Expires"].map(
+                    (heading) => (
+                      <th
+                        key={heading}
+                        scope="col"
+                        className="text-left px-4 py-3 text-xs font-extrabold text-muted-foreground uppercase tracking-wider"
+                      >
+                        {heading}
+                      </th>
+                    )
+                  )}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {violations.map((violation: AdminViolationElement) => {
+                  const name =
+                    violation.user.influencerProfile?.displayName ||
+                    violation.user.brandProfile?.companyName ||
+                    violation.user.email;
+
+                  return (
+                    <tr key={violation.id} className="hover:bg-muted/20 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-sm text-foreground">{name}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {violation.user.email} · {violation.user.userType}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-sm text-foreground">
+                        {violation.type}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant={getSeverityVariant(violation.severity)}
+                          className="font-extrabold text-xs uppercase"
+                        >
+                          {violation.severity}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge
+                          variant={getActionVariant(violation.action)}
+                          className="font-extrabold text-xs uppercase"
+                        >
+                          {violation.action}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-foreground">
+                        <div
+                          className="overflow-hidden whitespace-nowrap max-w-[200px] text-ellipsis"
+                          title={violation.description}
+                        >
+                          {violation.description}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
+                        {formatDate(violation.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">
+                        {formatDate(violation.expiresAt, "Never")}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </>
     );
   }
 
