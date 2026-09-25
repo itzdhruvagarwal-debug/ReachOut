@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { randomBytes } from "node:crypto";
 import { AppError } from "@/lib/errors";
 import { deleteFile } from "@/lib/storage";
+import { checkAccountDeletionEligibility } from "@/lib/action-eligibility";
 
 function getStorageKeyFromUrl(url: string): string | null {
   if (!url) return null;
@@ -46,25 +47,14 @@ async function validateDeletionEligibility(tx: Prisma.TransactionClient, userId:
     },
   });
 
-  if (activeDeals > 0) {
-    throw new AppError("Cannot delete account with active or disputed deals. Please complete, cancel, or resolve all deals first.", 409);
-  }
-
   const wallet = await tx.wallet.findUnique({
     where: { userId },
     select: { balance: true, pendingBalance: true, debt: true },
   });
 
-  if (wallet) {
-    if (wallet.balance > 0) {
-      throw new AppError(`Cannot delete account with a wallet balance of \u20b9${(wallet.balance / 100).toFixed(2)}. Please withdraw your funds first.`, 409);
-    }
-    if (wallet.pendingBalance > 0) {
-      throw new AppError("Cannot delete account with pending funds. Please wait for all pending transactions to settle.", 409);
-    }
-    if ((wallet.debt ?? 0) > 0) {
-      throw new AppError(`Cannot delete account with an outstanding debt of \u20b9${((wallet.debt ?? 0) / 100).toFixed(2)}. Please clear your debt first.`, 409);
-    }
+  const eligibility = checkAccountDeletionEligibility(wallet, activeDeals);
+  if (!eligibility.allowed) {
+    throw new AppError(eligibility.reason || "Account cannot be deleted at this time.", 409);
   }
 }
 

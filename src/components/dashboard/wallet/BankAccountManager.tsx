@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import EmptyState from "@/components/ui/EmptyState";
@@ -8,6 +9,7 @@ import { logger } from "@/lib/logger-client";
 import { Button, Input, Skeleton } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
+import { checkBankAccountDeleteEligibility } from "@/lib/action-eligibility";
 import {
   Plus,
   ShieldCheck,
@@ -19,6 +21,8 @@ import {
   Copy,
   Landmark,
   AlertCircle,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
 import { copyToClipboard } from "@/lib/clipboard";
 import {
@@ -60,6 +64,8 @@ export default function BankAccountManager({
   const [isSaving, setIsSaving] = useState(false);
   const [notice, setNotice] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
 
   const {
     data,
@@ -164,8 +170,38 @@ export default function BankAccountManager({
     }
   };
 
+  const handleVerifyAccount = async (id: string) => {
+    setVerifyingId(id);
+    try {
+      const res = (await apiClient.wallet.verifyBankAccount(id)) as {
+        success?: boolean;
+        alreadyVerified?: boolean;
+        message?: string;
+        error?: string;
+      };
+      if (res && res.success !== false) {
+        showNotice(res.message || "Bank account verified successfully via penny-drop.");
+        fetchAccounts();
+      } else {
+        showNotice(res?.error || "Failed to verify bank account.", "error");
+      }
+    } catch (err) {
+      showNotice(formatUserError(err, "Failed to initiate bank verification."), "error");
+    } finally {
+      setVerifyingId(null);
+    }
+  };
+
+
   const handleDeleteConfirm = async () => {
     if (!deleteConfirmId) return;
+    const accountToDelete = accounts.find((a) => a.id === deleteConfirmId);
+    const eligibility = checkBankAccountDeleteEligibility(accountToDelete);
+    if (!eligibility.allowed) {
+      showNotice(eligibility.reason || "Cannot delete this bank account.", "error");
+      setDeleteConfirmId(null);
+      return;
+    }
     const id = deleteConfirmId;
     setDeleteConfirmId(null);
     try {
@@ -599,11 +635,37 @@ export default function BankAccountManager({
                   </div>
 
                   {/* Footer Controls: Status & Actions */}
-                  <div className="flex items-center justify-between pt-3 border-t border-border text-xs">
-                    <div className="flex items-center gap-1 text-[11px] font-semibold text-verified">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Verified Beneficiary</span>
-                    </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-border text-xs flex-wrap gap-2">
+                    {acc.isVerified ? (
+                      <div className="flex items-center gap-1 text-[11px] font-semibold text-verified">
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>Verified Beneficiary</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-pending bg-pending-muted px-2 py-0.5 rounded-full border border-pending-border">
+                          <Clock className="w-3 h-3" /> Verification Pending
+                        </span>
+                        <button
+                          type="button"
+                          disabled={verifyingId === acc.id}
+                          onClick={() => handleVerifyAccount(acc.id)}
+                          className="text-[11px] font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2.5 py-1 rounded-lg inline-flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {verifyingId === acc.id ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span>Verifying...</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShieldCheck className="w-3 h-3" />
+                              <span>Verify via Penny-Drop</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-1">
                       {onSelectAccount && (
@@ -626,14 +688,36 @@ export default function BankAccountManager({
                       )}
                       <button
                         type="button"
-                        onClick={() => setDeleteConfirmId(acc.id)}
-                        title="Delete account"
-                        className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors rounded-xl cursor-pointer"
+                        disabled={!checkBankAccountDeleteEligibility(acc).allowed}
+                        onClick={() => {
+                          const eligibility = checkBankAccountDeleteEligibility(acc);
+                          if (!eligibility.allowed) {
+                            showNotice(eligibility.reason || "Cannot delete this account", "error");
+                            return;
+                          }
+                          setDeleteConfirmId(acc.id);
+                        }}
+                        title={!checkBankAccountDeleteEligibility(acc).allowed ? checkBankAccountDeleteEligibility(acc).reason : "Delete account"}
+                        className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center text-muted-foreground hover:text-destructive transition-colors rounded-xl cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
+
+                  {!checkBankAccountDeleteEligibility(acc).allowed && (
+                    <div className="mt-2 text-[11px] text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2">
+                      <span>{checkBankAccountDeleteEligibility(acc).reason}</span>
+                      {checkBankAccountDeleteEligibility(acc).ctaText && checkBankAccountDeleteEligibility(acc).ctaHref && (
+                        <Link
+                          href={checkBankAccountDeleteEligibility(acc).ctaHref!}
+                          className="font-bold underline text-primary hover:text-primary/80 whitespace-nowrap"
+                        >
+                          {checkBankAccountDeleteEligibility(acc).ctaText} →
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -38,6 +38,7 @@ import { DealModals } from "@/components/dashboard/deals/DealModals";
 import { Button, Skeleton, Textarea, ToastContainer } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, formatUserError } from "@/lib/utils-client";
+import { checkDisputeEligibility, checkReviewSubmissionEligibility } from "@/lib/action-eligibility";
 
 // ─── Status Helpers ────────────────────────────────────────────────────────────
 
@@ -238,6 +239,18 @@ export default function DealDetailPage() {
 
   const isClient = session?.user?.userType === "BRAND";
   const isInfluencer = session?.user?.userType === "INFLUENCER";
+
+  const disputeEligibility = React.useMemo(() => {
+    if (!deal) return { allowed: false };
+    return checkDisputeEligibility(deal, session?.user?.id, {
+      influencerUserId: deal.influencer?.userId,
+      brandUserId: deal.brand?.userId,
+    });
+  }, [deal, session?.user?.id]);
+
+  const reviewEligibility = React.useMemo(() => {
+    return checkReviewSubmissionEligibility(deal, reviewRating, reviewComment);
+  }, [deal, reviewRating, reviewComment]);
 
   // ── Loading State ──────────────────────────────────────────────────────────
   if (loading) return <DealRoomSkeleton user={session?.user} />;
@@ -466,10 +479,18 @@ export default function DealDetailPage() {
                   className="text-sm rounded-xl"
                 />
 
+                {!reviewEligibility.allowed && reviewRating > 0 && reviewEligibility.reason && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-500 bg-amber-500/10 px-3 py-1.5 rounded-lg font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>{reviewEligibility.reason}</span>
+                  </div>
+                )}
+
                 <Button
                   variant="primary"
-                  disabled={reviewRating === 0 || isSubmitting}
+                  disabled={!reviewEligibility.allowed || isSubmitting}
                   onClick={async () => {
+                    if (!reviewEligibility.allowed) return;
                     setIsSubmitting(true);
                     try {
                       await apiClient.settings.submitReview({
@@ -488,7 +509,7 @@ export default function DealDetailPage() {
                       setIsSubmitting(false);
                     }
                   }}
-                  className="font-bold"
+                  className="font-bold disabled:opacity-50"
                 >
                   {isSubmitting ? "Submitting Review..." : "Submit Official Review"}
                 </Button>
@@ -613,7 +634,7 @@ export default function DealDetailPage() {
       )}
 
       {/* ── Persistent Raise Dispute & Mediation Footer Bar (Collabr / Upwork Benchmark) ── */}
-      {deal && !["COMPLETED", "DISPUTED", "CANCELLED"].includes(deal.status) && (
+      {deal && (
         <aside
           aria-label="Dispute Support"
           className="fixed bottom-0 left-0 right-0 z-30 bg-card/95 backdrop-blur-md border-t border-border px-4 py-3 shadow-lg"
@@ -624,16 +645,41 @@ export default function DealDetailPage() {
               <span className="hidden sm:inline">
                 Facing deliverable delays, quality issues, or unresponsive counterparty?
               </span>
-              <span className="sm:hidden">Collaboration dispute support:</span>
+              <span className="sm:hidden">Dispute support:</span>
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                href={`/dashboard/deals/${deal.id}/dispute`}
-                className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-xl bg-card border border-disputed-border text-disputed font-bold hover:bg-disputed-muted/30 transition-all cursor-pointer shadow-xs"
-              >
-                <ShieldAlert className="w-3.5 h-3.5" />
-                <span>Raise Dispute</span>
-              </Link>
+              {disputeEligibility.allowed ? (
+                <Link
+                  href={`/dashboard/deals/${deal.id}/dispute`}
+                  className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-xl bg-card border border-disputed-border text-disputed font-bold hover:bg-disputed-muted/30 transition-all cursor-pointer shadow-xs"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                  <span>Raise Dispute</span>
+                </Link>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground hidden sm:inline max-w-xs truncate" title={disputeEligibility.reason}>
+                    {disputeEligibility.reason}
+                  </span>
+                  {disputeEligibility.ctaText && disputeEligibility.ctaHref && (
+                    <Link
+                      href={disputeEligibility.ctaHref}
+                      className="text-primary font-bold underline text-xs whitespace-nowrap"
+                    >
+                      {disputeEligibility.ctaText} →
+                    </Link>
+                  )}
+                  <button
+                    type="button"
+                    disabled
+                    title={disputeEligibility.reason}
+                    className="inline-flex items-center gap-1.5 px-4 min-h-[44px] rounded-xl bg-muted/40 border border-border text-muted-foreground font-semibold cursor-not-allowed opacity-60 shadow-xs"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 opacity-50" />
+                    <span>Raise Dispute</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </aside>

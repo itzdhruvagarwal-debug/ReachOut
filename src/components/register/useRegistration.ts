@@ -249,6 +249,20 @@ setError("Please fix the validation errors below.");
 return;
 }
 
+if (formData.referralCode?.trim()) {
+  try {
+    const checkRes = await fetch(`/api/referrals/validate?code=${encodeURIComponent(formData.referralCode.trim())}`);
+    const checkData = await checkRes.json();
+    if (!checkData.valid) {
+      setFieldErrors((prev) => ({ ...prev, referralCode: "Invalid referral code. Please enter a valid code or leave blank." }));
+      setError("The referral code you entered is invalid.");
+      return;
+    }
+  } catch (checkErr) {
+    logger.warn("[register] Referral code pre-check warning:", { error: String(checkErr) });
+  }
+}
+
 setIsLoading(true);
 
 try {

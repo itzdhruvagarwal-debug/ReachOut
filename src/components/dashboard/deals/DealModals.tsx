@@ -1,8 +1,10 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import { Modal, Button, Input, Textarea, type ToastType } from "@/components/ui";
 import { DealDetail, getFlatDeliverablesList, ContentUrlEntry } from "./DealDetailHelpers";
+import { checkRevisionRequestEligibility } from "@/lib/action-eligibility";
 
 interface DealModalsProps {
   readonly showAddressModal: boolean;
@@ -53,9 +55,35 @@ export function DealModals({
   itemizedReviews,
   setItemizedReviews,
 }: DealModalsProps) {
-if (!deal) return null;
+  const revisionEligibility = React.useMemo(() => {
+    return checkRevisionRequestEligibility(deal);
+  }, [deal]);
 
-return (
+  const hasRevisionRequested = React.useMemo(() => {
+    return Object.values(itemizedReviews).some(
+      (r) => r.status === "REVISION_REQUESTED"
+    );
+  }, [itemizedReviews]);
+
+  const isPhoneValid = /^[6-9]\d{9}$/.test(shippingForm.phone?.trim() || "");
+  const isPinValid = /^\d{6}$/.test(shippingForm.pinCode?.trim() || "");
+  const isAddressComplete = Boolean(
+    shippingForm.fullName?.trim() &&
+    shippingForm.line1?.trim() &&
+    shippingForm.city?.trim() &&
+    shippingForm.state?.trim()
+  );
+  const addressValidationError = !isAddressComplete
+    ? "Full name, address line 1, city, and state are required."
+    : !isPhoneValid
+    ? "Valid 10-digit Indian mobile number starting with 6-9 required."
+    : !isPinValid
+    ? "Valid 6-digit PIN code required."
+    : null;
+
+  if (!deal) return null;
+
+  return (
 <>
 <Modal
 open={showAddressModal}
@@ -79,57 +107,65 @@ const isEditing = ["PENDING_SIGNATURE", "PAYMENT_HELD", "ACTIVE"].includes(deal.
 
 return (
 <div
-key={field}
-className={isFullWidth ? "col-span-2" : "col-span-1"}
+  key={field}
+  className={isFullWidth ? "col-span-2" : "col-span-1"}
 >
-{isEditing ? (
-<Input
-label={label}
-id={`shipping-${field}`}
-value={shippingForm[field]}
-onChange={(e) =>
-setShippingForm({
-...shippingForm,
-[field]: e.target.value,
-})
-}
-fullWidth
-/>
-) : (
-<div>
-<div className="text-xs text-secondary">{label}</div>
-<div className="font-semibold text-sm">
-{typeof addressRecord?.[field] === "string" && addressRecord[field] ? String(addressRecord[field]) : "Not provided"}
-</div>
-</div>
-)}
+  {isEditing ? (
+    <Input
+      label={label}
+      id={`shipping-${field}`}
+      value={shippingForm[field]}
+      onChange={(e) =>
+        setShippingForm({
+          ...shippingForm,
+          [field]: e.target.value,
+        })
+      }
+      fullWidth
+    />
+  ) : (
+    <div>
+      <div className="text-xs text-secondary">{label}</div>
+      <div className="font-semibold text-sm">
+        {typeof addressRecord?.[field] === "string" && addressRecord[field] ? String(addressRecord[field]) : "Not provided"}
+      </div>
+    </div>
+  )}
 </div>
 );
 })}
 </div>
 
+{["PENDING_SIGNATURE", "PAYMENT_HELD", "ACTIVE"].includes(deal.status) && addressValidationError && (
+  <p className="text-xs text-amber-500 mb-3 font-medium flex items-center gap-1.5">
+    <span>⚠️</span>
+    <span>{addressValidationError}</span>
+  </p>
+)}
+
 <div className="flex gap-3">
 <Button
-variant="secondary"
-onClick={() => setShowAddressModal(false)}
-className="flex-1"
+  variant="secondary"
+  onClick={() => setShowAddressModal(false)}
+  className="flex-1"
 >
-Close
+  Close
 </Button>
 {["PENDING_SIGNATURE", "PAYMENT_HELD", "ACTIVE"].includes(deal.status) && (
-<Button
-variant="primary"
-onClick={async () => {
-await handleAction("update_shipping", {
-shippingAddress: shippingForm,
-});
-setShowAddressModal(false);
-}}
-disabled={isSubmitting}
-className="flex-1"
->
-Save Address
-</Button>
+  <Button
+    variant="primary"
+    onClick={async () => {
+      if (addressValidationError) return;
+      await handleAction("update_shipping", {
+        shippingAddress: shippingForm,
+      });
+      setShowAddressModal(false);
+    }}
+    disabled={isSubmitting || Boolean(addressValidationError)}
+    className="flex-1"
+  >
+    Save Address
+  </Button>
 )}
 </div>
 </Modal>
@@ -201,6 +237,8 @@ itemReview.status === "REVISION_REQUESTED"
 : "secondary"
 }
 size="sm"
+disabled={!revisionEligibility.allowed && itemReview.status !== "REVISION_REQUESTED"}
+title={!revisionEligibility.allowed ? revisionEligibility.reason : undefined}
 onClick={() =>
 setItemizedReviews({
 ...itemizedReviews,
@@ -210,7 +248,7 @@ status: "REVISION_REQUESTED",
 },
 })
 }
-className="text-xs py-1"
+className="text-xs py-1 disabled:opacity-50 disabled:cursor-not-allowed"
 >
 Revision
 </Button>
@@ -239,6 +277,31 @@ className="text-xs p-2"
 })}
 </div>
 
+{hasRevisionRequested && (
+  <div
+    className={`p-3 rounded-xl text-xs border font-medium mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 ${
+      !revisionEligibility.allowed
+        ? "bg-destructive/10 text-destructive border-destructive/20"
+        : revisionEligibility.costPaise > 0
+        ? "bg-pending-muted text-pending border-pending-border"
+        : "bg-muted/40 text-muted-foreground border-border"
+    }`}
+  >
+    <span>
+      {revisionEligibility.reason ||
+        `Revision ${Number(deal.revisionsUsed ?? 0) + 1} of ${Number(deal.maxRevisions ?? 0)} (Free)`}
+    </span>
+    {revisionEligibility.ctaText && revisionEligibility.ctaHref && (
+      <Link
+        href={revisionEligibility.ctaHref}
+        className="font-bold underline text-primary text-xs whitespace-nowrap"
+      >
+        {revisionEligibility.ctaText} →
+      </Link>
+    )}
+  </div>
+)}
+
 <div className="flex gap-3">
 <Button
 variant="secondary"
@@ -250,8 +313,9 @@ Cancel
 <Button
 variant="primary"
 onClick={handleReviewContent}
-disabled={isSubmitting}
-className="flex-1"
+disabled={isSubmitting || (hasRevisionRequested && !revisionEligibility.allowed)}
+title={hasRevisionRequested && !revisionEligibility.allowed ? revisionEligibility.reason : undefined}
+className="flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
 >
 {isSubmitting ? <span className="loading" /> : "Submit Review"}
 </Button>
@@ -333,6 +397,11 @@ className="flex-1"
         onChange={(e) => setDispatchForm({ ...dispatchForm, carrier: e.target.value })}
         fullWidth
       />
+      {!dispatchForm.trackingNumber.trim() && (
+        <p className="text-xs text-amber-500 font-medium">
+          ⚠️ Courier AWB / Tracking number is required to confirm dispatch.
+        </p>
+      )}
     </div>
     <div className="flex gap-3">
       <Button

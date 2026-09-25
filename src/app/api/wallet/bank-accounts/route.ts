@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { encrypt, maskAccountNumber, maskUpiId, hashForDuplicateDetection } from "@/lib/encryption";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { AppError } from "@/lib/errors";
+import { checkBankAccountDeleteEligibility } from "@/lib/action-eligibility";
 
 const bankAccountSchema = z
 .object({
@@ -236,6 +237,21 @@ try {
   const verification = await verifyAndGetBankAccount(req, userId);
   if (verification.errorResponse) {
     return verification.errorResponse;
+  }
+
+  const pendingWithdrawal = await prisma.withdrawal.findFirst({
+    where: {
+      wallet: { userId },
+      status: { in: ["PENDING", "PROCESSING", "PENDING_REVIEW"] },
+    },
+  });
+
+  const eligibility = checkBankAccountDeleteEligibility(
+    { id: verification.id },
+    Boolean(pendingWithdrawal)
+  );
+  if (!eligibility.allowed) {
+    return NextResponse.json({ error: eligibility.reason }, { status: 400 });
   }
 
   // L4 FIX: Soft-delete instead of hard delete to preserve audit trail.

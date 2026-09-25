@@ -11,6 +11,7 @@ import { calculateProductHandlingFee, assertSufficientBalance } from "@/lib/util
 import { resolveBrandPlatformFee } from "@/lib/platform-fees";
 import { assertNoContactDetails } from "./create";
 import { invalidateCampaignSearchCache } from "@/lib/search";
+import { checkCampaignCancelEligibility } from "@/lib/action-eligibility";
 
 export async function getCampaignById(
 campaignId: string,
@@ -383,14 +384,6 @@ if (!campaign || campaign.deletedAt || campaign.brand?.userId !== userId) {
 throw AppError.notFound("Campaign not found or unauthorized");
 }
 
-if (campaign.status === "CANCELLED") {
-throw AppError.badRequest("Campaign is already cancelled");
-}
-
-if (campaign.status === "COMPLETED") {
-throw AppError.badRequest("Completed campaigns cannot be cancelled");
-}
-
 const openDealCount = await tx.deal.count({
 where: {
 campaignId,
@@ -401,11 +394,20 @@ notIn: ["CANCELLED", "COMPLETED"],
 },
 });
 
-if (openDealCount > 0) {
-throw AppError.badRequest("Cannot cancel campaign while active deals exist for this campaign");
+const wallet = await tx.wallet.findUnique({ where: { userId } });
+
+const cancelCheck = checkCampaignCancelEligibility(
+  {
+    status: campaign.status,
+    openDealCount,
+  },
+  campaign.brand?.userId === userId,
+  wallet?.isFrozen
+);
+if (!cancelCheck.allowed) {
+  throw AppError.badRequest(cancelCheck.reason || "Cannot cancel campaign");
 }
 
-const wallet = await tx.wallet.findUnique({ where: { userId } });
 const shouldRefundHeldBudget = campaign.status !== "DRAFT";
 
 if (shouldRefundHeldBudget && wallet) {

@@ -22,6 +22,8 @@ import {
   MIN_WITHDRAWAL_AMOUNT_PAISE,
   MAX_WITHDRAWAL_AMOUNT_PAISE,
 } from "@/constants";
+import { checkWithdrawalEligibility } from "@/lib/action-eligibility";
+
 
 export interface SavedBankAccount {
   id: string;
@@ -94,6 +96,7 @@ export function FullScreenWithdrawFlow({
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [accounts, setAccounts] = useState<SavedBankAccount[]>([]);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  const [hasPanCompliance, setHasPanCompliance] = useState<boolean | null>(null);
 
   // Confirmation state
   const [userConfirmed, setUserConfirmed] = useState(false);
@@ -101,7 +104,7 @@ export function FullScreenWithdrawFlow({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [completedTxnId, setCompletedTxnId] = useState<string | null>(null);
 
-  // Fetch verified bank accounts on open
+  // Fetch verified bank accounts and tax compliance on open
   useEffect(() => {
     if (!isOpen) return;
 
@@ -136,7 +139,22 @@ export function FullScreenWithdrawFlow({
       }
     };
 
+    const fetchTaxCompliance = async () => {
+      try {
+        const complianceData = (await apiClient.settings.getIndiaTaxCompliance()) as {
+          data?: { summary?: { panPresent?: boolean }; compliance?: { panLast4?: string } };
+        };
+        const panPresent = Boolean(
+          complianceData?.data?.summary?.panPresent || complianceData?.data?.compliance?.panLast4
+        );
+        setHasPanCompliance(panPresent);
+      } catch {
+        setHasPanCompliance(null);
+      }
+    };
+
     fetchBankAccounts();
+    fetchTaxCompliance();
   }, [isOpen]);
 
   const parsedAmountRupees = parseFloat(amountRupees) || 0;
@@ -149,13 +167,24 @@ export function FullScreenWithdrawFlow({
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
 
+  const withdrawalEligibility = useMemo(() => {
+    return checkWithdrawalEligibility({
+      wallet: { balance: availableBalanceInPaise },
+      bankAccount: selectedAccount,
+      hasPanCompliance: hasPanCompliance !== null ? hasPanCompliance : undefined,
+      amountPaise: parsedAmountPaise > 0 ? parsedAmountPaise : undefined,
+      hasVerifiedBankAccount: accounts.length > 0 ? accounts.some((a) => a.isVerified) : undefined,
+    });
+  }, [availableBalanceInPaise, selectedAccount, hasPanCompliance, parsedAmountPaise, accounts]);
+
   const setQuickAmount = (paise: number) => {
     const capped = Math.min(paise, availableBalanceInPaise);
     setAmountRupees((capped / 100).toString());
   };
 
   const handleExecuteWithdrawal = async () => {
-    if (!amountValidation.valid || !selectedAccount || !userConfirmed) return;
+    if (!amountValidation.valid || !selectedAccount || !userConfirmed || !withdrawalEligibility.allowed) return;
+
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -298,8 +327,24 @@ export function FullScreenWithdrawFlow({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+          {hasPanCompliance === false && (
+            <div className="mb-4 max-w-md mx-auto p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>PAN tax compliance is required before withdrawals can be processed.</span>
+              </div>
+              <a
+                href="/dashboard/settings?tab=verification"
+                className="font-bold underline text-primary shrink-0"
+              >
+                Add PAN →
+              </a>
+            </div>
+          )}
+
           {/* STEP 1: AMOUNT SELECTION */}
           {step === "amount" && (
+
             <div className="space-y-6 max-w-md mx-auto py-2">
               <div className="text-center">
                 <label
@@ -422,7 +467,22 @@ export function FullScreenWithdrawFlow({
                 </div>
               ) : (
                 <div className="space-y-3">
+                  {!accounts.some((a) => a.isVerified) && (
+                    <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>All linked bank accounts are pending penny-drop verification.</span>
+                      </div>
+                      <a
+                        href="/dashboard/wallet?tab=bank-accounts"
+                        className="font-bold underline text-primary shrink-0"
+                      >
+                        Verify Accounts →
+                      </a>
+                    </div>
+                  )}
                   {accounts.map((acc) => {
+
                     const isSelected = selectedAccountId === acc.id;
                     const isVerified = acc.isVerified;
 
@@ -564,6 +624,23 @@ export function FullScreenWithdrawFlow({
                 </span>
               </label>
 
+              {!withdrawalEligibility.allowed && withdrawalEligibility.reason && (
+                <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{withdrawalEligibility.reason}</span>
+                  </div>
+                  {withdrawalEligibility.ctaText && withdrawalEligibility.ctaHref && (
+                    <a
+                      href={withdrawalEligibility.ctaHref}
+                      className="font-bold underline text-primary shrink-0"
+                    >
+                      {withdrawalEligibility.ctaText} →
+                    </a>
+                  )}
+                </div>
+              )}
+
               {submitError && (
                 <div className="p-3 rounded-xl bg-disputed-muted border border-disputed-border text-disputed text-xs flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
@@ -686,8 +763,9 @@ export function FullScreenWithdrawFlow({
                 type="button"
                 variant="primary"
                 disabled={!selectedAccount || !selectedAccount.isVerified}
+                title={!selectedAccount ? "Select an account" : !selectedAccount.isVerified ? "Selected account is not verified" : undefined}
                 onClick={() => setStep("confirm")}
-                className="gap-1 font-bold min-h-[44px] px-5"
+                className="gap-1 font-bold min-h-[44px] px-5 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <span>Review &amp; Confirm</span>
                 <ArrowRight className="w-4 h-4" />
@@ -698,9 +776,10 @@ export function FullScreenWithdrawFlow({
               <Button
                 type="button"
                 variant="primary"
-                disabled={!userConfirmed || isSubmitting}
+                disabled={!userConfirmed || isSubmitting || !withdrawalEligibility.allowed}
+                title={!withdrawalEligibility.allowed ? withdrawalEligibility.reason : undefined}
                 onClick={handleExecuteWithdrawal}
-                className="gap-1.5 font-bold min-h-[44px] px-5"
+                className="gap-1.5 font-bold min-h-[44px] px-5 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <>

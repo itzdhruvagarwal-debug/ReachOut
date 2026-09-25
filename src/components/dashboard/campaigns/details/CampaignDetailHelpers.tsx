@@ -54,6 +54,7 @@ instagramEngagementRate: number | null;
 categories: string;
 averageRating: number;
 completedDeals: number;
+followerAuthenticityScore?: number | null | undefined;
 user?: { trustScore?: number | null };
 };
 matchScore?: number;

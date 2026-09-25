@@ -8,6 +8,7 @@ import { formatUserError } from "@/lib/user-messages";
 import { fetcher } from "@/lib/fetcher";
 import { Button, Input } from "@/components/ui";
 import { copyToClipboard } from "@/lib/clipboard";
+import { checkDisable2FAEligibility } from "@/lib/action-eligibility";
 import {
   Smartphone,
   CheckCircle2,
@@ -330,17 +331,20 @@ export default function TwoFactorAuthPanel({
             <Button
               variant="danger"
               size="sm"
-              disabled={isSaving}
+              disabled={isSaving || !checkDisable2FAEligibility(is2FAEnabled, { password: disable2FAPassword }).allowed}
+              title={!checkDisable2FAEligibility(is2FAEnabled, { password: disable2FAPassword }).allowed ? checkDisable2FAEligibility(is2FAEnabled, { password: disable2FAPassword }).reason : undefined}
               onClick={async () => {
-                if (!disable2FAPassword) {
-                  showToast("Password required", "error");
+                const eligibility = checkDisable2FAEligibility(is2FAEnabled, { password: disable2FAPassword });
+                if (!eligibility.allowed) {
+                  showToast(eligibility.reason || "Password required", "error");
                   return;
                 }
                 setIsSaving(true);
                 try {
                   const data = (await apiClient.users.disable2fa({
                     token: disable2FAPassword,
-                  })) as { success?: boolean; error?: string };
+                    password: disable2FAPassword,
+                  } as any)) as { success?: boolean; error?: string };
                   if (data.success) {
                     setIs2FAEnabled(false);
                     setDisable2FAPassword("");
@@ -363,7 +367,7 @@ export default function TwoFactorAuthPanel({
                   setIsSaving(false);
                 }
               }}
-              className="text-xs font-bold"
+              className="text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Disable 2FA
             </Button>

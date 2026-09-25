@@ -20,7 +20,7 @@ export interface ButtonProps {
   readonly leftIcon?: React.ReactNode;
   readonly rightIcon?: React.ReactNode;
   readonly fullWidth?: boolean;
-  readonly disabled?: boolean;
+  readonly disabled?: boolean | undefined;
   readonly style?: React.CSSProperties | undefined;
   // Button-specific
   readonly type?: "button" | "submit" | "reset";
@@ -41,7 +41,7 @@ export interface ButtonProps {
   readonly prefetch?: boolean;
   readonly target?: string;
   readonly rel?: string;
-  readonly title?: string;
+  readonly title?: string | undefined;
   readonly role?: string;
   readonly "aria-selected"?: AriaSelectedType;
   readonly "aria-current"?: AriaCurrentType;

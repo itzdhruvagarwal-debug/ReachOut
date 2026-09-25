@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowRight,
   ShieldCheck,
   Star,
   Calendar,
@@ -28,6 +29,7 @@ import { formatCurrency, formatDate, formatNumber } from "@/lib/utils-client";
 import { Button, Input, Textarea, Modal, Spinner } from "@/components/ui";
 import { ApplicationsList } from "@/components/dashboard/campaigns/details/ApplicationsList";
 import { useCampaignDetail } from "@/components/dashboard/campaigns/details/useCampaignDetail";
+import { checkCampaignCancelEligibility, checkCampaignApplicationEligibility } from "@/lib/action-eligibility";
 
 interface CampaignDetailClientProps {
   readonly user: { readonly id: string; readonly userType?: string };
@@ -68,7 +70,7 @@ export default function CampaignDetailClient({
     dealId,
     recommendedPayout,
     isOwner,
-    canApply,
+    canApply: _canApply,
     handleApplicationAction,
     handleApply,
     handleCampaignAction,
@@ -78,6 +80,17 @@ export default function CampaignDetailClient({
     influencerProfile,
     router,
   });
+
+  const cancelEligibility = React.useMemo(() => {
+    if (!campaign) return { allowed: false, reason: "Campaign details not loaded" };
+    return checkCampaignCancelEligibility(
+      {
+        status: campaign.status,
+        openDealCount: campaign._count?.deals || 0,
+      },
+      isOwner
+    );
+  }, [campaign, isOwner]);
 
   if (loading) {
     return (
@@ -131,6 +144,20 @@ export default function CampaignDetailClient({
       ? Math.min(100, Math.round((campaign.acceptedCount / campaign.maxInfluencers) * 100))
       : 0;
 
+  const applyEligibility = checkCampaignApplicationEligibility(
+    campaign,
+    {
+      id: influencerProfile?.id,
+      userId: user?.id,
+      userType: user?.userType,
+      hasApplied,
+      applicationStatus,
+      followerCount: influencerProfile
+        ? Math.max(influencerProfile.instagramFollowers || 0, influencerProfile.youtubeSubscribers || 0)
+        : 0,
+    }
+  );
+
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Top Navigation Bar & Owner Actions */}
@@ -167,15 +194,39 @@ export default function CampaignDetailClient({
               </>
             )}
             {campaign.status === "ACTIVE" && (
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                onClick={() => handleCampaignAction("CANCEL")}
-                className="font-medium"
-              >
-                Cancel Campaign
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  type="button"
+                  variant="danger"
+                  size="sm"
+                  onClick={() => {
+                    if (!cancelEligibility.allowed) {
+                      setNotice({ type: "error", message: cancelEligibility.reason || "Cannot cancel campaign" });
+                      return;
+                    }
+                    handleCampaignAction("CANCEL");
+                  }}
+                  disabled={!cancelEligibility.allowed}
+                  title={cancelEligibility.reason}
+                  className="font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel Campaign
+                </Button>
+                {!cancelEligibility.allowed && (
+                  <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                    <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    <span>{cancelEligibility.reason}</span>
+                    {cancelEligibility.ctaText && (
+                      <Link
+                        href={`/dashboard/deals?campaignId=${campaign.id}`}
+                        className="underline font-bold text-primary hover:text-primary/80"
+                      >
+                        {cancelEligibility.ctaText} →
+                      </Link>
+                    )}
+                  </span>
+                )}
+              </div>
             )}
             {(campaign.status === "ACTIVE" || campaign.status === "COMPLETED") && (
               <a
@@ -467,6 +518,7 @@ export default function CampaignDetailClient({
                 applications={applications}
                 actionId={applicationActionId}
                 onAction={handleApplicationAction}
+                campaign={campaign}
               />
             </section>
           )}
@@ -604,7 +656,7 @@ export default function CampaignDetailClient({
           </div>
 
           {/* Creator Application Trigger */}
-          {canApply && (
+          {!isOwner && !hasApplied && (
             <div className="bg-card border border-primary/30 p-6 rounded-3xl shadow-sm space-y-4">
               <div>
                 <span className="text-xs font-bold text-primary block uppercase tracking-wider mb-1">
@@ -624,17 +676,38 @@ export default function CampaignDetailClient({
                 </div>
               )}
 
+              {!applyEligibility.allowed && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>{applyEligibility.reason}</span>
+                  </div>
+                  {applyEligibility.ctaText && applyEligibility.ctaHref && (
+                    <Link
+                      href={applyEligibility.ctaHref}
+                      className="inline-flex items-center gap-1 font-bold text-primary underline text-xs pt-0.5"
+                    >
+                      <span>{applyEligibility.ctaText}</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  )}
+                </div>
+              )}
+
               <Button
                 type="button"
                 variant="primary"
+                disabled={!applyEligibility.allowed}
+                title={applyEligibility.reason}
                 onClick={() => {
+                  if (!applyEligibility.allowed) return;
                   setNotice(null);
                   if (proposedRate <= 0 && campaign.perInfluencerBudget) {
                     setProposedRate(campaign.perInfluencerBudget);
                   }
                   setShowApplyModal(true);
                 }}
-                className="w-full py-2.5 font-bold shadow-sm"
+                className="w-full py-2.5 font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Apply to Campaign
               </Button>

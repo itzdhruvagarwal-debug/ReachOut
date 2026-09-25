@@ -128,3 +128,12 @@ export function deleteBankAccount(id: string, options?: HttpOptions) {
   );
 }
 
+/** POST /api/wallet/bank-accounts/verify — initiate penny-drop verification */
+export function verifyBankAccount(
+  bankAccountId: string,
+  options?: HttpOptions,
+) {
+  return post("/api/wallet/bank-accounts/verify", { bankAccountId }, options);
+}
+
+

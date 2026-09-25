@@ -2,8 +2,10 @@
 
 import React, { useState } from "react";
 import useSWR from "swr";
+import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/fetcher";
 import { banUser, unbanUser, awardBadgeAction } from "../actions";
+import { checkAdminBanEligibility } from "@/lib/action-eligibility";
 import Image from "next/image";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Input, Select } from "@/components/ui";
@@ -64,6 +66,9 @@ interface UserRowProps {
 }
 
 function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRowProps) {
+  const { data: session } = useSession();
+  const banEligibility = checkAdminBanEligibility(session?.user?.id || "", user.id);
+
   const name =
     user.influencerProfile?.displayName ||
     user.brandProfile?.companyName ||
@@ -223,8 +228,9 @@ function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRo
                 <Button
                   variant="danger"
                   onClick={() => onBan(user.id)}
-                  className="min-h-[44px] px-3.5 font-bold cursor-pointer"
-                  disabled={Boolean(isActionLoading)}
+                  className="min-h-[44px] px-3.5 font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={Boolean(isActionLoading) || !banEligibility.allowed}
+                  title={!banEligibility.allowed ? banEligibility.reason : undefined}
                 >
                   Ban
                 </Button>
@@ -238,6 +244,7 @@ function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRo
 }
 
 export default function AdminUsersPage() {
+  const { data: session } = useSession();
   const [search, setSearch] = useState("");
   const [type, setType] = useState("ALL");
   const [status, setStatus] = useState("ALL");
@@ -262,6 +269,11 @@ export default function AdminUsersPage() {
   const totalPages = Math.max(1, Math.ceil(total / (limit || 1)));
 
   const handleBan = async (userId: string) => {
+    const banEligibility = checkAdminBanEligibility(session?.user?.id || "", userId);
+    if (!banEligibility.allowed) {
+      alert(banEligibility.reason || "Cannot ban this user");
+      return;
+    }
     if (!confirm("Are you sure you want to ban this user?")) return;
     setLoadingAction(userId);
     try {
@@ -427,8 +439,9 @@ export default function AdminUsersPage() {
                       <Button
                         variant="danger"
                         onClick={() => handleBan(user.id)}
-                        className="flex-1 min-h-[44px] font-bold text-xs cursor-pointer"
-                        disabled={loadingAction === user.id}
+                        className="flex-1 min-h-[44px] font-bold text-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={loadingAction === user.id || !checkAdminBanEligibility(session?.user?.id || "", user.id).allowed}
+                        title={!checkAdminBanEligibility(session?.user?.id || "", user.id).allowed ? checkAdminBanEligibility(session?.user?.id || "", user.id).reason : undefined}
                       >
                         Ban Account
                       </Button>

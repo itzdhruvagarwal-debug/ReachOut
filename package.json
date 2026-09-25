@@ -9,6 +9,7 @@
     "start": "node .next/standalone/server.js",
     "lint": "eslint",
     "lint:theme": "node scripts/verify-theme-consistency.mjs",
+    "lint:actions": "node scripts/verify-action-buttons.mjs",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -14,6 +14,7 @@ import { createActivityLog } from "@/lib/audit";
 import { AdminService } from "@/services/admin.service";
 import { requireActiveAdmin } from "@/lib/admin-auth";
 import { invalidateUserKYCCache } from "@/lib/kyc";
+import { checkAdminBanEligibility } from "@/lib/action-eligibility";
 
 async function requireAdmin() {
 const session = await auth();
@@ -358,8 +359,9 @@ export async function rejectDocument(
 export async function banUser(userId: string) {
 const session = await requireAdmin();
 
-if (session.user.id === userId) {
-throw AppError.badRequest("Cannot ban yourself");
+const banCheck = checkAdminBanEligibility(session.user.id, userId);
+if (!banCheck.allowed) {
+throw AppError.badRequest(banCheck.reason || "Cannot ban this user");
 }
 
 await AdminService.updateUserStatus(session.user, userId, {

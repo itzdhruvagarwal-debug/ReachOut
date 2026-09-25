@@ -24,6 +24,10 @@ import {
   Zap,
 } from "lucide-react";
 import { Button, Badge } from "@/components/ui";
+import {
+  checkContentSubmissionEligibility,
+  checkContractSigningEligibility,
+} from "@/lib/action-eligibility";
 
 interface DealPipelineCardProps {
   deal: Deal;
@@ -155,8 +159,8 @@ export function DealPipelineCard({
   const progress = getDealProgressStep(deal.status);
   const isBrand = !isInfluencer;
 
-  const canSubmitContent =
-    isInfluencer && ["ACTIVE", "PAYMENT_HELD", "REVISION_REQUESTED"].includes(deal.status);
+  const submitEligibility = checkContentSubmissionEligibility(deal as any);
+  const signingEligibility = checkContractSigningEligibility(deal as any, false);
 
   const dueSoon = checkIsDueSoon(deal.postingDeadline);
 
@@ -382,14 +386,52 @@ export function DealPipelineCard({
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               {deal.status === "PENDING_SIGNATURE" && (
-                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center">
-                  ✍️ Sign Contract
-                </Button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
+                  <Button
+                    href={`/dashboard/deals/${deal.id}`}
+                    variant="primary"
+                    size="sm"
+                    disabled={!signingEligibility.allowed}
+                    title={signingEligibility.reason}
+                    className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {signingEligibility.allowed ? "✍️ Sign Contract" : "✍️ Contract Pending"}
+                  </Button>
+                  {!signingEligibility.allowed && (
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{signingEligibility.reason}</span>
+                    </span>
+                  )}
+                </div>
               )}
-              {canSubmitContent && (
-                <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center">
-                  📤 Submit Content
-                </Button>
+              {isInfluencer && ["ACTIVE", "PAYMENT_HELD", "REVISION_REQUESTED"].includes(deal.status) && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5">
+                  <Button
+                    href={`/dashboard/deals/${deal.id}`}
+                    variant="primary"
+                    size="sm"
+                    disabled={!submitEligibility.allowed}
+                    title={submitEligibility.reason}
+                    className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    📤 Submit Content
+                  </Button>
+                  {!submitEligibility.allowed && (
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1 px-2 py-0.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{submitEligibility.reason}</span>
+                      {submitEligibility.ctaText && (
+                        <Link
+                          href={`/dashboard/deals/${deal.id}`}
+                          className="font-bold underline text-primary"
+                        >
+                          {submitEligibility.ctaText} →
+                        </Link>
+                      )}
+                    </span>
+                  )}
+                </div>
               )}
               {isInfluencer && deal.status === "CONTENT_APPROVED" && (
                 <Button href={`/dashboard/deals/${deal.id}`} variant="primary" size="sm" className="w-full sm:w-auto min-h-[44px] font-bold text-xs justify-center">

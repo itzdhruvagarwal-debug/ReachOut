@@ -80,6 +80,9 @@ export function getComplianceInfo(options?: HttpOptions) {
   return get("/api/compliance/india-tax", options);
 }
 
+/** Alias for getComplianceInfo */
+export const getIndiaTaxCompliance = getComplianceInfo;
+
 /** POST /api/compliance/india-tax */
 export function saveComplianceInfo(
   data: Record<string, unknown>,

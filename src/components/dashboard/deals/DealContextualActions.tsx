@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui";
 import {
   FileCheck,
@@ -13,6 +13,11 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { DealDetail, getFlatDeliverablesList, ContentUrlEntry } from "./DealDetailHelpers";
+import {
+  checkDealEscrowReleaseEligibility,
+  checkDealCancellationEligibility,
+} from "@/lib/action-eligibility";
+
 
 export interface DealContextualActionsProps {
   dealStatus: string;
@@ -60,6 +65,15 @@ export function DealContextualActions({
   const influencerSigned = Boolean(deal?.influencerSignedAt || contractSignature?.influencerSignature);
   const userHasSigned = isBrand ? brandSigned : influencerSigned;
   const counterpartySigned = isBrand ? influencerSigned : brandSigned;
+
+  const escrowReleaseEligibility = checkDealEscrowReleaseEligibility(
+    deal,
+    isBrand
+  );
+  const cancelEligibility = checkDealCancellationEligibility(
+    deal,
+    isBrand
+  );
 
   return (
     <div className="bg-card border border-border rounded-2xl p-5 mb-6 shadow-sm">
@@ -246,38 +260,64 @@ export function DealContextualActions({
             </Button>
           )}
 
-          {isBrand && ["POSTED", "VERIFICATION_PENDING", "VERIFIED"].includes(dealStatus) && (
-            <Button
-              variant="primary"
-              onClick={() => {
-                if (
-                  !confirm(
-                    "Release escrow payment to the creator? This marks the deal as COMPLETED and settles funds immediately. This action cannot be reversed."
-                  )
-                ) {
-                  return;
-                }
-                handleAction("complete_deal");
-              }}
-              disabled={isSubmitting}
-              className="gap-1.5 bg-verified text-primary-foreground hover:opacity-90"
-            >
-              <DollarSign className="w-4 h-4" />
-              Release Escrow Payment
-            </Button>
+          {isBrand && (["POSTED", "VERIFICATION_PENDING", "VERIFIED", "DISPUTED"].includes(dealStatus) || dealStatus === "CONTENT_APPROVED") && (
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                variant="primary"
+                onClick={() => {
+                  if (
+                    !confirm(
+                      "Release escrow payment to the creator? This marks the deal as COMPLETED and settles funds immediately. This action cannot be reversed."
+                    )
+                  ) {
+                    return;
+                  }
+                  handleAction("complete_deal");
+                }}
+                disabled={isSubmitting || !escrowReleaseEligibility.allowed}
+                className="gap-1.5 bg-verified text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                <DollarSign className="w-4 h-4" />
+                Release Escrow Payment
+              </Button>
+              {!escrowReleaseEligibility.allowed && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-md mt-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{escrowReleaseEligibility.reason}</span>
+                  {escrowReleaseEligibility.ctaHref && (
+                    <Link href={escrowReleaseEligibility.ctaHref} className="underline font-semibold ml-1 text-primary">
+                      {escrowReleaseEligibility.ctaText || "Fix"}
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
-          {isBrand && !["COMPLETED", "CANCELLED", "DISPUTED"].includes(dealStatus) && (
-            <Button
-              variant="danger"
-              size="sm"
-              onClick={handleCancelDeal}
-              disabled={isSubmitting}
-              className="gap-1 text-xs"
-            >
-              <XCircle className="w-3.5 h-3.5" />
-              Cancel Deal
-            </Button>
+          {isBrand && !["COMPLETED", "CANCELLED"].includes(dealStatus) && (
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleCancelDeal}
+                disabled={isSubmitting || !cancelEligibility.allowed}
+                className="gap-1 text-xs disabled:opacity-50"
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                Cancel Deal
+              </Button>
+              {!cancelEligibility.allowed && (
+                <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-500/10 px-2.5 py-1 rounded-md mt-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{cancelEligibility.reason}</span>
+                  {cancelEligibility.ctaHref && (
+                    <Link href={cancelEligibility.ctaHref} className="underline font-semibold ml-1 text-primary">
+                      {cancelEligibility.ctaText || "Resolve"}
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           <Button

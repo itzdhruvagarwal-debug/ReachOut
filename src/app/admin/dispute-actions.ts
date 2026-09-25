@@ -19,6 +19,7 @@ recordPlatformFeeRevenue,
 } from "@/lib/deal-settlement";
 import { refundPayment, capturePayment } from "@/lib/razorpay";
 import { transitionDealState } from "@/lib/deal-state-machine";
+import { checkDisputeResolutionEligibility } from "@/lib/action-eligibility";
 
 type DisputeWithDeal = Prisma.DisputeGetPayload<{
 include: {
@@ -308,19 +309,19 @@ export async function resolveDispute(
 
   if (!dispute) throw AppError.notFound("Dispute not found");
 
-  // Conflict of interest prevention: admins cannot adjudicate disputes where they are an interested party
-  if (
-    dispute.deal.influencer?.userId === session.user.id ||
-    dispute.deal.brand?.userId === session.user.id
-  ) {
-    throw AppError.forbidden("Admins cannot adjudicate disputes in which they are a participating party.");
-  }
-
-  if (dispute.deal.status === "COMPLETED") {
-    throw AppError.badRequest("Cannot resolve dispute for an already completed deal.");
-  }
-  if (dispute.deal.status === "CANCELLED") {
-    throw AppError.badRequest("Cannot resolve dispute for an already cancelled deal.");
+  const resolutionEligibility = checkDisputeResolutionEligibility(
+    {
+      status: dispute.status,
+      deal: {
+        status: dispute.deal.status,
+        influencer: { userId: dispute.deal.influencer?.userId },
+        brand: { userId: dispute.deal.brand?.userId },
+      },
+    },
+    session.user.id
+  );
+  if (!resolutionEligibility.allowed) {
+    throw AppError.forbidden(resolutionEligibility.reason || "Not eligible to resolve dispute.");
   }
 
   const confidence = await determineDisputeConfidence(parsed.disputeId, dispute);

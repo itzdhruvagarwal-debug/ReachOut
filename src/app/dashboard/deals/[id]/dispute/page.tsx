@@ -13,6 +13,7 @@ import { Button, Textarea, Input, ToastContainer, type ToastItem, Skeleton } fro
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { formatCurrency } from "@/lib/utils-client";
 import { createDisputeSchema } from "@/lib/validations/campaign";
+import { checkDisputeEligibility } from "@/lib/action-eligibility";
 import {
   ArrowLeft,
   ArrowRight,
@@ -124,6 +125,14 @@ export default function DealDisputePage({ params }: Readonly<DisputePageProps>) 
     [dealResponse]
   );
 
+  const disputeEligibility = useMemo(() => {
+    if (!deal) return { allowed: false, reason: "Loading deal details..." };
+    return checkDisputeEligibility(deal, session?.user?.id, {
+      influencerUserId: (deal as any).influencer?.userId || (deal as any).influencerUserId,
+      brandUserId: (deal as any).brand?.userId || (deal as any).brandUserId,
+    });
+  }, [deal, session?.user?.id]);
+
   const [issueType, setIssueType] = useState<DisputeIssueType>("TIMELINE");
   const [description, setDescription] = useState("");
   const [evidenceUrl, setEvidenceUrl] = useState("");
@@ -164,6 +173,10 @@ export default function DealDisputePage({ params }: Readonly<DisputePageProps>) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!disputeEligibility.allowed) {
+      showToast("error", disputeEligibility.reason || "Dispute cannot be filed for this deal.");
+      return;
+    }
     if (!isDescriptionValid) {
       showToast("error", "Please provide at least 50 characters describing the issue.");
       return;
@@ -215,6 +228,17 @@ export default function DealDisputePage({ params }: Readonly<DisputePageProps>) 
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
       <div className="max-w-4xl mx-auto space-y-6 pb-20 animate-fade-in">
+        {/* Ineligibility Alert Banner (Single-Implementation Rule) */}
+        {!isDealLoading && deal && !disputeEligibility.allowed && (
+          <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-2xl p-4 flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-destructive" />
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold">Dispute Ineligible</h3>
+              <p className="text-xs text-destructive/90">{disputeEligibility.reason}</p>
+            </div>
+          </div>
+        )}
+
         {/* Navigation Breadcrumb */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <Link
@@ -462,7 +486,9 @@ export default function DealDisputePage({ params }: Readonly<DisputePageProps>) 
                 type="button"
                 variant="primary"
                 onClick={handleNextStep}
-                className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-bold rounded-xl cursor-pointer"
+                disabled={!disputeEligibility.allowed}
+                title={disputeEligibility.reason}
+                className="w-full sm:w-auto min-h-[44px] flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs font-bold rounded-xl cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue to Evidence (Step 2)
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -659,6 +685,23 @@ export default function DealDisputePage({ params }: Readonly<DisputePageProps>) 
                 </span>
               </label>
 
+              {!disputeEligibility.allowed && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    <span>{disputeEligibility.reason}</span>
+                  </div>
+                  {disputeEligibility.ctaText && disputeEligibility.ctaHref && (
+                    <Link
+                      href={disputeEligibility.ctaHref}
+                      className="font-bold underline text-primary text-xs whitespace-nowrap"
+                    >
+                      {disputeEligibility.ctaText} →
+                    </Link>
+                  )}
+                </div>
+              )}
+
               {/* Action CTAs */}
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-4 border-t border-border">
                 <Button
@@ -682,8 +725,9 @@ export default function DealDisputePage({ params }: Readonly<DisputePageProps>) 
                   <Button
                     type="submit"
                     variant="danger"
-                    disabled={isSubmitting || !isDescriptionValid || !acceptedTerms}
-                    className="w-full sm:w-auto min-h-[44px] px-6 py-2.5 rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center justify-center"
+                    disabled={isSubmitting || !isDescriptionValid || !acceptedTerms || !disputeEligibility.allowed}
+                    title={disputeEligibility.reason}
+                    className="w-full sm:w-auto min-h-[44px] px-6 py-2.5 rounded-xl text-xs font-bold shadow-xs cursor-pointer flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? "Filing Dispute..." : "Submit Dispute & Freeze Escrow"}
                   </Button>

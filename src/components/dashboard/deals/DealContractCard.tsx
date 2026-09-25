@@ -20,6 +20,7 @@ import {
   Sparkles,
   User,
   Building2,
+  AlertCircle,
 } from "lucide-react";
 import {
   DealDetail,
@@ -28,6 +29,7 @@ import {
   getIncludedRevisions,
   formatCurrency,
 } from "./DealDetailHelpers";
+import { checkProductFulfillmentEligibility } from "@/lib/action-eligibility";
 
 interface DealContractCardProps {
   readonly deal: DealDetail;
@@ -63,6 +65,11 @@ export function DealContractCard({
 
   const brandSignedAt = (deal.brandSignedAt as string | Date | null | undefined) || null;
   const influencerSignedAt = (deal.influencerSignedAt as string | Date | null | undefined) || null;
+
+  const userRole = isBrand ? "BRAND" : isInfluencer ? "INFLUENCER" : "ADMIN";
+  const addressEligibility = checkProductFulfillmentEligibility(deal, userRole, "submit_address");
+  const dispatchEligibility = checkProductFulfillmentEligibility(deal, userRole, "confirm_dispatch");
+  const receivedEligibility = checkProductFulfillmentEligibility(deal, userRole, "confirm_received");
 
   // Financial calculations
   const dealAmountPaise = deal.amount || terms?.dealAmount || 0;
@@ -349,40 +356,71 @@ export function DealContractCard({
                     </div>
 
                     {/* Product Seeding Action Buttons */}
-                    <div className="flex items-center gap-2 flex-wrap pt-1 sm:pt-0">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 flex-wrap pt-1 sm:pt-0">
                       {onOpenAddressModal && (
-                        <button
-                          type="button"
-                          onClick={onOpenAddressModal}
-                          className="text-xs text-primary underline hover:opacity-80 font-semibold cursor-pointer inline-flex items-center gap-1 py-2 min-h-[44px]"
-                        >
-                          <Package className="w-3.5 h-3.5" />
-                          <span>{deal.shippingAddress ? "View / Edit Address" : "Provide Shipping Address"}</span>
-                        </button>
+                        <div className="flex flex-col items-start gap-1">
+                          <button
+                            type="button"
+                            onClick={onOpenAddressModal}
+                            disabled={isInfluencer && !addressEligibility.allowed}
+                            className="text-xs text-primary underline hover:opacity-80 font-semibold cursor-pointer inline-flex items-center gap-1 py-2 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Package className="w-3.5 h-3.5" />
+                            <span>
+                              {isBrand
+                                ? "View Shipping Address"
+                                : deal.shippingAddress
+                                ? "View / Edit Address"
+                                : "Provide Shipping Address"}
+                            </span>
+                          </button>
+                          {isInfluencer && !addressEligibility.allowed && (
+                            <span className="text-[11px] text-amber-500 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                              {addressEligibility.reason}
+                            </span>
+                          )}
+                        </div>
                       )}
 
-                      {isBrand && status === "READY_TO_DISPATCH" && onOpenDispatchModal && (
-                        <button
-                          type="button"
-                          onClick={onOpenDispatchModal}
-                          disabled={isSubmitting}
-                          className="text-xs bg-primary text-primary-foreground px-3.5 py-2 min-h-[44px] rounded-xl font-bold hover:bg-primary/90 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 shadow-xs"
-                        >
-                          <Truck className="w-3.5 h-3.5" />
-                          <span>Confirm Dispatch</span>
-                        </button>
+                      {isBrand && onOpenDispatchModal && !["DISPATCHED", "RECEIVED"].includes(status) && (
+                        <div className="flex flex-col items-start gap-1">
+                          <button
+                            type="button"
+                            onClick={onOpenDispatchModal}
+                            disabled={isSubmitting || !dispatchEligibility.allowed}
+                            className="text-xs bg-primary text-primary-foreground px-3.5 py-2 min-h-[44px] rounded-xl font-bold hover:bg-primary/90 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Truck className="w-3.5 h-3.5" />
+                            <span>Confirm Dispatch</span>
+                          </button>
+                          {!dispatchEligibility.allowed && (
+                            <span className="text-[11px] text-amber-500 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                              {dispatchEligibility.reason}
+                            </span>
+                          )}
+                        </div>
                       )}
 
-                      {isInfluencer && status === "DISPATCHED" && onConfirmReceived && (
-                        <button
-                          type="button"
-                          onClick={onConfirmReceived}
-                          disabled={isSubmitting}
-                          className="text-xs bg-verified text-primary-foreground px-3.5 py-2 min-h-[44px] rounded-xl font-bold hover:bg-verified/90 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 shadow-xs"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Confirm Received</span>
-                        </button>
+                      {isInfluencer && onConfirmReceived && status !== "RECEIVED" && (
+                        <div className="flex flex-col items-start gap-1">
+                          <button
+                            type="button"
+                            onClick={onConfirmReceived}
+                            disabled={isSubmitting || !receivedEligibility.allowed}
+                            className="text-xs bg-verified text-primary-foreground px-3.5 py-2 min-h-[44px] rounded-xl font-bold hover:bg-verified/90 transition-all cursor-pointer inline-flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Confirm Received</span>
+                          </button>
+                          {!receivedEligibility.allowed && (
+                            <span className="text-[11px] text-amber-500 flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                              {receivedEligibility.reason}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

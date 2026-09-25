@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
 import { logger } from "@/lib/logger-client";
@@ -8,6 +9,7 @@ import { signOut } from "next-auth/react";
 import { Button, Input } from "@/components/ui";
 import { z } from "zod";
 import { AlertTriangle, Trash2, AlertCircle } from "lucide-react";
+import { checkAccountDeletionEligibility } from "@/lib/action-eligibility";
 
 export const deleteAccountSchema = z.object({
   confirmText: z.literal("DELETE", {
@@ -37,6 +39,17 @@ export default function DeleteAccountPanel({
   const handleDelete = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+
+    const eligibility = checkAccountDeletionEligibility(
+      undefined,
+      undefined,
+      confirmText,
+      password
+    );
+    if (!eligibility.allowed) {
+      setError(eligibility.reason || "Invalid input details.");
+      return;
+    }
 
     const validation = deleteAccountSchema.safeParse({
       confirmText,
@@ -99,10 +112,22 @@ export default function DeleteAccountPanel({
         <div
           role="alert"
           aria-live="assertive"
-          className="p-3.5 rounded-xl bg-disputed-muted text-disputed border border-disputed-border text-xs font-semibold flex items-center gap-2"
+          className="p-3.5 rounded-xl bg-disputed-muted text-disputed border border-disputed-border text-xs font-semibold flex items-center justify-between gap-2"
         >
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+          {error.includes("deal") && (
+            <Link href="/dashboard/deals" className="underline font-bold text-primary whitespace-nowrap ml-2">
+              Go to Deals →
+            </Link>
+          )}
+          {(error.includes("wallet") || error.includes("balance")) && (
+            <Link href="/dashboard/wallet" className="underline font-bold text-primary whitespace-nowrap ml-2">
+              Withdraw Balance →
+            </Link>
+          )}
         </div>
       )}
 
@@ -182,12 +207,18 @@ export default function DeleteAccountPanel({
               type="submit"
               variant="danger"
               size="md"
-              disabled={isSaving || confirmText !== "DELETE"}
-              className="text-xs font-bold"
+              disabled={isSaving || !checkAccountDeletionEligibility(undefined, undefined, confirmText, password).allowed}
+              title={!checkAccountDeletionEligibility(undefined, undefined, confirmText, password).allowed ? checkAccountDeletionEligibility(undefined, undefined, confirmText, password).reason : undefined}
+              className="text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? "Deleting Account..." : "Permanently Delete Account"}
             </Button>
           </div>
+          {!checkAccountDeletionEligibility(undefined, undefined, confirmText, password).allowed && (confirmText.length > 0 || password.length > 0) && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium pt-1">
+              ⚠️ {checkAccountDeletionEligibility(undefined, undefined, confirmText, password).reason}
+            </p>
+          )}
         </form>
       )}
     </div>

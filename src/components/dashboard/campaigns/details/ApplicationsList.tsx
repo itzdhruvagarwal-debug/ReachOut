@@ -9,17 +9,24 @@ import {
   XCircle,
   Sparkles,
   ArrowUpRight,
+  AlertCircle,
 } from "lucide-react";
 import { Button, Spinner, ListItem } from "@/components/ui";
 import EmptyState from "@/components/ui/EmptyState";
 import { formatCurrency, formatNumber } from "@/lib/utils-client";
 import { CampaignApplication } from "./CampaignDetailHelpers";
+import { checkApplicationAcceptanceEligibility } from "@/lib/action-eligibility";
 
 interface ApplicationsListProps {
   readonly loading: boolean;
   readonly applications: readonly CampaignApplication[];
   readonly actionId: string | null;
   readonly onAction: (id: string, action: "accept" | "reject") => void;
+  readonly campaign?: {
+    status: string;
+    maxInfluencers?: number | null | undefined;
+    selectedInfluencers?: number | null | undefined;
+  } | null | undefined;
 }
 
 export function ApplicationsList({
@@ -27,6 +34,7 @@ export function ApplicationsList({
   applications,
   actionId,
   onAction,
+  campaign,
 }: ApplicationsListProps) {
   if (loading) {
     return (
@@ -72,6 +80,7 @@ export function ApplicationsList({
           application.status.toUpperCase() === "ACCEPTED";
         const isRejected = application.status.toUpperCase() === "REJECTED";
         const matchScore = application.matchScore;
+        const acceptanceEligibility = checkApplicationAcceptanceEligibility(application, campaign);
 
         return (
           <ListItem
@@ -234,17 +243,25 @@ export function ApplicationsList({
                 )}
 
                 {canAct && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      size="sm"
-                      disabled={actionId === application.id}
-                      onClick={() => onAction(application.id, "accept")}
-                      className="font-semibold shadow-xs"
-                    >
-                      {actionId === application.id ? <Spinner size="sm" /> : "Accept & Fund Deal"}
-                    </Button>
+                  <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                    <div className="flex flex-col items-end gap-1">
+                      <Button
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        disabled={actionId === application.id || !acceptanceEligibility.allowed}
+                        onClick={() => onAction(application.id, "accept")}
+                        className="font-semibold shadow-xs disabled:opacity-50"
+                      >
+                        {actionId === application.id ? <Spinner size="sm" /> : "Accept & Fund Deal"}
+                      </Button>
+                      {!acceptanceEligibility.allowed && (
+                        <span className="text-[11px] text-amber-500 flex items-center gap-1 font-medium">
+                          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                          {acceptanceEligibility.reason}
+                        </span>
+                      )}
+                    </div>
                     <Button
                       type="button"
                       variant="danger"
@@ -255,7 +272,7 @@ export function ApplicationsList({
                     >
                       Decline
                     </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </div>

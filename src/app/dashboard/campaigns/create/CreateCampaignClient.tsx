@@ -180,6 +180,7 @@ export default function CreateCampaignClient() {
   const gstFeePaise = Math.round(platformFeePaise * 0.18);
   const totalEscrowRequiredPaise = creatorPayoutPoolPaise + platformFeePaise + gstFeePaise;
 
+  const isWalletFrozen = Boolean(walletData?.isFrozen);
   const isBalanceInsufficient = Boolean(
     walletData && totalEscrowRequiredPaise > 0 && walletBalancePaise < totalEscrowRequiredPaise
   );
@@ -986,7 +987,33 @@ export default function CreateCampaignClient() {
                     </div>
 
                     {/* Step 3 Live Wallet Balance Validation Alert */}
-                    {isBalanceInsufficient ? (
+                    {isWalletFrozen ? (
+                      <div
+                        role="alert"
+                        className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive space-y-2 mt-2"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-start gap-2.5">
+                            <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-bold text-xs text-foreground">
+                                Wallet is currently frozen — Payouts and new escrow locks blocked
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Your brand wallet is locked due to safety or administrative holds. Please reach out to support to unlock your account.
+                              </p>
+                            </div>
+                          </div>
+                          <Link
+                            href="/dashboard/support"
+                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold shadow-xs hover:bg-destructive/90 transition-all shrink-0 self-start sm:self-auto"
+                          >
+                            <span>Contact Support</span>
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : isBalanceInsufficient ? (
                       <div
                         role="alert"
                         className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive space-y-2 mt-2"
@@ -1065,9 +1092,11 @@ export default function CreateCampaignClient() {
                       <Button
                         type="submit"
                         variant="primary"
-                        disabled={isLoading || isBalanceInsufficient}
+                        disabled={isLoading || isBalanceInsufficient || isWalletFrozen}
                         title={
-                          isBalanceInsufficient
+                          isWalletFrozen
+                            ? "Your wallet is currently frozen. Contact support to unlock."
+                            : isBalanceInsufficient
                             ? `Wallet balance insufficient. Add ${formatCurrency(shortfallPaise)} to launch.`
                             : ""
                         }
@@ -1075,7 +1104,9 @@ export default function CreateCampaignClient() {
                       >
                         <Lock className="w-3.5 h-3.5" />
                         <span>
-                          {isBalanceInsufficient
+                          {isWalletFrozen
+                            ? "Wallet Frozen (Contact Support)"
+                            : isBalanceInsufficient
                             ? `Insufficient Balance (Add ${formatCurrency(shortfallPaise)})`
                             : publishButtonContent}
                         </span>

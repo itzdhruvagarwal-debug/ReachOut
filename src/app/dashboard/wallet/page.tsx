@@ -20,13 +20,13 @@ import { FullScreenWithdrawFlow } from "@/components/dashboard/wallet/FullScreen
 import { StatementExportModal } from "@/components/dashboard/wallet/StatementExportModal";
 import {
   MIN_WALLET_TOPUP_RUPEES,
-  MIN_WITHDRAWAL_AMOUNT_PAISE,
   DEFAULT_TOAST_DURATION_MS,
 } from "@/constants";
 import { subscribeToWalletUpdates } from "@/lib/supabase-realtime";
 import { useTokenRefreshGuard } from "@/hooks/useTokenRefreshGuard";
 import { useWallet } from "@/hooks/api/useWallet";
 import { formatCurrency, formatDateTime } from "@/lib/utils-client";
+import { checkWalletTopUpEligibility, checkWithdrawalEligibility } from "@/lib/action-eligibility";
 import {
   Button,
   Input,
@@ -53,6 +53,7 @@ import {
   CreditCard,
   Clock,
   AlertTriangle,
+  AlertCircle,
   FileText,
   ExternalLink,
 } from "lucide-react";
@@ -283,6 +284,14 @@ export default function WalletPage() {
   const isBrand = userType === "BRAND";
   const transactions = useMemo(() => txResponse?.transactions || [], [txResponse?.transactions]);
 
+  const topUpEligibility = useMemo(() => {
+    return checkWalletTopUpEligibility(
+      topUpAmount,
+      walletData ? { isFrozen: walletData.isFrozen } : null,
+      (session?.user as any)?.status
+    );
+  }, [topUpAmount, walletData, session?.user]);
+
   // ── Supabase Realtime Synchronization ─────────────────────────────────────
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -309,12 +318,12 @@ export default function WalletPage() {
     const fresh = await requireFreshSession();
     if (!fresh) return;
 
-    const amountRupees = parseFloat(topUpAmount);
-
-    if (!amountRupees || amountRupees < MIN_WALLET_TOPUP_RUPEES) {
-      showToast("error", `Minimum top-up amount is ₹${MIN_WALLET_TOPUP_RUPEES}`);
+    if (!topUpEligibility.allowed) {
+      showToast("error", topUpEligibility.reason || `Minimum top-up amount is ₹${MIN_WALLET_TOPUP_RUPEES}`);
       return;
     }
+
+    const amountRupees = parseFloat(topUpAmount);
 
     setIsAddingFunds(true);
     try {
@@ -385,7 +394,11 @@ export default function WalletPage() {
     }
   };
 
-  const canWithdraw = !isWalletLoading && (walletData?.balance || 0) >= MIN_WITHDRAWAL_AMOUNT_PAISE;
+  const withdrawalEligibility = useMemo(() => {
+    return checkWithdrawalEligibility({
+      wallet: walletData ? { balance: walletData.balance, isFrozen: walletData.isFrozen } : undefined,
+    });
+  }, [walletData]);
 
   const escrowLockedAmount = isBrand ? (walletData?.totalHeld || 0) : (walletData?.pendingBalance || 0);
   const lifetimeTotal = isBrand ? (walletData?.totalDeposited || 0) : (walletData?.totalEarned || 0);
@@ -484,29 +497,57 @@ export default function WalletPage() {
 
               <div className="pt-6">
                 {isBrand ? (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => {
-                      setTopUpAmount("");
-                      setShowAddFundsModal(true);
-                    }}
-                    className="w-full font-bold justify-center shadow-xs"
-                    leftIcon={<Plus className="w-4 h-4" />}
-                  >
-                    Add Funds via UPI / Cards
-                  </Button>
+                  <div className="space-y-1.5 w-full">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      disabled={walletData?.isFrozen}
+                      title={walletData?.isFrozen ? "Wallet is frozen. Top-ups are locked." : undefined}
+                      onClick={() => {
+                        setTopUpAmount("");
+                        setShowAddFundsModal(true);
+                      }}
+                      className="w-full font-bold justify-center shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      leftIcon={<Plus className="w-4 h-4" />}
+                    >
+                      Add Funds via UPI / Cards
+                    </Button>
+                    {walletData?.isFrozen && (
+                      <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                        <span>Wallet is frozen. Top-ups are locked.</span>
+                        <Link href="/dashboard/support" className="underline font-bold text-primary">
+                          Contact Support →
+                        </Link>
+                      </span>
+                    )}
+                  </div>
                 ) : (
-                  <Button
-                    type="button"
-                    variant="primary"
-                    onClick={() => setShowWithdrawFlow(true)}
-                    disabled={!canWithdraw}
-                    className="w-full font-bold justify-center shadow-xs"
-                    leftIcon={<ArrowUpRight className="w-4 h-4" />}
-                  >
-                    {canWithdraw ? "Instant Bank Transfer" : `Min. Withdrawal ₹${MIN_WITHDRAWAL_AMOUNT_PAISE / 100}`}
-                  </Button>
+                  <div className="space-y-1.5 w-full">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={() => setShowWithdrawFlow(true)}
+                      disabled={!withdrawalEligibility.allowed}
+                      className="w-full font-bold justify-center shadow-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                      leftIcon={<ArrowUpRight className="w-4 h-4" />}
+                    >
+                      Instant Bank Transfer
+                    </Button>
+                    {!withdrawalEligibility.allowed && withdrawalEligibility.reason && (
+                      <div className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center justify-between gap-1.5 px-0.5">
+                        <span className="inline-flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                          <span>{withdrawalEligibility.reason}</span>
+                        </span>
+                        {withdrawalEligibility.ctaText && withdrawalEligibility.ctaHref && (
+                          <Link href={withdrawalEligibility.ctaHref} className="underline font-bold text-primary shrink-0">
+                            {withdrawalEligibility.ctaText} →
+                          </Link>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -773,6 +814,23 @@ export default function WalletPage() {
             </div>
           </div>
 
+          {!topUpEligibility.allowed && Boolean(topUpAmount) && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 font-medium">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{topUpEligibility.reason}</span>
+              </div>
+              {topUpEligibility.ctaText && topUpEligibility.ctaHref && (
+                <Link
+                  href={topUpEligibility.ctaHref}
+                  className="font-bold underline text-primary text-xs whitespace-nowrap"
+                >
+                  {topUpEligibility.ctaText} →
+                </Link>
+              )}
+            </div>
+          )}
+
           <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-border">
             <Button
               type="button"
@@ -786,8 +844,9 @@ export default function WalletPage() {
             <Button
               type="submit"
               variant="primary"
-              disabled={isAddingFunds}
-              className="w-full sm:w-auto min-h-[44px] font-bold"
+              disabled={isAddingFunds || !topUpEligibility.allowed}
+              title={!topUpEligibility.allowed ? topUpEligibility.reason : undefined}
+              className="w-full sm:w-auto min-h-[44px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isAddingFunds ? (
                 <>

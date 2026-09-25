@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { createActivityLog, ActivityAction } from "@/lib/audit";
 import { getSecureClientIp } from "@/lib/ip";
+import { checkDisable2FAEligibility } from "@/lib/action-eligibility";
 
 async function _handler_POST(req: NextRequest) {
 try {
@@ -21,14 +22,13 @@ return NextResponse.json({ error: "Too many 2FA requests" }, { status: 429 });
 }
 
 const body = await req.json().catch(() => ({}));
-const { password, code, otp } = body as { password?: string; code?: string; otp?: string };
-
-if (!password && !code && !otp) {
-  return NextResponse.json(
-    { error: "Re-authentication required: Please provide your password, 6-digit 2FA code, or phone OTP to disable 2FA." },
-    { status: 400 },
-  );
-}
+const { password, code, otp, token } = body as {
+  password?: string;
+  code?: string;
+  otp?: string;
+  token?: string;
+};
+const effectivePassword = password || token;
 
 const user = await prisma.user.findUnique({
   where: { email: session.user.email },
@@ -39,15 +39,20 @@ if (!user) {
   return NextResponse.json({ error: "User not found" }, { status: 404 });
 }
 
-if (!user.isTwoFactorEnabled) {
-  return NextResponse.json({ error: "2FA is not currently enabled" }, { status: 400 });
+const eligibility = checkDisable2FAEligibility(user.isTwoFactorEnabled, {
+  password: effectivePassword,
+  code,
+  otp,
+});
+if (!eligibility.allowed) {
+  return NextResponse.json({ error: eligibility.reason }, { status: 400 });
 }
 
 let isAuthorized = false;
 
 // Re-auth Option 1: Account Password
-if (password && user.passwordHash) {
-  isAuthorized = await bcrypt.compare(password, user.passwordHash);
+if (effectivePassword && user.passwordHash) {
+  isAuthorized = await bcrypt.compare(effectivePassword, user.passwordHash);
 }
 
 // Re-auth Option 2: Current 6-digit TOTP Authenticator Code

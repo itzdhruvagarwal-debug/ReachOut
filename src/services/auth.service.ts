@@ -73,7 +73,7 @@ throw AppError.badRequest("Registration blocked. Please contact support.");
 return fraudCheck;
 }
 
-private static async resolveReferrer(referralCodeInput?: string): Promise<string | undefined> {
+public static async resolveReferrer(referralCodeInput?: string): Promise<string | undefined> {
 if (!referralCodeInput) return undefined;
 const referrer = await prisma.user.findUnique({
 where: { referralCode: referralCodeInput },

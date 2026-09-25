@@ -36,6 +36,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { useWallet } from "@/hooks/api/useWallet";
+import { checkDirectMessageEligibility } from "@/lib/action-eligibility";
 
 interface InfluencerProfileClientProps {
   profile: InfluencerProfileData;
@@ -137,6 +138,8 @@ export default function InfluencerProfileClient({
         .catch(() => setCanMessageState(false));
     }
   }, [canMessage, profile.userId, isOwnProfile]);
+
+  const messageEligibility = checkDirectMessageEligibility(canMessageState, isOwnProfile);
 
   // Mobile swipe navigation across tabs
   const touchStartXRef = useRef<number>(0);
@@ -354,13 +357,14 @@ export default function InfluencerProfileClient({
                       <span>Invite to Campaign</span>
                     </button>
                     {isBrand && isLowBalance && (
-                      <span
+                      <Link
+                        href="/dashboard/wallet?topup=true"
                         title={`Available wallet balance: ${formatCurrency(walletBalancePaise)}. Top-up recommended for escrow.`}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-pending-muted text-pending border border-pending-border shadow-xs"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 shadow-xs hover:bg-amber-500/20 transition-colors"
                       >
                         <Wallet className="w-2.5 h-2.5" />
-                        <span>Low Bal</span>
-                      </span>
+                        <span>Low Bal — Add Funds</span>
+                      </Link>
                     )}
                   </div>
 
@@ -373,16 +377,26 @@ export default function InfluencerProfileClient({
                       <span>Send Message</span>
                     </Link>
                   ) : (
-                    <button
-                      type="button"
-                      disabled
-                      title="Start a deal to message"
-                      aria-label="Start a deal to message"
-                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border bg-muted/40 text-muted-foreground text-xs font-semibold cursor-not-allowed opacity-60 shadow-xs"
-                    >
-                      <Send className="w-3.5 h-3.5 opacity-50" />
-                      <span>Send Message</span>
-                    </button>
+                    <div className="relative group inline-flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        disabled
+                        title={messageEligibility.reason || "Start a deal first to message this creator"}
+                        aria-label={messageEligibility.reason || "Start a deal first to message this creator"}
+                        className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border bg-muted/40 text-muted-foreground text-xs font-semibold cursor-not-allowed opacity-60 shadow-xs"
+                      >
+                        <Send className="w-3.5 h-3.5 opacity-50" />
+                        <span>Send Message</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowInviteModal(true)}
+                        className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline px-1 py-0.5"
+                        title="Start a deal first to message this creator"
+                      >
+                        <span>Start Deal to Chat →</span>
+                      </button>
+                    </div>
                   )}
 
                   <button

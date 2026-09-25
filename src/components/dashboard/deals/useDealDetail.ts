@@ -20,6 +20,7 @@ import {
   EngagementReport,
 } from "./DealDetailHelpers";
 import type { ToastItem, ToastType } from "@/components/ui";
+import { checkContentSubmissionEligibility } from "@/lib/action-eligibility";
 
 function extractMessage(err: unknown): string {
   return formatUserError(err, "Failed to process deal action. Please try again.");
@@ -338,10 +339,7 @@ export function computeDealDisplay(
       ? (contractTerms.productHandlingFee as number)
       : deal.productHandlingFee || 0;
   const requiresProduct = Boolean(deal.requiresProduct || contractTerms?.requiresProduct);
-  const canSubmitContent =
-    (!requiresProduct ||
-      deal.productFulfillmentStatus === "RECEIVED" ||
-      deal.status === "REVISION_REQUESTED");
+  const canSubmitContent = checkContentSubmissionEligibility(deal).allowed;
   const contractSignature = deal.contractSignature as Record<string, unknown>;
   const brandSigned = Boolean(contractSignature?.brandSignature);
   const influencerSigned = Boolean(contractSignature?.influencerSignature);

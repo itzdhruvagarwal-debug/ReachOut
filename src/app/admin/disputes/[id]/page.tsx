@@ -1,9 +1,11 @@
 import prisma from "@/lib/db";
 import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
 import { resolveDispute } from "../../dispute-actions";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button } from "@/components/ui";
 import { formatCurrency, formatDate } from "@/lib/utils-client";
+import { checkDisputeResolutionEligibility } from "@/lib/action-eligibility";
 import {
   Scale,
   ArrowLeft,
@@ -147,6 +149,19 @@ export default async function AdminDisputeDetailPage({
   ]);
 
   const dealAmount = dispute.deal.amount;
+
+  const session = await auth();
+  const resolutionEligibility = checkDisputeResolutionEligibility(
+    {
+      status: dispute.status,
+      deal: {
+        status: dispute.deal.status,
+        influencer: { userId: dispute.deal.influencer?.userId || dispute.deal.influencer?.user?.id || "" },
+        brand: { userId: dispute.deal.brand?.userId || dispute.deal.brand?.user?.id || "" },
+      },
+    },
+    session?.user?.id
+  );
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -334,6 +349,13 @@ export default async function AdminDisputeDetailPage({
           </p>
         </div>
 
+        {!resolutionEligibility.allowed && (
+          <div className="p-3.5 rounded-xl bg-destructive/10 text-destructive text-xs border border-destructive/20 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-destructive" />
+            <span>{resolutionEligibility.reason}</span>
+          </div>
+        )}
+
         <div className="flex flex-col sm:flex-row gap-4 pt-2">
           <form
             action={resolveDispute.bind(
@@ -348,7 +370,9 @@ export default async function AdminDisputeDetailPage({
               type="submit"
               variant="danger"
               size="lg"
-              className="w-full justify-center gap-2 font-bold shadow-sm"
+              disabled={!resolutionEligibility.allowed}
+              title={!resolutionEligibility.allowed ? resolutionEligibility.reason : undefined}
+              className="w-full justify-center gap-2 font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RotateCcw className="w-4 h-4" />
               Refund Escrow to Brand ({formatCurrency(dealAmount)})
@@ -368,7 +392,9 @@ export default async function AdminDisputeDetailPage({
               type="submit"
               variant="success"
               size="lg"
-              className="w-full justify-center gap-2 font-bold shadow-sm"
+              disabled={!resolutionEligibility.allowed}
+              title={!resolutionEligibility.allowed ? resolutionEligibility.reason : undefined}
+              className="w-full justify-center gap-2 font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CheckCircle2 className="w-4 h-4" />
               Release Escrow to Influencer ({formatCurrency(dealAmount)})

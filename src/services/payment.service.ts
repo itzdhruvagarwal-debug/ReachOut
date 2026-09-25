@@ -27,6 +27,7 @@ import {
   MIN_WALLET_TOPUP_PAISE,
   MAX_WALLET_TOPUP_PAISE,
 } from "@/constants";
+import { checkWalletTopUpEligibility } from "@/lib/action-eligibility";
 
 export class PaymentService {
   static async createWalletTopUpOrder(
@@ -34,12 +35,8 @@ export class PaymentService {
     amountInPaise: number,
     idempotencyKey?: string,
   ) {
-    if (!Number.isInteger(amountInPaise) || amountInPaise < MIN_WALLET_TOPUP_PAISE) {
-      throw AppError.badRequest(`Minimum top-up amount is ₹${MIN_WALLET_TOPUP_PAISE / 100} (${MIN_WALLET_TOPUP_PAISE} paise)`);
-    }
-
-    if (amountInPaise > MAX_WALLET_TOPUP_PAISE) {
-      throw AppError.badRequest(`Top-up amount exceeds maximum allowed (₹${(MAX_WALLET_TOPUP_PAISE / 100).toLocaleString("en-IN")} per transaction)`);
+    if (!Number.isInteger(amountInPaise)) {
+      throw AppError.badRequest("Top-up amount in paise must be an integer");
     }
 
     // L9 FIX: Blocked/suspended users must not be able to top up.
@@ -47,9 +44,6 @@ export class PaymentService {
       where: { id: userId },
       select: { status: true },
     });
-    if (!user || ["SUSPENDED", "BANNED", "FLAGGED", "DELETED"].includes(user.status || "")) {
-      throw AppError.forbidden("Your account is not eligible for wallet top-up");
-    }
 
     const wallet = await prisma.wallet.upsert({
       where: { userId },
@@ -57,8 +51,19 @@ export class PaymentService {
       update: {},
     });
 
-    if (wallet.isFrozen) {
-      throw AppError.badRequest("WALLET_FROZEN: Your wallet is currently frozen or locked");
+    const eligibility = checkWalletTopUpEligibility(
+      amountInPaise / 100,
+      wallet,
+      user?.status
+    );
+    if (!eligibility.allowed) {
+      if (eligibility.reason?.includes("frozen")) {
+        throw AppError.badRequest("WALLET_FROZEN: Your wallet is currently frozen or locked");
+      }
+      if (eligibility.reason?.includes("restricted")) {
+        throw AppError.forbidden(eligibility.reason);
+      }
+      throw AppError.badRequest(eligibility.reason || "Invalid top-up request");
     }
 
     const receipt = `wallet_${userId}_${Date.now()}`;

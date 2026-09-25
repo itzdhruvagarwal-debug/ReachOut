@@ -289,6 +289,35 @@ To prevent code drift and ensure predictable development across all modules:
   - ARIA compliance (`role="dialog"`, `aria-modal="true"`)
 - Mobile slide-up sheets extend this pattern via `@/components/discovery/FilterBottomSheet`.
 
+### 6.6 Action-Button Rule (Premature-Exposure Prevention & UX Integrity)
+**Core Mandate:** *Har naya state-changing button banate waqt, uska backend-rejection-condition pehle dhundo aur frontend-disabled-state me wire karo pehle hi — backend-error-response pe depend mat karo.*
+
+#### The Anti-Pattern to Eliminate ("Premature Exposure"):
+Leaving an action button enabled, letting the user fill forms or click with expectation of success, only to receive a toast or 400/403 `AppError` rejection from the backend (e.g., *"Wallet balance insufficient"*, *"Tax compliance required"*, *"Active dispute open"*, *"Product sample not received"*).
+
+#### The 4-Pillar UX Standard:
+1. **Never Completely Hide Feature Buttons**:
+   - Do **NOT** hide action buttons just because prerequisites fail. If a feature exists (e.g. "Apply to Campaign", "Release Escrow Payment", "Cancel Deal", "Confirm Dispatch"), the user needs to know it exists.
+   - *Only exception:* Genuinely inapplicable user actions (e.g., "Message Yourself" on your own profile).
+2. **Disabled State When Prerequisites Fail**:
+   - The button must be disabled: `disabled={isSubmitting || !eligibility.allowed}`.
+3. **Inline Specific Reason ("Why")**:
+   - Provide an immediate, contextual badge, tooltip, or inline message explaining the exact reason:
+     - *"Wallet balance insufficient — need ₹X more"*
+     - *"PAN tax compliance is required before withdrawals"*
+     - *"Physical product must be marked as received before submitting content"*
+     - *"Creator authenticity score (32/100) is below platform threshold of 40"*
+4. **Direct Actionable Fix-It CTA**:
+   - When a blocker can be resolved by the user, provide an instant link or action trigger:
+     - `"Add Funds"` / `"Deposit ₹X"` → `/dashboard/wallet?topup=true`
+     - `"Complete KYC"` → `/dashboard/settings?tab=verification`
+     - `"View Dispute"` → `/dashboard/disputes`
+     - `"Confirm Delivery"` → Product Logistics section
+
+#### Single-Implementation Rule (`src/lib/action-eligibility.ts`):
+- All business rejection conditions must be authored in a **shared predicate function** inside `@/lib/action-eligibility.ts`.
+- Both the backend API handler/service and the frontend React component must import and use this exact same predicate. Never duplicate eligibility logic across layers.
+
 ---
 
 ## 7. Definition of Done Checklist for New Features
@@ -302,6 +331,7 @@ When writing new code or modifying existing code, verify against this checklist:
 5. [ ] **Import Aliasing**: Are all imports utilizing `@/...` rather than deep `../../` relative paths?
 6. [ ] **Formatting Utilities**: Does all currency and date rendering use `formatCurrency` and `formatDate` from `@/lib/utils-client`?
 7. [ ] **Loading States**: Are skeleton shimmer loaders (`<Skeleton>`) used for asynchronous data fetching instead of raw full-page spinners?
-8. [ ] **Type Integrity**: Does `npm run typecheck` pass with 0 diagnostics?
-9. [ ] **Test Coverage**: Does `npm test` execute and pass 100% of the test suite?
+8. [ ] **Action-Button Eligibility Gating**: Does every state-changing / API-triggering button pre-check backend rejection conditions using shared predicates from `src/lib/action-eligibility.ts`? Is it disabled with an inline "why" explanation and actionable fix-it CTA rather than blindly depending on backend runtime rejections?
+9. [ ] **Type Integrity**: Does `npm run typecheck` pass with 0 diagnostics?
+10. [ ] **Test Coverage**: Does `npm test` execute and pass 100% of the test suite?
 

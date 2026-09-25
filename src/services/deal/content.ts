@@ -12,31 +12,23 @@ import { logger } from "@/lib/logger";
 import { DealWithRelations, invalidateDealCache, lockAndFetchDealForAction } from "./helpers";
 import { transitionDealState } from "@/lib/deal-state-machine";
 
+import { checkContentSubmissionEligibility, checkRevisionRequestEligibility } from "@/lib/action-eligibility";
+
 function validateSubmissionEligibility(
   deal: Awaited<ReturnType<typeof lockAndFetchDealForAction>>,
   userId: string,
   dealId: string,
 ) {
-  if (deal.influencer.userId !== userId) {
-    logger.warn("Unauthorized content submission attempt", {
-      userId,
-      dealId,
-    });
-    throw AppError.forbidden("Unauthorized");
-  }
-
-  // PAYMENT GUARD: Only allow submission when brand's payment is secured
-  // in escrow (PAYMENT_HELD), when a revision was requested, or when deal is ACTIVE with reservedFromWallet.
-  if (!["PAYMENT_HELD", "REVISION_REQUESTED"].includes(deal.status) && !(deal.status === "ACTIVE" && deal.reservedFromWallet)) {
-    throw AppError.badRequest("Payment must be secured before content submission");
-  }
-
-  if (
-    deal.requiresProduct &&
-    deal.productFulfillmentStatus !== "RECEIVED" &&
-    deal.status !== "REVISION_REQUESTED"
-  ) {
-    throw AppError.badRequest("Product must be received before content submission");
+  const result = checkContentSubmissionEligibility(deal, userId);
+  if (!result.allowed) {
+    if (result.reasonCode === "UNAUTHORIZED") {
+      logger.warn("Unauthorized content submission attempt", {
+        userId,
+        dealId,
+      });
+      throw AppError.forbidden(result.reason || "Unauthorized");
+    }
+    throw AppError.badRequest(result.reason || "Content submission is not permitted.");
   }
 }
 
@@ -258,27 +250,30 @@ userId: string,
 dealId: string
 ) {
 const contract = deal.contractTerms as unknown as ContractTerms;
-const limitCheck = checkRevisionLimit(
-{ revisionsUsed: deal.revisionsUsed, maxRevisions: deal.maxRevisions },
-contract
-);
 
-if (!limitCheck.allowed) {
-throw AppError.badRequest(limitCheck.message || "Maximum revisions reached");
-}
-  if (limitCheck.cost > 0) {
-    await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
-    const brandWallet = await tx.wallet.findUnique({
-      where: { userId },
-      select: { id: true, balance: true },
-    });
+  await tx.$queryRaw`SELECT id FROM "Wallet" WHERE "userId" = ${userId} FOR UPDATE`;
+  const brandWallet = await tx.wallet.findUnique({
+    where: { userId },
+    select: { id: true, balance: true, isFrozen: true },
+  });
+
+  const eligibility = checkRevisionRequestEligibility(
+    deal,
+    brandWallet?.balance,
+    brandWallet?.isFrozen
+  );
+  if (!eligibility.allowed) {
+    throw AppError.badRequest(eligibility.reason || "Maximum revisions reached");
+  }
+
+  if (eligibility.costPaise > 0) {
     if (!brandWallet) {
       throw AppError.notFound("Brand wallet not found");
     }
-    assertSufficientBalance(brandWallet, limitCheck.cost);
+    assertSufficientBalance(brandWallet, eligibility.costPaise);
     const debitResult = await tx.wallet.updateMany({
-      where: { id: brandWallet.id, balance: { gte: limitCheck.cost }, isFrozen: false },
-      data: { balance: { decrement: limitCheck.cost } },
+      where: { id: brandWallet.id, balance: { gte: eligibility.costPaise }, isFrozen: false },
+      data: { balance: { decrement: eligibility.costPaise } },
     });
     if (debitResult.count === 0) {
       throw AppError.badRequest("Insufficient wallet balance or wallet is frozen for revision charge.");
@@ -288,7 +283,7 @@ data: {
 walletId: brandWallet.id,
 dealId,
 type: "DEBIT",
-amount: limitCheck.cost,
+amount: eligibility.costPaise,
 status: "COMPLETED",
 description: `Extra revision fee for deal: ${dealId} (revision #${deal.revisionsUsed + 1})`,
 metadata: {
@@ -302,14 +297,14 @@ costPerExtraRevision: contract.costPerExtraRevision,
 const treasuryWallet = await ensurePlatformTreasury(tx);
 await tx.wallet.update({
 where: { id: treasuryWallet.id },
-data: { balance: { increment: limitCheck.cost } },
+data: { balance: { increment: eligibility.costPaise } },
 });
 await tx.transaction.create({
 data: {
 walletId: treasuryWallet.id,
 dealId,
 type: "CREDIT",
-amount: limitCheck.cost,
+amount: eligibility.costPaise,
 status: "COMPLETED",
 description: `Extra revision fee platform revenue for deal: ${dealId}`,
 metadata: {

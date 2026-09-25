@@ -12,6 +12,7 @@ import { logger } from "@/lib/logger";
 import { getDealAndVerifyParticipant } from "@/lib/utils";
 import { NotificationService } from "@/services/notification.service";
 import { transitionDealState, DealActorRole } from "@/lib/deal-state-machine";
+import { checkDisputeEligibility } from "@/lib/action-eligibility";
 
 export class DisputeService {
 static async listDisputes(
@@ -70,21 +71,15 @@ description: string;
 if (data.description && checkMessageForContacts(data.description).hasContactInfo) {
 throw AppError.badRequest("Contact details (phone, email, links, social handles, or UPI) are not allowed in dispute descriptions.");
 }
-// Verify user is part of deal
+// Verify user is part of deal and check eligibility via shared Single-Implementation predicate
 const deal = await getDealAndVerifyParticipant(data.dealId, userId);
 
-const allowedDealStatuses = [
-"PAYMENT_HELD",
-"CONTENT_SUBMITTED",
-"REVISION_REQUESTED",
-"CONTENT_APPROVED",
-"POSTED",
-"VERIFICATION_PENDING",
-"VERIFIED",
-"DISPUTED",
-];
-if (!allowedDealStatuses.includes(deal.status)) {
-throw AppError.badRequest("Cannot raise dispute on a completed or cancelled deal");
+const preCheck = checkDisputeEligibility(deal, userId, {
+  influencerUserId: deal.influencer?.userId,
+  brandUserId: deal.brand?.userId,
+});
+if (!preCheck.allowed) {
+  throw AppError.badRequest(preCheck.reason || "Cannot raise dispute on this deal");
 }
 
     // Create dispute - starts at Tier 1 (Auto) with a lock on the deal
@@ -93,8 +88,8 @@ throw AppError.badRequest("Cannot raise dispute on a completed or cancelled deal
       const [lockedDeal] = await tx.$queryRaw<Array<{ id: string; status: DealStatus }>>`
         SELECT id, status FROM "Deal" WHERE id = ${data.dealId} FOR UPDATE
       `;
-      if (!lockedDeal || !allowedDealStatuses.includes(lockedDeal.status)) {
-        throw AppError.badRequest("Cannot raise dispute on a completed or cancelled deal");
+      if (!lockedDeal) {
+        throw AppError.notFound("Deal not found");
       }
 
       // 2. Check for existing open dispute inside the locked transaction
@@ -105,8 +100,12 @@ throw AppError.badRequest("Cannot raise dispute on a completed or cancelled deal
         },
       });
 
-      if (existingDispute) {
-        throw AppError.badRequest("An open dispute already exists for this deal");
+      const txCheck = checkDisputeEligibility({
+        status: lockedDeal.status,
+        hasActiveDispute: Boolean(existingDispute),
+      });
+      if (!txCheck.allowed) {
+        throw AppError.badRequest(txCheck.reason || "Cannot raise dispute on this deal");
       }
 
       const newDispute = await tx.dispute.create({
