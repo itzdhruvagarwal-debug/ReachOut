@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
 import DashboardShell from "@/components/dashboard/DashboardShell";
 import { InfluencerProfileClient, InfluencerProfileData } from "@/components/profile";
+import { MessageService } from "@/services/message.service";
 
 export const dynamic = "force-dynamic";
 
@@ -180,6 +181,10 @@ export default async function InfluencerProfilePage({
   };
 
   const isOwnProfile = session?.user?.id === influencer.userId;
+  let canMessage = false;
+  if (session?.user?.id && influencer.userId && !isOwnProfile) {
+    canMessage = await MessageService.canMessageUser(session.user.id, influencer.userId);
+  }
 
   return (
     <DashboardShell user={session?.user}>
@@ -187,6 +192,7 @@ export default async function InfluencerProfilePage({
         profile={formattedProfile}
         viewerRole={session?.user?.userType}
         isOwnProfile={isOwnProfile}
+        canMessage={canMessage}
       />
     </DashboardShell>
   );

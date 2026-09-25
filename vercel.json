@@ -43,6 +43,9 @@
     },
     "src/app/api/cron/stale-fulfillment/route.ts": {
       "maxDuration": 60
+    },
+    "src/app/api/cron/expire-campaigns/route.ts": {
+      "maxDuration": 60
     }
   }
 }

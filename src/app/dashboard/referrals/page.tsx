@@ -409,7 +409,7 @@ export default function ReferralsPage() {
                     href={`https://wa.me/?text=${encodeURIComponent(`Join me on VyaparMedia — India's top brand-influencer deal platform! Use my invite code ${stats.referralCode} to claim benefits: ${referralLink}`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-verified text-white hover:bg-verified/90 transition-colors shrink-0 shadow-xs"
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-bold bg-verified text-white hover:bg-verified/90 transition-colors shrink-0 shadow-xs"
                   >
                     <span>💬</span>
                     <span>Invite via WhatsApp</span>

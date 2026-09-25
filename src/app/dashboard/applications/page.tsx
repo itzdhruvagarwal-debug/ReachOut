@@ -636,7 +636,7 @@ export default function ApplicationsPage() {
                   <div className="pt-2 border-t border-border flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
                     <Link
                       href={`/dashboard/campaigns/${app.campaign.id}`}
-                      className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 py-1.5 px-2 rounded-lg hover:bg-muted transition-colors"
+                      className="text-xs font-semibold text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 py-2.5 px-3 min-h-[44px] rounded-lg hover:bg-muted transition-colors"
                     >
                       <FileText className="w-3.5 h-3.5" />
                       View Campaign Brief

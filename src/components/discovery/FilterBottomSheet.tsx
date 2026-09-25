@@ -130,7 +130,7 @@ export default function FilterBottomSheet({
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
           aria-label="Close filters"
         >
           <X className="w-5 h-5" />
@@ -157,7 +157,7 @@ export default function FilterBottomSheet({
                         key={opt.id}
                         type="button"
                         onClick={() => handleSortSelect(opt.id as DiscoveryFilters["sortBy"])}
-                        className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all text-left ${
+                        className={`py-2.5 px-3 min-h-[44px] flex items-center rounded-xl text-xs font-semibold border transition-all text-left ${
                           isSelected
                             ? "bg-primary text-primary-foreground border-primary shadow-xs"
                             : "bg-muted/60 text-foreground border-border/80 hover:bg-muted"

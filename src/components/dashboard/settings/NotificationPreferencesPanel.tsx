@@ -255,19 +255,20 @@ export default function NotificationPreferencesPanel({
 
       {/* Granular Matrix Table */}
       <div className="bg-card border border-border/80 rounded-2xl shadow-sm overflow-hidden">
-        <div className="grid grid-cols-12 bg-muted/40 border-b border-border/80 p-3.5 text-xs font-bold text-muted-foreground">
-          <div className="col-span-12 sm:col-span-6 uppercase tracking-wider text-[11px]">
+        {/* Header Row (Desktop/Tablet) */}
+        <div className="hidden sm:grid sm:grid-cols-12 bg-muted/40 border-b border-border/80 p-3.5 text-xs font-bold text-muted-foreground">
+          <div className="col-span-6 uppercase tracking-wider text-[11px]">
             Event Category
           </div>
-          <div className="hidden sm:flex col-span-2 items-center justify-center gap-1">
+          <div className="flex col-span-2 items-center justify-center gap-1">
             <Smartphone className="w-3.5 h-3.5 text-primary" />
             <span>Push</span>
           </div>
-          <div className="hidden sm:flex col-span-2 items-center justify-center gap-1">
+          <div className="flex col-span-2 items-center justify-center gap-1">
             <Mail className="w-3.5 h-3.5 text-indigo-500" />
             <span>Email</span>
           </div>
-          <div className="hidden sm:flex col-span-2 items-center justify-center gap-1">
+          <div className="flex col-span-2 items-center justify-center gap-1">
             <Send className="w-3.5 h-3.5 text-purple-500" />
             <span>In-App</span>
           </div>
@@ -281,10 +282,10 @@ export default function NotificationPreferencesPanel({
             return (
               <div
                 key={cat.id}
-                className="grid grid-cols-12 items-center p-4 gap-4 hover:bg-muted/20 transition-colors"
+                className="flex flex-col sm:grid sm:grid-cols-12 items-start sm:items-center p-4 gap-4 hover:bg-muted/20 transition-colors"
               >
                 {/* Category Info */}
-                <div className="col-span-12 sm:col-span-6 flex items-start gap-3">
+                <div className="w-full sm:col-span-6 flex items-start gap-3">
                   <div className="w-9 h-9 rounded-xl bg-muted/60 border border-border/80 flex items-center justify-center shrink-0 text-foreground/80 mt-0.5">
                     <Icon className="w-4 h-4" />
                   </div>
@@ -304,7 +305,7 @@ export default function NotificationPreferencesPanel({
                 </div>
 
                 {/* Mobile Channel Toggles Row */}
-                <div className="col-span-12 sm:hidden flex items-center justify-between pt-2 border-t border-border/40">
+                <div className="w-full sm:hidden flex items-center justify-between pt-3 border-t border-border/40 gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5 text-xs font-medium">
                     <Smartphone className="w-3.5 h-3.5 text-primary" />
                     <span>Push</span>
@@ -406,16 +407,20 @@ function ToggleSwitch({
       aria-checked={checked}
       aria-label={ariaLabel}
       onClick={onChange}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-        checked ? "bg-primary" : "bg-muted-foreground/30"
-      }`}
+      className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
     >
       <span
-        aria-hidden="true"
-        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-sm ring-0 transition duration-200 ease-in-out ${
-          checked ? "translate-x-4" : "translate-x-0"
+        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+          checked ? "bg-primary" : "bg-muted-foreground/30"
         }`}
-      />
+      >
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-background shadow-sm ring-0 transition duration-200 ease-in-out ${
+            checked ? "translate-x-4" : "translate-x-0"
+          }`}
+        />
+      </span>
     </button>
   );
 }

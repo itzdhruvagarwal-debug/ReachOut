@@ -211,7 +211,7 @@ function TransactionReceiptModal({ transaction, isOpen, onClose }: Readonly<Rece
               <button
                 type="button"
                 onClick={handleCopyId}
-                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 title="Copy Transaction ID"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-verified" /> : <Copy className="w-3.5 h-3.5" />}

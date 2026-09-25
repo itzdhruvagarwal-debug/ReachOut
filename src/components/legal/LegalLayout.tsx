@@ -86,7 +86,7 @@ export function LegalLayout({ title, lastUpdated, description, sections, childre
                         <a
                           key={s.id}
                           href={`#${s.id}`}
-                          className="text-xs text-muted-foreground hover:text-primary transition-colors block py-1 line-clamp-1"
+                          className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center py-2 min-h-[44px] line-clamp-1"
                         >
                           {s.heading}
                         </a>
@@ -100,12 +100,12 @@ export function LegalLayout({ title, lastUpdated, description, sections, childre
                   <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
                     All Legal Policies
                   </p>
-                  <ul className="space-y-1.5">
+                  <ul className="space-y-1">
                     {LEGAL_DOCUMENTS.map((doc) => (
                       <li key={doc.href}>
                         <Link
                           href={doc.href}
-                          className={`text-xs block py-1 transition-colors flex items-center justify-between ${
+                          className={`text-xs py-2 min-h-[44px] transition-colors flex items-center justify-between ${
                             doc.title === title
                               ? "text-primary font-bold"
                               : "text-muted-foreground hover:text-foreground"
@@ -132,7 +132,7 @@ export function LegalLayout({ title, lastUpdated, description, sections, childre
                   </p>
                   <a
                     href="mailto:legal@vyaparmedia.in"
-                    className="inline-flex items-center gap-1 font-bold text-primary hover:underline"
+                    className="inline-flex items-center gap-1 min-h-[44px] font-bold text-primary hover:underline"
                   >
                     legal@vyaparmedia.in <ArrowRight className="w-3 h-3" />
                   </a>

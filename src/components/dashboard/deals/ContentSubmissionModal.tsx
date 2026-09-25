@@ -696,7 +696,7 @@ export function ContentSubmissionModal({
                                   href={item.previewUrl || item.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg bg-secondary hover:bg-secondary/80 text-foreground flex items-center gap-1"
+                                  className="text-xs font-semibold px-3.5 py-2.5 min-h-[44px] rounded-xl bg-secondary hover:bg-secondary/80 text-foreground inline-flex items-center justify-center gap-1.5"
                                 >
                                   <Eye className="w-3.5 h-3.5" /> Preview
                                 </a>
@@ -706,7 +706,7 @@ export function ContentSubmissionModal({
                                     setActiveUploadType(item.type);
                                     fileInputRef.current?.click();
                                   }}
-                                  className="text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-border hover:bg-secondary text-secondary hover:text-foreground"
+                                  className="text-xs font-semibold px-3.5 py-2.5 min-h-[44px] rounded-xl border border-border hover:bg-secondary text-secondary hover:text-foreground inline-flex items-center justify-center"
                                 >
                                   Replace
                                 </button>

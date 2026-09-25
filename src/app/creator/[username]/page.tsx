@@ -6,6 +6,7 @@ import { getPublicCreatorProfile } from "@/lib/creator-profile";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { InfluencerProfileClient } from "@/components/profile";
+import { MessageService } from "@/services/message.service";
 import { ShieldCheck, ArrowRight } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,11 @@ export default async function PublicCreatorProfilePage({
   const viewerRole = session?.user?.userType || null;
   const isAuthenticated = Boolean(session?.user);
 
+  let canMessage = false;
+  if (session?.user?.id && profile.userId && !isOwnProfile) {
+    canMessage = await MessageService.canMessageUser(session.user.id, profile.userId);
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       {/* Public Navigation Bar */}
@@ -112,6 +118,7 @@ export default async function PublicCreatorProfilePage({
           profile={profile}
           viewerRole={viewerRole}
           isOwnProfile={isOwnProfile}
+          canMessage={canMessage}
         />
       </main>
 

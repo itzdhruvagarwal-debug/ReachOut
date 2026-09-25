@@ -262,10 +262,10 @@ function FileMessageBubble({ msg }: { msg: Message }) {
             href={msg.fileUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-xs opacity-0 group-hover:opacity-100 transition-opacity"
             aria-label={`Open ${fileName}`}
           >
-            <Download className="w-6 h-6 text-white" />
+            <Download className="w-6 h-6 text-foreground" />
           </a>
         </div>
       )}

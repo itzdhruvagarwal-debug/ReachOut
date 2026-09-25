@@ -73,28 +73,28 @@ export default function NotFound() {
             <div className="flex flex-wrap items-center justify-center gap-2 text-xs font-semibold">
               <Link
                 href="/dashboard"
-                className="px-3 py-1.5 rounded-full bg-muted text-foreground border border-border hover:border-primary/50 transition-colors flex items-center gap-1"
+                className="px-3.5 py-2.5 min-h-[44px] rounded-full bg-muted text-foreground border border-border hover:border-primary/50 transition-colors inline-flex items-center gap-1.5"
               >
                 <span>Dashboard</span>
                 <ArrowRight className="w-3 h-3 text-muted-foreground" />
               </Link>
               <Link
                 href="/dashboard/influencers"
-                className="px-3 py-1.5 rounded-full bg-muted text-foreground border border-border hover:border-primary/50 transition-colors flex items-center gap-1"
+                className="px-3.5 py-2.5 min-h-[44px] rounded-full bg-muted text-foreground border border-border hover:border-primary/50 transition-colors inline-flex items-center gap-1.5"
               >
                 <span>Discover Creators</span>
                 <ArrowRight className="w-3 h-3 text-muted-foreground" />
               </Link>
               <Link
                 href="/dashboard/campaigns"
-                className="px-3 py-1.5 rounded-full bg-muted text-foreground border border-border hover:border-primary/50 transition-colors flex items-center gap-1"
+                className="px-3.5 py-2.5 min-h-[44px] rounded-full bg-muted text-foreground border border-border hover:border-primary/50 transition-colors inline-flex items-center gap-1.5"
               >
                 <span>Live Campaigns</span>
                 <ArrowRight className="w-3 h-3 text-muted-foreground" />
               </Link>
               <Link
                 href="/help"
-                className="px-3 py-1.5 rounded-full bg-muted text-foreground border border-border hover:border-primary/50 transition-colors flex items-center gap-1"
+                className="px-3.5 py-2.5 min-h-[44px] rounded-full bg-muted text-foreground border border-border hover:border-primary/50 transition-colors inline-flex items-center gap-1.5"
               >
                 <span>Escrow Guidelines</span>
                 <ArrowRight className="w-3 h-3 text-muted-foreground" />

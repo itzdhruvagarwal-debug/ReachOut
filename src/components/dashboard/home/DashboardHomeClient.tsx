@@ -106,7 +106,7 @@ export default function DashboardHomeClient({
               {isInfluencer && (
                 <Link
                   href="/dashboard/wallet"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border shadow-xs hover:border-primary/50 transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 min-h-[44px] rounded-xl bg-card border border-border shadow-xs hover:border-primary/50 transition-colors"
                 >
                   <Wallet className="w-3.5 h-3.5 text-primary" />
                   <span className="text-[11px] text-muted-foreground font-medium">Available:</span>
@@ -118,7 +118,7 @@ export default function DashboardHomeClient({
               {isBrand && (
                 <Link
                   href="/dashboard/deals"
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border shadow-xs hover:border-primary/50 transition-colors"
+                  className="flex items-center gap-1.5 px-3.5 py-2.5 min-h-[44px] rounded-xl bg-card border border-border shadow-xs hover:border-primary/50 transition-colors"
                 >
                   <Layers className="w-3.5 h-3.5 text-primary" />
                   <span className="text-[11px] text-muted-foreground font-medium">Active:</span>
@@ -129,7 +129,7 @@ export default function DashboardHomeClient({
               )}
               <Link
                 href="/dashboard/wallet"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-escrow-muted border border-escrow-border text-escrow shadow-xs hover:bg-escrow/15 transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2.5 min-h-[44px] rounded-xl bg-escrow-muted border border-escrow-border text-escrow shadow-xs hover:bg-escrow/15 transition-colors"
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span className="text-[11px] font-medium">Escrow:</span>

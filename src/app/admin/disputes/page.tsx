@@ -179,7 +179,7 @@ export default async function AdminDisputeListPage({
           <Clock className="w-3.5 h-3.5" />
           Active Disputes
           {!showHistory && (
-            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/20 text-[10px] font-extrabold">
+            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary-foreground/20 text-[10px] font-extrabold">
               {disputes.length}
             </span>
           )}
@@ -195,7 +195,7 @@ export default async function AdminDisputeListPage({
           <CheckCircle2 className="w-3.5 h-3.5" />
           Dispute History
           {showHistory && (
-            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/20 text-[10px] font-extrabold">
+            <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary-foreground/20 text-[10px] font-extrabold">
               {disputes.length}
             </span>
           )}

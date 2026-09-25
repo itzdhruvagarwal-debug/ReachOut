@@ -288,6 +288,15 @@ export async function listCampaigns(
       ...buildTextAndCategoryFilters(params),
     ];
 
+    if (statusFilter === "ACTIVE") {
+      andConditions.push({
+        OR: [
+          { applicationDeadline: null },
+          { applicationDeadline: { gte: new Date() } },
+        ],
+      });
+    }
+
     const budgetFilter = buildBudgetFilter(params);
     if (budgetFilter) {
       where.perInfluencerBudget = budgetFilter;

@@ -158,7 +158,7 @@ export default function CustomInstallBanner() {
             type="button"
             onClick={handleDismiss}
             aria-label="Dismiss install banner"
-            className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shrink-0"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors shrink-0 cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>

@@ -8,11 +8,12 @@
     "postinstall": "prisma generate",
     "start": "node .next/standalone/server.js",
     "lint": "eslint",
+    "lint:theme": "node scripts/verify-theme-consistency.mjs",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "validate": "npm run lint && npm run typecheck && npx prisma validate",
+    "validate": "npm run lint && npm run lint:theme && npm run typecheck && npx prisma validate",
     "deploy:check": "npm run validate && npm run test && npm run build",
     "seed": "npx tsx -r ./scripts/mock-server-only.js scripts/seed-test-accounts.ts"
   },

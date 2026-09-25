@@ -222,10 +222,45 @@ async function validateDealAccess(userId: string, receiverId: string, dealId?: s
 }
 
 export class MessageService {
-static async listMessages(
-userId: string,
-params: { dealId?: string; with?: string; page: number; limit: number },
-) {
+  static async canMessageUser(userId: string, targetUserId: string): Promise<boolean> {
+    if (!userId || !targetUserId || userId === targetUserId) return false;
+    const { isAdmin: senderIsAdmin } = await getUserRole(userId);
+    if (senderIsAdmin) return true;
+
+    const [activeDeal, activeApplication] = await Promise.all([
+      prisma.deal.findFirst({
+        where: {
+          OR: [
+            { influencer: { userId }, brand: { userId: targetUserId } },
+            { brand: { userId }, influencer: { userId: targetUserId } },
+          ],
+          status: {
+            in: ACTIVE_DEAL_STATUSES as DealStatus[],
+          },
+          deletedAt: null,
+        },
+        select: { id: true },
+      }),
+      prisma.application.findFirst({
+        where: {
+          OR: [
+            { influencer: { userId }, campaign: { brand: { userId: targetUserId } } },
+            { campaign: { brand: { userId } }, influencer: { userId: targetUserId } },
+          ],
+          status: { in: ["PENDING", "SHORTLISTED", "SELECTED"] },
+          deletedAt: null,
+        },
+        select: { id: true },
+      }),
+    ]);
+
+    return Boolean(activeDeal || activeApplication);
+  }
+
+  static async listMessages(
+    userId: string,
+    params: { dealId?: string; with?: string; page: number; limit: number },
+  ) {
 const access = await getConversationAccess(userId, params);
 
 let whereClause: Prisma.MessageWhereInput;

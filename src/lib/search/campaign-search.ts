@@ -87,6 +87,10 @@ export async function searchCampaigns(
     values.push(status);
     whereClauses.push(`c.status = $${paramIdx}::"CampaignStatus"`);
     paramIdx++;
+
+    if (status === "ACTIVE") {
+      whereClauses.push('(c."applicationDeadline" IS NULL OR c."applicationDeadline" >= NOW())');
+    }
   }
 
   // Full-Text Search and Trigram Fuzzy Matching

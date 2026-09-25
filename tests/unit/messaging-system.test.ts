@@ -134,4 +134,21 @@ describe("Messaging System & Business Safety Layer", () => {
       expect(sentMsg.status).toBe("sent");
     });
   });
+
+  describe("Requirement 7: Profile Send Message Access Conditioning", () => {
+    it("should disallow messaging when sender is messaging self", async () => {
+      const { MessageService } = await import("@/services/message.service");
+      const result = await MessageService.canMessageUser("usr_same", "usr_same");
+      expect(result).toBe(false);
+    });
+
+    it("should disallow messaging when user IDs are empty", async () => {
+      const { MessageService } = await import("@/services/message.service");
+      const result1 = await MessageService.canMessageUser("", "usr_target");
+      const result2 = await MessageService.canMessageUser("usr_sender", "");
+      expect(result1).toBe(false);
+      expect(result2).toBe(false);
+    });
+  });
 });
+

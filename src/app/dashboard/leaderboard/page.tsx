@@ -179,7 +179,7 @@ export default function LeaderboardPage() {
                 onClick={() => setFilter("weekly")}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1 ${
                   filter === "weekly"
-                    ? "bg-amber-500 text-white shadow-xs"
+                    ? "bg-amber-500 text-primary-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
@@ -250,7 +250,7 @@ export default function LeaderboardPage() {
 
               <Link
                 href={`/dashboard/influencers/${weeklyChampion.id}`}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-xs inline-flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-primary-foreground hover:bg-amber-600 transition-colors shadow-xs inline-flex items-center gap-1.5"
               >
                 View Profile
                 <ChevronRight className="w-4 h-4" />
@@ -283,7 +283,7 @@ export default function LeaderboardPage() {
                   className="flex flex-col items-center text-center space-y-2 order-1"
                 >
                   <div className="relative">
-                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-slate-300 dark:border-slate-500 overflow-hidden relative shadow-sm">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-border overflow-hidden relative shadow-sm">
                       {second.avatar ? (
                         <Image
                           src={second.avatar}
@@ -298,7 +298,7 @@ export default function LeaderboardPage() {
                         </div>
                       )}
                     </div>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-slate-300 dark:bg-slate-600 text-slate-800 dark:text-slate-100 flex items-center justify-center font-black text-xs shadow-xs">
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-muted text-foreground border border-border flex items-center justify-center font-black text-xs shadow-xs">
                       2
                     </div>
                   </div>
@@ -313,8 +313,8 @@ export default function LeaderboardPage() {
                   </div>
 
                   {/* Silver Pedestal */}
-                  <div className="w-full h-24 sm:h-28 rounded-t-2xl bg-muted/60 border-t-2 border-x-2 border-slate-300 dark:border-slate-600 flex flex-col items-center justify-center p-2">
-                    <Medal className="w-6 h-6 text-slate-400 mb-1" />
+                  <div className="w-full h-24 sm:h-28 rounded-t-2xl bg-muted/60 border-t-2 border-x-2 border-border flex flex-col items-center justify-center p-2">
+                    <Medal className="w-6 h-6 text-muted-foreground mb-1" />
                     <span className="text-2xs font-extrabold text-muted-foreground uppercase">
                       Silver
                     </span>
@@ -345,7 +345,7 @@ export default function LeaderboardPage() {
                         </div>
                       )}
                     </div>
-                    <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-amber-500 text-white flex items-center justify-center font-black text-sm shadow-xs">
+                    <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-7 h-7 rounded-full bg-amber-500 text-primary-foreground flex items-center justify-center font-black text-sm shadow-xs">
                       1
                     </div>
                   </div>
@@ -391,7 +391,7 @@ export default function LeaderboardPage() {
                         </div>
                       )}
                     </div>
-                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-amber-700 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-amber-700 text-primary-foreground flex items-center justify-center font-black text-xs shadow-xs">
                       3
                     </div>
                   </div>
@@ -426,11 +426,11 @@ export default function LeaderboardPage() {
 
         {/* Leaderboard Table / Cards */}
         <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-xs">
-          {/* Header Row */}
-          <div className="grid grid-cols-12 gap-4 px-6 py-3.5 bg-muted/40 border-b border-border text-2xs font-bold text-muted-foreground uppercase tracking-wider">
+          {/* Header Row (Desktop/Tablet) */}
+          <div className="hidden sm:grid sm:grid-cols-12 gap-4 px-6 py-3.5 bg-muted/40 border-b border-border text-2xs font-bold text-muted-foreground uppercase tracking-wider">
             <div className="col-span-1 text-center">Rank</div>
-            <div className="col-span-6 sm:col-span-7">Member & Profile</div>
-            <div className="col-span-3 sm:col-span-2 text-right">{scoreLabel}</div>
+            <div className="col-span-7">Member & Profile</div>
+            <div className="col-span-2 text-right">{scoreLabel}</div>
             <div className="col-span-2 text-right">Badge Level</div>
           </div>
 
@@ -471,94 +471,100 @@ export default function LeaderboardPage() {
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.02 }}
-                      className={`grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-muted/40 transition-colors ${
+                      className={`flex items-center justify-between gap-3 px-4 py-3 sm:grid sm:grid-cols-12 sm:gap-4 sm:px-6 sm:py-4 hover:bg-muted/40 transition-colors ${
                         isTop3 ? "bg-muted/10 font-semibold" : ""
                       }`}
                     >
-                      {/* Rank Indicator */}
-                      <div className="col-span-1 text-center">
-                        <span
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${
-                            rankNumber === 1
-                              ? "bg-amber-500 text-white shadow-xs"
-                              : rankNumber === 2
-                              ? "bg-slate-300 dark:bg-slate-600 text-slate-800 dark:text-slate-100"
-                              : rankNumber === 3
-                              ? "bg-amber-700 text-white"
-                              : "text-muted-foreground font-semibold"
-                          }`}
-                        >
-                          {rankNumber}
-                        </span>
-                      </div>
-
-                      {/* User Info */}
-                      <div className="col-span-6 sm:col-span-7 flex items-center gap-3.5 min-w-0">
-                        <div className="w-10 h-10 rounded-full bg-muted border border-border flex items-center justify-center font-bold text-xs text-foreground overflow-hidden relative flex-shrink-0">
-                          {user.avatar ? (
-                            <Image
-                              src={user.avatar}
-                              alt={user.name}
-                              fill
-                              unoptimized
-                              className="object-cover"
-                            />
-                          ) : (
-                            user.name?.slice(0, 2).toUpperCase() || "?"
-                          )}
+                      {/* Left: Rank & User Info */}
+                      <div className="flex items-center gap-3 sm:contents min-w-0 flex-1">
+                        {/* Rank Indicator */}
+                        <div className="sm:col-span-1 text-center shrink-0">
+                          <span
+                            className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${
+                              rankNumber === 1
+                                ? "bg-amber-500 text-primary-foreground shadow-xs"
+                                : rankNumber === 2
+                                ? "bg-muted text-foreground border border-border"
+                                : rankNumber === 3
+                                ? "bg-amber-700 text-primary-foreground"
+                                : "text-muted-foreground font-semibold"
+                            }`}
+                          >
+                            {rankNumber}
+                          </span>
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-sm text-foreground truncate">
-                              {user.name || "Anonymous Member"}
-                            </span>
-                            {user.isWeeklyChampion && (
-                              <span className="inline-flex items-center gap-1 text-2xs font-extrabold uppercase px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                                <Flame className="w-2.5 h-2.5 fill-current" />
-                                Hot
-                              </span>
+                        {/* User Info */}
+                        <div className="sm:col-span-7 flex items-center gap-3 min-w-0 flex-1">
+                          <div className="w-10 h-10 rounded-full bg-muted border border-border flex items-center justify-center font-bold text-xs text-foreground overflow-hidden relative shrink-0">
+                            {user.avatar ? (
+                              <Image
+                                src={user.avatar}
+                                alt={user.name}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                              />
+                            ) : (
+                              user.name?.slice(0, 2).toUpperCase() || "?"
                             )}
-                            {user.trustScore ? (
-                              <span className="hidden sm:inline-flex items-center gap-1 text-2xs font-bold text-verified">
-                                <ShieldCheck className="w-3 h-3" />
-                                {user.trustScore}
-                              </span>
-                            ) : null}
                           </div>
 
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground truncate">
-                            <span>{user.subtitle}</span>
-                            {user.city && (
-                              <>
-                                <span>•</span>
-                                <span className="inline-flex items-center gap-1">
-                                  <MapPin className="w-2.5 h-2.5" />
-                                  {user.city}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs sm:text-sm text-foreground truncate max-w-[140px] sm:max-w-none">
+                                {user.name || "Anonymous Member"}
+                              </span>
+                              {user.isWeeklyChampion && (
+                                <span className="inline-flex items-center gap-1 text-2xs font-extrabold uppercase px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                                  <Flame className="w-2.5 h-2.5 fill-current" />
+                                  Hot
                                 </span>
-                              </>
-                            )}
+                              )}
+                              {user.trustScore ? (
+                                <span className="hidden sm:inline-flex items-center gap-1 text-2xs font-bold text-verified">
+                                  <ShieldCheck className="w-3 h-3" />
+                                  {user.trustScore}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-2xs sm:text-xs text-muted-foreground truncate">
+                              <span className="truncate">{user.subtitle}</span>
+                              {user.city && (
+                                <>
+                                  <span>•</span>
+                                  <span className="inline-flex items-center gap-0.5 shrink-0">
+                                    <MapPin className="w-2.5 h-2.5" />
+                                    {user.city}
+                                  </span>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Score Metric */}
-                      <div className="col-span-3 sm:col-span-2 text-right">
-                        <span className="font-extrabold text-sm text-primary tabular-nums">
-                          {typeof user.score === "number"
-                            ? formatNumber(user.score)
-                            : user.score}
-                        </span>
-                        <span className="text-2xs text-muted-foreground block font-medium">
-                          {scoreLabel}
-                        </span>
-                      </div>
+                      {/* Right: Metrics & Badge */}
+                      <div className="flex items-center gap-3 sm:contents shrink-0">
+                        {/* Score Metric */}
+                        <div className="sm:col-span-2 text-right">
+                          <span className="font-extrabold text-xs sm:text-sm text-primary tabular-nums block">
+                            {typeof user.score === "number"
+                              ? formatNumber(user.score)
+                              : user.score}
+                          </span>
+                          <span className="text-2xs text-muted-foreground block font-medium">
+                            {scoreLabel}
+                          </span>
+                        </div>
 
-                      {/* Level Pill */}
-                      <div className="col-span-2 text-right">
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-xl text-2xs font-bold bg-muted text-foreground border border-border">
-                          Lv.{user.level}
-                        </span>
+                        {/* Level Pill */}
+                        <div className="sm:col-span-2 text-right">
+                          <span className="inline-flex items-center px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl text-2xs font-bold bg-muted text-foreground border border-border">
+                            Lv.{user.level}
+                          </span>
+                        </div>
                       </div>
                     </motion.div>
                   );
@@ -601,7 +607,7 @@ export default function LeaderboardPage() {
 
               <Link
                 href="/dashboard/deals"
-                className="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
+                className="shrink-0 px-3.5 py-2.5 min-h-[44px] inline-flex items-center justify-center rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
               >
                 Climb Rank
               </Link>

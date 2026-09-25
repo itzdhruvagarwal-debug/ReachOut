@@ -30,6 +30,9 @@ jobs:
       - name: Run linter
         run: npm run lint
 
+      - name: Run Theme Token Regression Guard
+        run: npm run lint:theme
+
   typecheck:
     name: TypeScript Strict Typecheck
     runs-on: ubuntu-latest

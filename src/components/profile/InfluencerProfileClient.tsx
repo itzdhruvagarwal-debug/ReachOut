@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,6 +39,7 @@ interface InfluencerProfileClientProps {
   profile: InfluencerProfileData;
   viewerRole?: string | null | undefined;
   isOwnProfile?: boolean | undefined;
+  canMessage?: boolean | undefined;
 }
 
 type TabKey = "portfolio" | "rate-card" | "reviews" | "about";
@@ -88,11 +89,31 @@ export default function InfluencerProfileClient({
   profile,
   viewerRole,
   isOwnProfile = false,
+  canMessage,
 }: Readonly<InfluencerProfileClientProps>) {
   const [activeTab, setActiveTab] = useState<TabKey>("portfolio");
   const [selectedProof, setSelectedProof] = useState<CampaignProofItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState<boolean>(false);
+  const [canMessageState, setCanMessageState] = useState<boolean>(Boolean(canMessage));
+
+  useEffect(() => {
+    if (canMessage !== undefined) {
+      setCanMessageState(canMessage);
+      return;
+    }
+
+    if (profile.userId && !isOwnProfile) {
+      fetch(`/api/messages/can-message?with=${encodeURIComponent(profile.userId)}`)
+        .then((res) => (res.ok ? res.json() : { canMessage: false }))
+        .then((data) => {
+          if (typeof data.canMessage === "boolean") {
+            setCanMessageState(data.canMessage);
+          }
+        })
+        .catch(() => setCanMessageState(false));
+    }
+  }, [canMessage, profile.userId, isOwnProfile]);
 
   // Mobile swipe navigation across tabs
   const touchStartXRef = useRef<number>(0);
@@ -306,13 +327,26 @@ export default function InfluencerProfileClient({
                     <span>Invite to Campaign</span>
                   </button>
 
-                  <Link
-                    href={`/dashboard/messages?with=${profile.userId}`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold transition-all shadow-xs"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Send Message</span>
-                  </Link>
+                  {canMessageState ? (
+                    <Link
+                      href={`/dashboard/messages?with=${profile.userId}`}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border bg-card hover:bg-muted text-foreground text-xs font-bold transition-all shadow-xs"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send Message</span>
+                    </Link>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      title="Start a deal to message"
+                      aria-label="Start a deal to message"
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-border bg-muted/40 text-muted-foreground text-xs font-semibold cursor-not-allowed opacity-60 shadow-xs"
+                    >
+                      <Send className="w-3.5 h-3.5 opacity-50" />
+                      <span>Send Message</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"

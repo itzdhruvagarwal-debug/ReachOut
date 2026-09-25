@@ -128,7 +128,7 @@ export function DealContractCard({
                 <button
                   type="button"
                   onClick={onOpenAddressModal}
-                  className="text-xs text-primary underline hover:opacity-80 font-medium cursor-pointer inline-flex items-center gap-1"
+                  className="text-xs text-primary underline hover:opacity-80 font-medium cursor-pointer inline-flex items-center gap-1 py-2 min-h-[44px]"
                 >
                   <Package className="w-3.5 h-3.5" />
                   {deal.shippingAddress ? "View / Update Address" : "Provide Shipping Address"}
@@ -140,7 +140,7 @@ export function DealContractCard({
                   type="button"
                   onClick={onOpenDispatchModal}
                   disabled={isSubmitting}
-                  className="text-xs bg-primary text-primary-foreground px-2.5 py-1 rounded-lg font-medium hover:opacity-90 transition-opacity cursor-pointer inline-flex items-center gap-1"
+                  className="text-xs bg-primary text-primary-foreground px-3 py-2 min-h-[44px] rounded-xl font-medium hover:opacity-90 transition-opacity cursor-pointer inline-flex items-center justify-center gap-1.5"
                 >
                   <Truck className="w-3.5 h-3.5" />
                   Confirm Product Dispatch
@@ -152,7 +152,7 @@ export function DealContractCard({
                   type="button"
                   onClick={onConfirmReceived}
                   disabled={isSubmitting}
-                  className="text-xs bg-verified text-primary-foreground px-2.5 py-1 rounded-lg font-medium hover:opacity-90 transition-opacity cursor-pointer inline-flex items-center gap-1"
+                  className="text-xs bg-verified text-primary-foreground px-3 py-2 min-h-[44px] rounded-xl font-medium hover:opacity-90 transition-opacity cursor-pointer inline-flex items-center justify-center gap-1.5"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   Confirm Product Received

@@ -185,16 +185,16 @@ export default function CreatorDiscoveryCard({
             )} p-6 text-center relative overflow-hidden group-hover:scale-[1.02] transition-transform duration-500`}
           >
             {/* Ambient pattern glow */}
-            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-            <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-black/20 blur-2xl pointer-events-none" />
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-card/10 blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-background/20 blur-2xl pointer-events-none" />
             <div className="relative z-10 flex flex-col items-center">
-              <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center text-white text-xl font-black font-heading shadow-lg mb-2.5">
+              <div className="w-14 h-14 rounded-2xl bg-card/20 backdrop-blur-md border border-border/40 flex items-center justify-center text-primary-foreground text-xl font-black font-heading shadow-lg mb-2.5">
                 {creator.name.substring(0, 2).toUpperCase()}
               </div>
-              <span className="text-sm font-bold text-white tracking-wide drop-shadow-xs">
+              <span className="text-sm font-bold text-primary-foreground tracking-wide drop-shadow-xs">
                 {creator.niche} Creator
               </span>
-              <span className="text-[11px] text-white/80 font-medium mt-0.5">
+              <span className="text-[11px] text-primary-foreground/80 font-medium mt-0.5">
                 @{creator.handle}
               </span>
             </div>

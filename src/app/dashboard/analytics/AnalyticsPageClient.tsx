@@ -140,7 +140,7 @@ export default function AnalyticsPageClient({
           <button
             type="button"
             onClick={() => handleFYChange("")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`px-3.5 py-2.5 min-h-[44px] inline-flex items-center justify-center rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
               selectedFY === ""
                 ? "bg-primary text-primary-foreground shadow-xs"
                 : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
@@ -154,7 +154,7 @@ export default function AnalyticsPageClient({
               key={fy}
               type="button"
               onClick={() => handleFYChange(fy)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3.5 py-2.5 min-h-[44px] inline-flex items-center justify-center rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                 selectedFY === fy
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
@@ -171,7 +171,7 @@ export default function AnalyticsPageClient({
             type="button"
             onClick={handleExportReport}
             disabled={isExporting}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-muted hover:bg-muted/80 text-foreground transition-all border border-border disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-xs font-bold bg-muted hover:bg-muted/80 text-foreground transition-all border border-border disabled:opacity-50"
             title="Download verified Indian Financial Year audit report"
           >
             <FileSpreadsheet className="w-3.5 h-3.5 text-verified" />

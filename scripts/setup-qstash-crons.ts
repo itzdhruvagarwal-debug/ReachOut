@@ -41,6 +41,14 @@ export const CRON_JOBS: CronJobDefinition[] = [
     timeoutSeconds: 60,
   },
   {
+    id: "cron-expire-campaigns",
+    name: "Auto-Pause Expired Campaigns",
+    path: "/api/cron/expire-campaigns",
+    cron: "0 * * * *",
+    description: "Automatically transitions ACTIVE campaigns whose applicationDeadline has passed to PAUSED",
+    timeoutSeconds: 60,
+  },
+  {
     id: "cron-lift-suspensions",
     name: "Lift Expired Account Suspensions",
     path: "/api/cron/lift-suspensions",

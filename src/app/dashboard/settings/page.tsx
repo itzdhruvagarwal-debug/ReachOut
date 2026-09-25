@@ -360,7 +360,7 @@ export default function SettingsPage() {
               href={publicProfileUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-card border border-border text-foreground font-semibold text-xs hover:bg-muted transition-all cursor-pointer shadow-xs"
+              className="inline-flex items-center justify-center gap-1 px-3.5 py-2.5 min-h-[44px] rounded-xl bg-card border border-border text-foreground font-semibold text-xs hover:bg-muted transition-all cursor-pointer shadow-xs"
             >
               <span>Preview</span>
               <ExternalLink className="w-3 h-3 text-muted-foreground" />

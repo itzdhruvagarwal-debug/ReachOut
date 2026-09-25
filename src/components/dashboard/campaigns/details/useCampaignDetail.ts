@@ -78,7 +78,11 @@ export function useCampaignDetail({
   }, [influencerProfile, campaign]);
 
   const isOwner = Boolean(campaign?.brand?.userId && campaign?.brand?.userId === user?.id);
-  const canApply = user?.userType === "INFLUENCER" && campaign?.status === "ACTIVE" && !hasApplied;
+  const canApply =
+    user?.userType === "INFLUENCER" &&
+    campaign?.status === "ACTIVE" &&
+    !hasApplied &&
+    Boolean(campaign?.applicationDeadline && new Date(campaign.applicationDeadline) > new Date());
 
   const fetchApplications = useCallback(async () => {
     if (!campaignId || !isOwner) return;

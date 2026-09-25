@@ -81,7 +81,7 @@ export function DashboardStoriesBar({
         <Link
           key={story.id}
           href={story.href}
-          className="group flex flex-col items-center gap-1.5 shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl p-1 transition-all"
+          className="group flex flex-col items-center gap-1.5 shrink-0 min-h-[44px] min-w-[44px] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-2xl p-1 transition-all"
         >
           <div className="relative">
             {story.isAction ? (
