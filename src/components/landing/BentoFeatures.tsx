@@ -19,12 +19,12 @@ export function BentoFeatures() {
           </p>
         </div>
 
-        {/* Bento Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-6">
-          {/* Card 1: Upfront Escrow (Span 7) */}
-          <div className="sm:col-span-2 md:col-span-7 rounded-2xl border border-border bg-card p-6 sm:p-8 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm hover:shadow-md relative overflow-hidden group min-w-0">
+        {/* Row 1: 2 hero cards — 7 + 5 cols */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-6">
+          {/* Card 1: Upfront Escrow */}
+          <div className="md:col-span-7 rounded-2xl border border-border bg-card p-6 sm:p-8 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm hover:shadow-md relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-60 h-60 bg-escrow/10 rounded-full blur-3xl group-hover:bg-escrow/20 transition-all pointer-events-none" />
-            <div className="min-w-0">
+            <div>
               <div className="w-12 h-12 rounded-xl bg-escrow-muted text-escrow border border-escrow-border flex items-center justify-center mb-5">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
@@ -50,10 +50,10 @@ export function BentoFeatures() {
             </div>
           </div>
 
-          {/* Card 2: DRS Trust Score & KYC (Span 5) */}
-          <div className="sm:col-span-2 md:col-span-5 rounded-2xl border border-border bg-card p-6 sm:p-8 flex flex-col justify-between hover:border-verified/50 transition-all shadow-sm hover:shadow-md relative overflow-hidden group min-w-0">
+          {/* Card 2: DRS Trust Score & KYC */}
+          <div className="md:col-span-5 rounded-2xl border border-border bg-card p-6 sm:p-8 flex flex-col justify-between hover:border-verified/50 transition-all shadow-sm hover:shadow-md relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-60 h-60 bg-verified/10 rounded-full blur-3xl group-hover:bg-verified/20 transition-all pointer-events-none" />
-            <div className="min-w-0">
+            <div>
               <div className="w-12 h-12 rounded-xl bg-verified-muted text-verified border border-verified-border flex items-center justify-center mb-5">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -75,11 +75,14 @@ export function BentoFeatures() {
               <span className="text-muted-foreground font-medium whitespace-nowrap">Govt ID Checked</span>
             </div>
           </div>
+        </div>
 
-          {/* Card 3: Anti-Leak Deal Room (Span 4) */}
-          <div className="md:col-span-4 rounded-2xl border border-border bg-card p-6 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm hover:shadow-md overflow-hidden min-w-0">
-            <div className="min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4 flex-shrink-0">
+        {/* Row 2: 3 equal feature cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+          {/* Card 3: Anti-Leak Deal Room */}
+          <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm hover:shadow-md overflow-hidden">
+            <div>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
@@ -96,10 +99,10 @@ export function BentoFeatures() {
             </div>
           </div>
 
-          {/* Card 4: Legally Binding Digital Contracts (Span 4) */}
-          <div className="md:col-span-4 rounded-2xl border border-border bg-card p-6 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm hover:shadow-md overflow-hidden min-w-0">
-            <div className="min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4 flex-shrink-0">
+          {/* Card 4: Smart Digital Contracts */}
+          <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm hover:shadow-md overflow-hidden">
+            <div>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
                   <polyline points="14 2 14 8 20 8" />
@@ -119,10 +122,10 @@ export function BentoFeatures() {
             </div>
           </div>
 
-          {/* Card 5: Automated Live Post Verification (Span 4) */}
-          <div className="md:col-span-4 rounded-2xl border border-border bg-card p-6 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm hover:shadow-md overflow-hidden min-w-0">
-            <div className="min-w-0">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4 flex-shrink-0">
+          {/* Card 5: Live Post Verification */}
+          <div className="rounded-2xl border border-border bg-card p-6 flex flex-col justify-between hover:border-primary/50 transition-all shadow-sm hover:shadow-md overflow-hidden">
+            <div>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
                   <polygon points="10 8 16 12 10 16 10 8" />
@@ -139,32 +142,33 @@ export function BentoFeatures() {
               <span>🤖 60-Second Auto Verification</span>
             </div>
           </div>
-
-          {/* Card 6: Instant RazorpayX Bank Payouts (Span 12) */}
-          <div className="sm:col-span-2 md:col-span-12 rounded-2xl border border-border bg-gradient-to-r from-card to-secondary/30 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-primary/50 transition-all shadow-sm min-w-0">
-            <div className="flex items-center gap-4 min-w-0">
-              <div className="w-12 h-12 rounded-xl bg-verified-muted text-verified border border-verified-border flex items-center justify-center flex-shrink-0">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m12 19-7-7 7-7" />
-                  <path d="M19 12H5" />
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-lg sm:text-xl font-bold text-foreground">
-                  Instant UPI &amp; IMPS Bank Settlements
-                </h3>
-                <p className="text-muted-foreground text-sm mt-0.5">
-                  Once deliverables are approved, funds are transferred straight to creator bank accounts in under 24 hours. Zero 60-day delay nonsense.
-                </p>
-              </div>
-            </div>
-            <Link href="/register" className="flex-shrink-0">
-              <button className="px-5 py-2.5 rounded-lg text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap">
-                Get Protected Today
-              </button>
-            </Link>
-          </div>
         </div>
+
+        {/* Row 3: Full-width payout banner */}
+        <div className="rounded-2xl border border-border bg-gradient-to-r from-card to-secondary/30 p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-6 hover:border-primary/50 transition-all shadow-sm">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="w-12 h-12 rounded-xl bg-verified-muted text-verified border border-verified-border flex items-center justify-center flex-shrink-0">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m12 19-7-7 7-7" />
+                <path d="M19 12H5" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground">
+                Instant UPI &amp; IMPS Bank Settlements
+              </h3>
+              <p className="text-muted-foreground text-sm mt-0.5">
+                Once deliverables are approved, funds are transferred straight to creator bank accounts in under 24 hours. Zero 60-day delay nonsense.
+              </p>
+            </div>
+          </div>
+          <Link href="/register" className="flex-shrink-0">
+            <button className="px-5 py-2.5 rounded-lg text-sm font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-sm whitespace-nowrap">
+              Get Protected Today
+            </button>
+          </Link>
+        </div>
+
       </div>
     </section>
   );
