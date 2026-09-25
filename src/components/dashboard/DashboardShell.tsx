@@ -7,6 +7,7 @@ import React, { useState, useEffect, memo } from "react";
 import { usePathname } from "next/navigation";
 import { isAdmin as rbacIsAdmin, isBrand, isInfluencer } from "@/lib/rbac";
 import { Button } from "@/components/ui/Button";
+import MobileSidebar from "@/components/navigation/MobileSidebar";
 import DesktopSidebar from "@/components/navigation/DesktopSidebar";
 import MobileBottomBar from "@/components/navigation/MobileBottomBar";
 import EscrowStoriesBar from "@/components/navigation/EscrowStoriesBar";
@@ -156,6 +157,15 @@ export default function DashboardShell({
         unreadCount={unreadCount}
       />
 
+      {/* Slide-over Navigation Drawer (Mobile & Tablet) */}
+      <MobileSidebar
+        isOpen={mobileSidebarOpen}
+        onClose={() => setMobileSidebarOpen(false)}
+        user={user}
+        userType={user?.userType}
+        unreadCount={unreadCount}
+      />
+
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 min-h-screen pb-24 md:pb-8">
         <TopbarComponent
@@ -232,17 +242,17 @@ const TopbarComponent = memo(function TopbarComponent({
   return (
     <header className="dashboard-topbar glass">
       <div className="dashboard-topbar-left">
-        {/* Mobile hamburger */}
-        <Button
+        {/* Sidebar / Menu Navigation Trigger Button */}
+        <button
           type="button"
-          variant="ghost"
-          className="sidebar-toggle-mobile"
           onClick={() => setMobileSidebarOpen(true)}
-          aria-label="Open sidebar"
+          className="flex items-center justify-center w-10 h-10 rounded-xl bg-card border border-border text-foreground hover:bg-muted active:scale-95 transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-primary mr-1 shrink-0"
+          aria-label="Open sidebar navigation menu"
+          title="Open Menu / Sidebar"
         >
-          <AppIcon name="menu" size={22} />
-        </Button>
-        <div className="dashboard-mobile-logo" aria-hidden="true">
+          <AppIcon name="menu" size={20} />
+        </button>
+        <div className="dashboard-mobile-logo md:hidden" aria-hidden="true">
           <Logo tabIndex={-1} />
         </div>
         <div>

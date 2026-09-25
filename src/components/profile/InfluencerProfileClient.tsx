@@ -33,7 +33,9 @@ import {
   Camera,
   Video,
   ArrowRight,
+  Wallet,
 } from "lucide-react";
+import { useWallet } from "@/hooks/api/useWallet";
 
 interface InfluencerProfileClientProps {
   profile: InfluencerProfileData;
@@ -45,10 +47,13 @@ interface InfluencerProfileClientProps {
 type TabKey = "portfolio" | "rate-card" | "reviews" | "about";
 
 /**
- * Trust Score Tier Determiner (0 - 900)
+/**
+ * Trust Score Tier Determiner - CIBIL Scale Standard (300 - 900)
  */
 export function getTrustScoreTier(score: number): {
   label: string;
+  cibilGrade: string;
+  cibilRange: string;
   colorClass: string;
   strokeColor: string;
   bgClass: string;
@@ -56,6 +61,8 @@ export function getTrustScoreTier(score: number): {
   if (score >= 800) {
     return {
       label: "Elite Creator",
+      cibilGrade: "Excellent",
+      cibilRange: "750 - 900",
       colorClass: "text-verified",
       strokeColor: "var(--verified-default, #22c55e)",
       bgClass: "bg-verified-muted text-verified border-verified-border",
@@ -64,6 +71,8 @@ export function getTrustScoreTier(score: number): {
   if (score >= 700) {
     return {
       label: "High Trust",
+      cibilGrade: "Good",
+      cibilRange: "700 - 749",
       colorClass: "text-escrow",
       strokeColor: "var(--escrow-default, #3b82f6)",
       bgClass: "bg-escrow-muted text-escrow border-escrow-border",
@@ -72,16 +81,30 @@ export function getTrustScoreTier(score: number): {
   if (score >= 600) {
     return {
       label: "Verified Good",
+      cibilGrade: "Fair",
+      cibilRange: "650 - 699",
       colorClass: "text-primary",
       strokeColor: "var(--primary-default, #6366f1)",
       bgClass: "bg-primary/10 text-primary border-primary/25",
     };
   }
+  if (score >= 550) {
+    return {
+      label: "Emerging",
+      cibilGrade: "Average",
+      cibilRange: "550 - 649",
+      colorClass: "text-pending",
+      strokeColor: "var(--pending-default, #f59e0b)",
+      bgClass: "bg-pending-muted text-pending border-pending-border",
+    };
+  }
   return {
-    label: "Emerging",
-    colorClass: "text-pending",
-    strokeColor: "var(--pending-default, #f59e0b)",
-    bgClass: "bg-pending-muted text-pending border-pending-border",
+    label: "Needs Attention",
+    cibilGrade: "Poor",
+    cibilRange: "300 - 549",
+    colorClass: "text-destructive",
+    strokeColor: "var(--destructive, #ef4444)",
+    bgClass: "bg-destructive/10 text-destructive border-destructive/20",
   };
 }
 
@@ -158,15 +181,18 @@ export default function InfluencerProfileClient({
 
   const isBrand = (viewerRole || "").toUpperCase() === "BRAND";
   const trustInfo = getTrustScoreTier(profile.trustScore);
-
-  // SVG Radial Gauge Calculations for DRS Trust Score (0 to 900)
-  const radius = 24;
-  const circumference = 2 * Math.PI * radius;
-  const progressFraction = Math.min(Math.max(profile.trustScore / 900, 0), 1);
-  const strokeDashoffset = circumference * (1 - progressFraction);
-
+  const { walletData } = useWallet();
+  const walletBalancePaise = walletData?.balance ?? 0;
   const startingRatePaise = profile.minRatePaise || 2000000;
   const formattedStartingRate = formatCurrency(startingRatePaise);
+  const isLowBalance = Boolean(
+    isBrand && walletData && walletBalancePaise < Math.max(startingRatePaise, 50000)
+  );
+  // SVG Radial Gauge Calculations for DRS Trust Score (300 to 900 CIBIL Standard)
+  const radius = 24;
+  const circumference = 2 * Math.PI * radius;
+  const progressFraction = Math.min(Math.max((profile.trustScore - 300) / 600, 0), 1);
+  const strokeDashoffset = circumference * (1 - progressFraction);
 
   return (
     <div
@@ -317,15 +343,26 @@ export default function InfluencerProfileClient({
                   </button>
                 </>
               ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setShowInviteModal(true)}
-                    className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
-                  >
-                    <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-                    <span>Invite to Campaign</span>
-                  </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative inline-flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowInviteModal(true)}
+                      className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-bold shadow-md shadow-primary/20 hover:bg-primary/90 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <PlusCircle className="w-4 h-4 stroke-[2.5]" />
+                      <span>Invite to Campaign</span>
+                    </button>
+                    {isBrand && isLowBalance && (
+                      <span
+                        title={`Available wallet balance: ${formatCurrency(walletBalancePaise)}. Top-up recommended for escrow.`}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-pending-muted text-pending border border-pending-border shadow-xs"
+                      >
+                        <Wallet className="w-2.5 h-2.5" />
+                        <span>Low Bal</span>
+                      </span>
+                    )}
+                  </div>
 
                   {canMessageState ? (
                     <Link
@@ -356,7 +393,7 @@ export default function InfluencerProfileClient({
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
-                </>
+                </div>
               )}
             </div>
 
@@ -430,7 +467,7 @@ export default function InfluencerProfileClient({
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center text-[10px] sm:text-xs font-black text-foreground tabular-nums">
-                  {Math.round((profile.trustScore / 900) * 100)}%
+                  {Math.round(progressFraction * 100)}%
                 </div>
               </div>
 
@@ -439,9 +476,14 @@ export default function InfluencerProfileClient({
                   {profile.trustScore}
                   <span className="text-[10px] sm:text-xs font-normal text-muted-foreground">/900</span>
                 </p>
-                <span className={`inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-bold ${trustInfo.bgClass}`}>
-                  {trustInfo.label}
-                </span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`inline-block px-1.5 py-0.2 rounded text-[9px] sm:text-[10px] font-bold ${trustInfo.bgClass}`}>
+                    {trustInfo.label}
+                  </span>
+                  <span className="text-[9px] text-muted-foreground font-semibold hidden sm:inline" title="CIBIL-standard credit score model (300-900)">
+                    ({trustInfo.cibilGrade} • 300-900)
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -814,6 +856,68 @@ export default function InfluencerProfileClient({
                 </div>
               )}
 
+              {/* CIBIL-Standard Creator Credit Rating (DRS™) Card */}
+              <div className="pt-4 border-t border-border space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-5 h-5 text-primary" />
+                    <div>
+                      <h5 className="text-sm font-bold text-foreground">
+                        Dynamic Reliability Score (DRS™)
+                      </h5>
+                      <p className="text-[11px] text-muted-foreground">
+                        Creator Credit Rating modeled on India&apos;s CIBIL™ financial scoring standard (300 - 900)
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-lg font-black text-foreground tabular-nums">
+                      {profile.trustScore}
+                    </span>
+                    <span className="text-xs text-muted-foreground"> / 900</span>
+                    <div className="text-[10px] font-bold text-primary">
+                      {trustInfo.cibilGrade} Tier ({trustInfo.cibilRange})
+                    </div>
+                  </div>
+                </div>
+
+                {/* Visual Scale Meter (300 to 900) */}
+                <div className="space-y-1.5 bg-muted/30 p-3.5 rounded-xl border border-border">
+                  <div className="w-full bg-muted rounded-full h-2.5 overflow-hidden flex">
+                    <div className="h-full bg-destructive/60 w-[41.6%]" title="Poor / Subprime: 300 - 549" />
+                    <div className="h-full bg-pending/60 w-[16.7%]" title="Below Average: 550 - 649" />
+                    <div className="h-full bg-primary/60 w-[8.3%]" title="Fair / Neutral: 650 - 699" />
+                    <div className="h-full bg-escrow/60 w-[8.3%]" title="Good Trust: 700 - 749" />
+                    <div className="h-full bg-verified/80 w-[25.1%]" title="Prime / Elite: 750 - 900" />
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground font-mono">
+                    <span>300 (Min)</span>
+                    <span>550</span>
+                    <span>650</span>
+                    <span>750 (Prime)</span>
+                    <span>900 (Max)</span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-2xs">
+                    <div className="p-2 rounded-lg bg-card border border-border">
+                      <span className="text-muted-foreground block">Current Standing</span>
+                      <strong className="text-foreground">{trustInfo.label}</strong>
+                    </div>
+                    <div className="p-2 rounded-lg bg-card border border-border">
+                      <span className="text-muted-foreground block">CIBIL Range</span>
+                      <strong className="text-foreground">{trustInfo.cibilRange}</strong>
+                    </div>
+                    <div className="p-2 rounded-lg bg-card border border-border">
+                      <span className="text-muted-foreground block">Completed Deals</span>
+                      <strong className="text-foreground">{profile.completedDealsCount} Verified</strong>
+                    </div>
+                    <div className="p-2 rounded-lg bg-card border border-border">
+                      <span className="text-muted-foreground block">Escrow Settlement</span>
+                      <strong className="text-verified">Priority / Fast-Track</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Escrow Guarantee Highlight */}
               <div className="pt-4 border-t border-border flex items-start gap-3 p-4 rounded-xl bg-escrow-muted border-escrow-border text-xs text-escrow">
                 <Lock className="w-4 h-4 shrink-0 mt-0.5" />
@@ -857,13 +961,24 @@ export default function InfluencerProfileClient({
 
             <div className="flex items-center gap-2 shrink-0">
               {isBrand ? (
-                <Link
-                  href={`/dashboard/campaigns/create?invite=${profile.id}`}
-                  className="inline-flex items-center gap-1.5 px-4 sm:px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs sm:text-sm font-bold shadow-md shadow-primary/25 hover:bg-primary/90 transition-all active:scale-95"
-                >
-                  <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-                  <span>Book Creator</span>
-                </Link>
+                <div className="flex items-center gap-1.5">
+                  {isLowBalance && (
+                    <span
+                      title={`Available balance: ${formatCurrency(walletBalancePaise)}`}
+                      className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-pending-muted text-pending border border-pending-border"
+                    >
+                      <Wallet className="w-2.5 h-2.5" />
+                      <span>Low Bal</span>
+                    </span>
+                  )}
+                  <Link
+                    href={`/dashboard/campaigns/create?invite=${profile.id}`}
+                    className="inline-flex items-center gap-1.5 px-4 sm:px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs sm:text-sm font-bold shadow-md shadow-primary/25 hover:bg-primary/90 transition-all active:scale-95"
+                  >
+                    <PlusCircle className="w-4 h-4 stroke-[2.5]" />
+                    <span>Book Creator</span>
+                  </Link>
+                </div>
               ) : (
                 <Link
                   href={`/login?callbackUrl=/creator/${encodeURIComponent(profile.instagramHandle || profile.id)}`}
@@ -902,9 +1017,16 @@ export default function InfluencerProfileClient({
                 className="p-3.5 rounded-2xl bg-muted/40 hover:bg-muted/80 border border-border flex items-center justify-between group transition-all"
               >
                 <div className="space-y-0.5">
-                  <span className="font-bold text-xs text-foreground block group-hover:text-primary transition-colors">
-                    Dedicated Campaign Invite
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-xs text-foreground block group-hover:text-primary transition-colors">
+                      Dedicated Campaign Invite
+                    </span>
+                    {isBrand && isLowBalance && (
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-pending-muted text-pending border border-pending-border">
+                        Low Bal ({formatCurrency(walletBalancePaise)})
+                      </span>
+                    )}
+                  </div>
                   <span className="text-[11px] text-muted-foreground block">
                     Customize deliverables, dates &amp; fund escrow directly
                   </span>

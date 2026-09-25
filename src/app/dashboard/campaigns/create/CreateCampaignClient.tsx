@@ -17,7 +17,9 @@ import { ProductSeedingCard } from "@/components/dashboard/campaigns/create/Prod
 import { DeliverablesList } from "@/components/dashboard/campaigns/create/DeliverablesList";
 import { CampaignSummarySidebar } from "@/components/dashboard/campaigns/create/CampaignSummarySidebar";
 import { ALL_CATEGORIES } from "@/lib/categories";
-import { type DraftCampaignData, type DraftCampaignResponse } from "@/lib/schemas";
+import type { DraftCampaignData, DraftCampaignResponse } from "@/lib/schemas/campaign.schema";
+import Link from "next/link";
+import { useWallet } from "@/hooks/api/useWallet";
 import {
   CheckCircle2,
   ArrowLeft,
@@ -35,6 +37,9 @@ import {
   MapPin,
   Plus,
   X,
+  Wallet,
+  AlertTriangle,
+  ArrowUpRight,
 } from "lucide-react";
 
 const INITIAL_FORM_DATA: CampaignFormData = {
@@ -88,7 +93,7 @@ function mapDraftCampaignToFormData(campaign: DraftCampaignData): CampaignFormDa
     productName: campaign.productName || "",
     productValue: (campaign.productValue || 0) / 100,
     productDescription: campaign.productDescription || "",
-    deliverables: (campaign.deliverables || []).map((d) => ({
+    deliverables: (campaign.deliverables || []).map((d: { type: string; count: number; rate?: number | undefined }) => ({
       type: d.type,
       count: d.count,
       rate: (d.rate || 0) / 100,
@@ -165,6 +170,22 @@ export default function CreateCampaignClient() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [customCategory, setCustomCategory] = useState("");
   const [categories, setCategories] = useState<string[]>([...ALL_CATEGORIES]);
+
+  // Realtime Brand Wallet Balance & Escrow Requirement Tracking
+  const { walletData, isLoading: isWalletLoading } = useWallet();
+  const walletBalancePaise = walletData?.balance ?? 0;
+
+  const creatorPayoutPoolPaise = Math.round((Number(formData.totalBudget) || 0) * 100);
+  const platformFeePaise = Math.round(creatorPayoutPoolPaise * 0.05);
+  const gstFeePaise = Math.round(platformFeePaise * 0.18);
+  const totalEscrowRequiredPaise = creatorPayoutPoolPaise + platformFeePaise + gstFeePaise;
+
+  const isBalanceInsufficient = Boolean(
+    walletData && totalEscrowRequiredPaise > 0 && walletBalancePaise < totalEscrowRequiredPaise
+  );
+  const shortfallPaise = isBalanceInsufficient
+    ? totalEscrowRequiredPaise - walletBalancePaise
+    : 0;
 
   useEffect(() => {
     if (!invitedInfluencerId) return;
@@ -370,16 +391,44 @@ export default function CreateCampaignClient() {
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-          {editCampaignId ? "Edit Draft Campaign" : "Create New Campaign"}
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-          {editCampaignId
-            ? "Update your draft campaign details before publishing to creators"
-            : "Launch an escrow-backed campaign and collaborate with verified Indian creators"}
-        </p>
+      {/* Page Header & Live Wallet Balance Indicator */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
+            {editCampaignId ? "Edit Draft Campaign" : "Create New Campaign"}
+          </h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {editCampaignId
+              ? "Update your draft campaign details before publishing to creators"
+              : "Launch an escrow-backed campaign and collaborate with verified Indian creators"}
+          </p>
+        </div>
+
+        {/* Live Wallet Balance Pill */}
+        <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-card border border-border shadow-xs self-start sm:self-auto shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+            <Wallet className="w-4 h-4" />
+          </div>
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+              Available Balance
+            </span>
+            <span className="text-sm font-black text-foreground tabular-nums">
+              {isWalletLoading ? "..." : formatCurrency(walletBalancePaise)}
+            </span>
+          </div>
+          {isBalanceInsufficient && (
+            <Link
+              href="/dashboard/wallet?action=deposit"
+              target="_blank"
+              className="ml-2 px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive text-xs font-bold hover:bg-destructive/20 transition-colors inline-flex items-center gap-1 shrink-0"
+              title="Add funds to wallet"
+            >
+              <span>Add Funds</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Invited Creator Highlight Banner */}
@@ -935,6 +984,58 @@ export default function CreateCampaignClient() {
                         </span>
                       </div>
                     </div>
+
+                    {/* Step 3 Live Wallet Balance Validation Alert */}
+                    {isBalanceInsufficient ? (
+                      <div
+                        role="alert"
+                        className="p-4 rounded-2xl bg-destructive/10 border border-destructive/30 text-destructive space-y-2 mt-2"
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-start gap-2.5">
+                            <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-bold text-xs text-foreground">
+                                Wallet balance insufficient — Add {formatCurrency(shortfallPaise)} more
+                              </p>
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Required escrow lock is{" "}
+                                <strong className="text-foreground">
+                                  {formatCurrency(totalEscrowRequiredPaise)}
+                                </strong>
+                                , but available balance is{" "}
+                                <strong className="text-foreground">
+                                  {formatCurrency(walletBalancePaise)}
+                                </strong>
+                                .
+                              </p>
+                            </div>
+                          </div>
+                          <Link
+                            href={`/dashboard/wallet?action=deposit&amount=${Math.ceil(
+                              shortfallPaise / 100
+                            )}`}
+                            target="_blank"
+                            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-destructive text-destructive-foreground text-xs font-bold shadow-xs hover:bg-destructive/90 transition-all shrink-0 self-start sm:self-auto"
+                          >
+                            <span>Deposit {formatCurrency(shortfallPaise)}</span>
+                            <ArrowUpRight className="w-3.5 h-3.5" />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : totalEscrowRequiredPaise > 0 ? (
+                      <div className="p-3.5 rounded-2xl bg-verified-muted/60 border border-verified-border/60 text-xs flex items-center justify-between flex-wrap gap-2 mt-2">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-verified shrink-0" />
+                          <span className="font-semibold text-foreground">
+                            Wallet balance covers required escrow ({formatCurrency(totalEscrowRequiredPaise)})
+                          </span>
+                        </div>
+                        <span className="font-bold tabular-nums text-verified text-[11px]">
+                          Remaining after lock: {formatCurrency(walletBalancePaise - totalEscrowRequiredPaise)}
+                        </span>
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Step 3 Navigation & Submission Actions */}
@@ -964,11 +1065,20 @@ export default function CreateCampaignClient() {
                       <Button
                         type="submit"
                         variant="primary"
-                        disabled={isLoading}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold shadow-md shadow-primary/25 flex-1 sm:flex-initial"
+                        disabled={isLoading || isBalanceInsufficient}
+                        title={
+                          isBalanceInsufficient
+                            ? `Wallet balance insufficient. Add ${formatCurrency(shortfallPaise)} to launch.`
+                            : ""
+                        }
+                        className="inline-flex items-center gap-1.5 text-xs font-bold shadow-md shadow-primary/25 flex-1 sm:flex-initial disabled:opacity-60 disabled:cursor-not-allowed"
                       >
                         <Lock className="w-3.5 h-3.5" />
-                        <span>{publishButtonContent}</span>
+                        <span>
+                          {isBalanceInsufficient
+                            ? `Insufficient Balance (Add ${formatCurrency(shortfallPaise)})`
+                            : publishButtonContent}
+                        </span>
                       </Button>
                     </div>
                   </div>
@@ -979,7 +1089,10 @@ export default function CreateCampaignClient() {
         </div>
 
         {/* Right Sticky Summary Sidebar */}
-        <CampaignSummarySidebar formData={formData} />
+        <CampaignSummarySidebar
+          formData={formData}
+          walletBalancePaise={walletBalancePaise}
+        />
       </div>
     </div>
   );

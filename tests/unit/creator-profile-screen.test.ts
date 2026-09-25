@@ -97,22 +97,37 @@ describe("Creator Profile Screen & Media Kit Specifications", () => {
   };
 
   describe("DRS Trust Score & Radial Gauge Math", () => {
-    it("should classify DRS score into appropriate trust tiers", () => {
-      expect(getTrustScoreTier(850).label).toBe("Elite Creator");
-      expect(getTrustScoreTier(750).label).toBe("High Trust");
-      expect(getTrustScoreTier(650).label).toBe("Verified Good");
-      expect(getTrustScoreTier(550).label).toBe("Emerging");
+    it("should classify DRS score into appropriate trust tiers and CIBIL grades", () => {
+      const elite = getTrustScoreTier(850);
+      expect(elite.label).toBe("Elite Creator");
+      expect(elite.cibilGrade).toBe("Excellent");
+
+      const high = getTrustScoreTier(750);
+      expect(high.label).toBe("High Trust");
+      expect(high.cibilGrade).toBe("Good");
+
+      const good = getTrustScoreTier(650);
+      expect(good.label).toBe("Verified Good");
+      expect(good.cibilGrade).toBe("Fair");
+
+      const emerging = getTrustScoreTier(550);
+      expect(emerging.label).toBe("Emerging");
+      expect(emerging.cibilGrade).toBe("Average");
+
+      const attention = getTrustScoreTier(400);
+      expect(attention.label).toBe("Needs Attention");
+      expect(attention.cibilGrade).toBe("Poor");
     });
 
-    it("should accurately compute SVG radial gauge progress fraction", () => {
+    it("should accurately compute SVG radial gauge progress fraction on CIBIL 300-900 scale", () => {
       const radius = 24;
       const circumference = 2 * Math.PI * radius;
       const score = mockProfile.trustScore; // 840
-      const progressFraction = Math.min(Math.max(score / 900, 0), 1);
+      const progressFraction = Math.min(Math.max((score - 300) / 600, 0), 1);
       const strokeDashoffset = circumference * (1 - progressFraction);
 
-      expect(progressFraction).toBeCloseTo(0.9333, 3);
-      expect(strokeDashoffset).toBeLessThan(circumference * 0.1);
+      expect(progressFraction).toBeCloseTo(0.9, 2);
+      expect(strokeDashoffset).toBeLessThan(circumference * 0.15);
     });
   });
 

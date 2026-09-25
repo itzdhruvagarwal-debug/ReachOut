@@ -11,13 +11,15 @@ import {
   Calendar,
   X,
   ReceiptText,
+  Wallet,
 } from "lucide-react";
 
 interface CampaignSummarySidebarProps {
   readonly formData: CampaignFormData;
+  readonly walletBalancePaise?: number | undefined;
 }
 
-function SidebarContent({ formData }: CampaignSummarySidebarProps) {
+function SidebarContent({ formData, walletBalancePaise = 0 }: CampaignSummarySidebarProps) {
   const creatorPayoutPoolPaise = Math.round(formData.totalBudget * 100);
   const platformFeePaise = Math.round(creatorPayoutPoolPaise * 0.05);
   const gstFeePaise = Math.round(platformFeePaise * 0.18);
@@ -181,6 +183,40 @@ function SidebarContent({ formData }: CampaignSummarySidebarProps) {
             {formatCurrency(totalEscrowRequiredPaise)}
           </span>
         </div>
+
+        {/* Available Wallet Balance & Shortfall */}
+        {walletBalancePaise !== undefined && (
+          <div className="pt-3 border-t border-border space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground flex items-center gap-1.5">
+                <Wallet className="w-3.5 h-3.5 text-primary" />
+                <span>Available Balance</span>
+              </span>
+              <span className="font-bold text-foreground tabular-nums">
+                {formatCurrency(walletBalancePaise)}
+              </span>
+            </div>
+
+            {walletBalancePaise < totalEscrowRequiredPaise ? (
+              <div className="p-2.5 rounded-xl bg-destructive/10 border border-destructive/25 text-destructive text-xs space-y-1">
+                <div className="flex items-center justify-between font-bold">
+                  <span>Shortfall:</span>
+                  <span className="tabular-nums font-black">
+                    {formatCurrency(totalEscrowRequiredPaise - walletBalancePaise)}
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  Deposit funds before launching.
+                </p>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between text-[11px] text-verified font-semibold">
+                <span>Coverage</span>
+                <span>Fully Funded ✓</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* High-Trust Escrow Guarantee Box */}
@@ -201,6 +237,7 @@ function SidebarContent({ formData }: CampaignSummarySidebarProps) {
 
 export function CampaignSummarySidebar({
   formData,
+  walletBalancePaise = 0,
 }: CampaignSummarySidebarProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -234,7 +271,7 @@ export function CampaignSummarySidebar({
         aria-label="Campaign Escrow Live Summary"
         className="hidden lg:block w-80 shrink-0 sticky top-24"
       >
-        <SidebarContent formData={formData} />
+        <SidebarContent formData={formData} walletBalancePaise={walletBalancePaise} />
       </aside>
 
       {/* ── Mobile: Floating Action Button ── */}
@@ -287,7 +324,7 @@ export function CampaignSummarySidebar({
             </div>
 
             <div className="p-4 pb-8">
-              <SidebarContent formData={formData} />
+              <SidebarContent formData={formData} walletBalancePaise={walletBalancePaise} />
             </div>
           </div>
         </>

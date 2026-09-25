@@ -44,22 +44,53 @@ count?: number;
 
 
 export interface ContractTermsJson {
-deliverables?: DeliverableConfig[];
-submissionDeadline?: string;
-postingDeadline?: string;
-reviewPeriodHours?: number;
-includedRevisions?: number | string;
-requiresProduct?: boolean;
-productValue?: number;
-productHandlingFee?: number;
-mandatoryElements?: string[];
-mandatoryTags?: string[];
-influencerPayout?: number;
-platformFee?: number;
-gatewayFee?: number;
-totalAmount?: number;
-influencerObligations?: string[];
-brandObligations?: string[];
+  dealId?: string;
+  dealAmount?: number;
+  totalAmount?: number;
+  deliverables?: DeliverableConfig[];
+  submissionDeadline?: string;
+  postingDeadline?: string;
+  reviewPeriodHours?: number;
+  includedRevisions?: number | string;
+  costPerExtraRevision?: number;
+  requiresProduct?: boolean;
+  productName?: string;
+  productValue?: number;
+  productDescription?: string;
+  productHandlingFee?: number;
+  mandatoryElements?: string[];
+  mandatoryTags?: string[];
+  disclosureRequirement?: string;
+  influencerPayout?: number;
+  platformFee?: number;
+  gatewayFee?: number;
+  influencerObligations?: string[];
+  brandObligations?: string[];
+  contentUsage?: {
+    organicRepost?: string;
+    paidAds?: string;
+    whitelisting?: string;
+  };
+  cancellationFee?: {
+    beforeApproval?: number;
+    afterApproval?: number;
+    afterSubmission?: number;
+    afterPosting?: number;
+  };
+  proposalMessage?: string;
+  brandLateApprovalFee?: number;
+  platform?: {
+    name?: string;
+    legalName?: string;
+    address?: string;
+    gstin?: string;
+    email?: string;
+    phone?: string;
+    website?: string;
+  };
+  taxNote?: string;
+  createdAt?: string;
+  version?: number;
 }
 
 export function parseContractTerms(raw: unknown): ContractTermsJson {

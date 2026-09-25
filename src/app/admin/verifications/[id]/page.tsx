@@ -137,9 +137,9 @@ export default async function VerificationDetailPage({
         <div className="flex items-center gap-3">
           <div className="px-4 py-2 rounded-xl bg-muted/40 border border-border text-right">
             <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Trust Score
+              DRS Rating (CIBIL 300-900)
             </div>
-            <div className={`text-lg font-black ${user.trustScore >= 50 ? "text-verified" : "text-warning"}`}>
+            <div className={`text-lg font-black ${user.trustScore >= 650 ? "text-verified" : user.trustScore >= 550 ? "text-warning" : "text-destructive"}`}>
               {user.trustScore} / 900
             </div>
           </div>

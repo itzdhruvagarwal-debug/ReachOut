@@ -577,14 +577,22 @@ export default function InfluencerDashboard({
           <div className="space-y-4">
             <div>
               <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
-                <span className="text-muted-foreground">Reputation Score (DRS)</span>
+                <span className="text-muted-foreground flex items-center gap-1">
+                  Reputation Score (DRS™ - CIBIL Model)
+                </span>
                 <span className="text-foreground font-bold tabular-nums">{overview.trustScore} / 900</span>
               </div>
               <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-verified h-full rounded-full"
-                  style={{ width: `${(overview.trustScore / 900) * 100}%` }}
+                  className="bg-verified h-full rounded-full transition-all"
+                  style={{ width: `${Math.min(100, Math.max(0, ((overview.trustScore - 300) / 600) * 100))}%` }}
                 />
+              </div>
+              <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                <span>300 (Subprime)</span>
+                <span>600 (Neutral)</span>
+                <span>750+ (Prime)</span>
+                <span>900</span>
               </div>
             </div>
 

@@ -171,9 +171,10 @@ export function FinancialOverviewBar({
             <ShieldCheck className="w-4 h-4 text-primary" />
             <span className="text-xs font-bold text-foreground">
               DRS: <span className="font-mono text-primary font-extrabold">{trustScore}</span>
+              <span className="text-[10px] text-muted-foreground font-normal"> / 900</span>
             </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-medium">
-              {trustTier}
+            <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-medium" title="CIBIL-standard creator reputation tier (300-900)">
+              {trustTier} (300-900)
             </span>
           </div>
           <Link

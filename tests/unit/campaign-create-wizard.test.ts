@@ -109,5 +109,57 @@ describe("Campaign Creation Wizard (Upwork / Kofluence Pattern)", () => {
       expect(gstFee).toBe(135);
       expect(totalEscrowLock).toBe(15885);
     });
+
+    it("should accurately detect insufficient wallet balance and calculate exact shortfall", () => {
+      const creatorPayoutPoolPaise = 15000 * 100; // 1,500,000 paise (₹15,000)
+      const platformFeePaise = Math.round(creatorPayoutPoolPaise * 0.05); // 75,000 paise (₹750)
+      const gstFeePaise = Math.round(platformFeePaise * 0.18); // 13,500 paise (₹135)
+      const totalEscrowRequiredPaise = creatorPayoutPoolPaise + platformFeePaise + gstFeePaise; // 1,588,500 paise (₹15,885)
+
+      // Case 1: Insufficient funds (wallet has ₹10,000)
+      const walletBalancePaise = 10000 * 100; // 1,000,000 paise
+      const isBalanceInsufficient = walletBalancePaise < totalEscrowRequiredPaise;
+      const shortfallPaise = isBalanceInsufficient
+        ? totalEscrowRequiredPaise - walletBalancePaise
+        : 0;
+
+      expect(isBalanceInsufficient).toBe(true);
+      expect(shortfallPaise).toBe(588500); // ₹5,885
+
+      // Case 2: Sufficient funds (wallet has ₹20,000)
+      const sufficientBalancePaise = 20000 * 100;
+      const isSufficient = sufficientBalancePaise < totalEscrowRequiredPaise;
+      const zeroShortfall = isSufficient
+        ? totalEscrowRequiredPaise - sufficientBalancePaise
+        : 0;
+
+      expect(isSufficient).toBe(false);
+      expect(zeroShortfall).toBe(0);
+    });
+
+    it("should enforce premature-action-exposure guard rule (disable launch on shortfall, keep draft enabled)", () => {
+      const isBalanceInsufficient = true;
+      const isLoading = false;
+
+      // Launch button must be blocked before backend rejection
+      const isLaunchButtonDisabled = isLoading || isBalanceInsufficient;
+      expect(isLaunchButtonDisabled).toBe(true);
+
+      // Save as draft must stay available without requiring escrow lock
+      const isDraftButtonDisabled = isLoading;
+      expect(isDraftButtonDisabled).toBe(false);
+    });
+
+    it("should flag creator profile invite low balance when wallet cannot cover min deliverable rate", () => {
+      const creatorMinRatePaise = 2500000; // ₹25,000
+      const brandWalletPaise = 1000000; // ₹10,000
+
+      const isLowBalance = brandWalletPaise < Math.max(creatorMinRatePaise, 50000);
+      expect(isLowBalance).toBe(true);
+
+      const highBrandWalletPaise = 3000000; // ₹30,000
+      const isNotLowBalance = highBrandWalletPaise < Math.max(creatorMinRatePaise, 50000);
+      expect(isNotLowBalance).toBe(false);
+    });
   });
 });

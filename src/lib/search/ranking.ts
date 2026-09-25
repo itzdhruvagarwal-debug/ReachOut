@@ -15,7 +15,8 @@ import { CreatorRankFactors, CampaignRankFactors } from "./types";
 
 export function computeCreatorRankingScore(factors: CreatorRankFactors): number {
   const normRelevance = Math.max(0, Math.min(1, factors.textRelevance));
-  const normTrust = Math.max(0, Math.min(1, factors.trustScore / 900));
+  // CIBIL range normalization: (score - 300) / (900 - 300)
+  const normTrust = Math.max(0, Math.min(1, (factors.trustScore - 300) / 600));
   const normEngagement = Math.max(0, Math.min(1, factors.engagementRate / 10)); // 10% engagement = 1.0
   const normRating = Math.max(0, Math.min(1, factors.averageRating / 500));     // 500 = 5.00 stars
   const normDeals = Math.max(0, Math.min(1, factors.completedDeals / 30));     // 30+ deals = 1.0
@@ -36,7 +37,8 @@ export function computeCreatorRankingScore(factors: CreatorRankFactors): number 
 
 export function computeCampaignRankingScore(factors: CampaignRankFactors): number {
   const normRelevance = Math.max(0, Math.min(1, factors.textRelevance));
-  const normTrust = Math.max(0, Math.min(1, factors.brandTrustScore / 900));
+  // CIBIL range normalization: (score - 300) / 600
+  const normTrust = Math.max(0, Math.min(1, (factors.brandTrustScore - 300) / 600));
   
   // Budget appeal: 10,000 INR (1000000 paise) = 1.0
   const normBudget = Math.max(0, Math.min(1, factors.perInfluencerBudgetPaise / 1000000));
@@ -66,7 +68,7 @@ export function buildCreatorSqlRankingExpression(hasSearchTerm: boolean): string
     (
       (
         0.35 * ${relevanceExpr} +
-        0.25 * (LEAST(1.0, GREATEST(0.0, COALESCE(u."trustScore", 50.0) / 900.0))) +
+        0.25 * (LEAST(1.0, GREATEST(0.0, (COALESCE(u."trustScore", 600.0) - 300.0) / 600.0))) +
         0.20 * (LEAST(1.0, GREATEST(0.0, COALESCE(ip."instagramEngagementRate", 0.0) / 1000.0))) +
         0.10 * (LEAST(1.0, GREATEST(0.0, COALESCE(ip."averageRating", 0.0) / 500.0))) +
         0.10 * (LEAST(1.0, GREATEST(0.0, COALESCE(ip."completedDeals", 0)::float / 30.0)))

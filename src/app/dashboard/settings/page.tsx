@@ -311,10 +311,10 @@ export default function SettingsPage() {
               </div>
               <div className="min-w-0">
                 <span className="font-bold text-foreground block truncate">
-                  DRS Trust: {trustScore}
+                  DRS Trust: {trustScore} / 900
                 </span>
                 <span className="text-[11px] text-muted-foreground block truncate">
-                  Platform reputation index
+                  CIBIL-standard reputation index (300-900)
                 </span>
               </div>
             </div>

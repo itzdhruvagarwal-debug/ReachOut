@@ -77,6 +77,23 @@ describe("Wallet Screen: Withdrawal Amount Validation Guards", () => {
     const serverResult = withdrawalSchema.safeParse({ amount: 1000000, bankAccountId: "acc_test_1" });
     expect(serverResult.success).toBe(true);
   });
+
+  it("enforces env-configured MAX_WITHDRAWAL_AMOUNT limit dynamically", () => {
+    // Exactly at MAX_WITHDRAWAL_AMOUNT (₹5,00,000 / 50M paise)
+    const exactMaxResult = withdrawalSchema.safeParse({
+      amount: 50_000_000,
+      bankAccountId: "acc_test_1",
+    });
+    expect(exactMaxResult.success).toBe(true);
+
+    // 1 paise above MAX_WITHDRAWAL_AMOUNT
+    const overMaxResult = withdrawalSchema.safeParse({
+      amount: 50_000_001,
+      bankAccountId: "acc_test_1",
+    });
+    expect(overMaxResult.success).toBe(false);
+    expect(overMaxResult.error?.issues[0]?.message).toContain("Maximum single withdrawal is INR");
+  });
 });
 
 describe("Wallet Screen: Payout Itemized Breakdown & Idempotency", () => {

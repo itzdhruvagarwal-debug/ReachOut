@@ -6,11 +6,11 @@
 export const IST_OFFSET_HOURS = 5.5;
 export const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // 19,800,000 ms (UTC+5:30)
 
-// DRS Score Bounds
-export const MIN_TRUST_SCORE = 0;
+// DRS Score Bounds (CIBIL Credit Scale Standard: 300 to 900)
+export const MIN_TRUST_SCORE = 300;
 export const MAX_TRUST_SCORE = 900;
 export const DEFAULT_TRUST_SCORE = 600;
-export const TRUST_SCORE_INITIAL_NEW_USER = 500;
+export const TRUST_SCORE_INITIAL_NEW_USER = 600;
 export const MIN_TRUST_SCORE_THRESHOLD = 600;
 export const TRUST_SCORE_REVIEW_THRESHOLD = 600;
 

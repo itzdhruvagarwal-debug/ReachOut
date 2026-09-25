@@ -23,6 +23,9 @@ import {
   Plus,
   LogOut,
   Wallet,
+  Trophy,
+  Award,
+  Share2,
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -174,14 +177,40 @@ export default function DesktopSidebar({
           );
         })}
 
-        {/* Quick Wallet Link */}
-        <Link
-          href="/dashboard/wallet"
-          className="flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-        >
-          <Wallet className="w-5 h-5 stroke-[1.75]" />
-          <span className="flex-1 tracking-tight">Escrow Wallet</span>
-        </Link>
+        {/* Quick Ecosystem Links */}
+        <div className="pt-2 mt-2 border-t border-border/60 space-y-1">
+          <Link
+            href="/dashboard/wallet"
+            className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Wallet className="w-4 h-4 stroke-[1.75]" />
+            <span className="flex-1 tracking-tight">Escrow Wallet</span>
+          </Link>
+
+          <Link
+            href="/dashboard/leaderboard"
+            className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Trophy className="w-4 h-4 stroke-[1.75]" />
+            <span className="flex-1 tracking-tight">Leaderboard</span>
+          </Link>
+
+          <Link
+            href="/dashboard/badges"
+            className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Award className="w-4 h-4 stroke-[1.75]" />
+            <span className="flex-1 tracking-tight">Badges & Level</span>
+          </Link>
+
+          <Link
+            href="/dashboard/referrals"
+            className="flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          >
+            <Share2 className="w-4 h-4 stroke-[1.75]" />
+            <span className="flex-1 tracking-tight">Refer & Earn</span>
+          </Link>
+        </div>
       </nav>
 
       {/* User Profile Footer */}

@@ -53,7 +53,7 @@ reason: string;
 }
 
 /**
- * Clamp DRS score between 0 and 900.
+ * Clamp DRS score between 300 and 900 (CIBIL credit scale standard).
  */
 export function clampDRSScore(score: number): number {
   return Math.max(MIN_TRUST_SCORE, Math.min(MAX_TRUST_SCORE, Math.round(score)));
@@ -297,7 +297,7 @@ export function calculateBrandDRS(
   weights?: Record<string, number>,
 ): DRSResult {
   const breakdown: DRSResult["breakdown"] = [];
-  let score = 550; // Brands start at 550 (CIBIL neutral)
+  let score = 600; // Brands start at 600 (CIBIL neutral baseline)
 
   // Activity factor
   const campaignWeight = weights?.BRAND_CAMPAIGN_WEIGHT ?? 18;

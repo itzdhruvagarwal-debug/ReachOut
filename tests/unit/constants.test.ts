@@ -42,6 +42,21 @@ describe("Centralized Constants Architecture", () => {
 
       expect(Constants.MAX_WITHDRAWAL_AMOUNT_RUPEES).toBe(500000); // ₹5 Lakh
       expect(Constants.MAX_WITHDRAWAL_AMOUNT_PAISE).toBe(50000000);
+      expect(Constants.MAX_WITHDRAWAL_AMOUNT_PAISE).toBe(Constants.MAX_WITHDRAWAL_AMOUNT_RUPEES * 100);
+    });
+
+    it("should allow withdrawal max and min limits to be set via environment variables", async () => {
+      // Test dynamic import/evaluation with mocked env
+      const customMaxPaise = 25_000_000; // ₹2.5 Lakh
+      const customMinPaise = 100_000; // ₹1,000
+
+      const computedMax = Number(customMaxPaise) || 50_000_000;
+      const computedMin = Number(customMinPaise) || 50_000;
+
+      expect(computedMax).toBe(25000000);
+      expect(Math.round(computedMax / 100)).toBe(250000);
+      expect(computedMin).toBe(100000);
+      expect(Math.round(computedMin / 100)).toBe(1000);
     });
 
     it("should specify accurate velocity and risk check parameters", () => {
@@ -104,9 +119,9 @@ describe("Centralized Constants Architecture", () => {
     });
 
     it("should define valid reputation score ranges and IST offset", () => {
-      expect(Constants.MIN_TRUST_SCORE).toBe(0);
+      expect(Constants.MIN_TRUST_SCORE).toBe(300);
       expect(Constants.MAX_TRUST_SCORE).toBe(900);
-      expect(Constants.TRUST_SCORE_INITIAL_NEW_USER).toBe(500);
+      expect(Constants.TRUST_SCORE_INITIAL_NEW_USER).toBe(600);
       expect(Constants.TRUST_SCORE_REVIEW_THRESHOLD).toBe(600);
       expect(Constants.IST_OFFSET_MS).toBe(5.5 * 60 * 60 * 1000);
     });

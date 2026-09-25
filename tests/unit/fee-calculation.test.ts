@@ -96,8 +96,9 @@ describe("Unit Tests: Fee, Tax & Commission Calculation", () => {
   });
 
   describe("DRS Reputation Calculator & Tier Limits", () => {
-    it("should clamp DRS scores within the 0 to 900 range", () => {
-      expect(clampDRSScore(-50)).toBe(0);
+    it("should clamp DRS scores within the 300 to 900 CIBIL range", () => {
+      expect(clampDRSScore(-50)).toBe(300);
+      expect(clampDRSScore(200)).toBe(300);
       expect(clampDRSScore(450.4)).toBe(450);
       expect(clampDRSScore(950)).toBe(900);
     });

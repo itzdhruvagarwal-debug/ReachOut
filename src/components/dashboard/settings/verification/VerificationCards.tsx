@@ -310,7 +310,7 @@ export function TierStatusCardComponent({
       <div className="pt-2 border-t border-border">
         <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
           <span className="text-muted-foreground flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-verified" /> Verified DRS Trust Contribution
+            <ShieldCheck className="w-4 h-4 text-verified" /> Verified DRS Credit Rating (CIBIL 300-900)
           </span>
           <span className="text-foreground font-bold tabular-nums">
             {trustScore} / 900 Score
@@ -319,8 +319,14 @@ export function TierStatusCardComponent({
         <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
           <div
             className="bg-verified h-full rounded-full transition-all duration-300"
-            style={{ width: `${Math.min(100, Math.max(0, (trustScore / 900) * 100))}%` }}
+            style={{ width: `${Math.min(100, Math.max(0, ((trustScore - 300) / 600) * 100))}%` }}
           />
+        </div>
+        <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+          <span>300 (Subprime)</span>
+          <span>600 (Neutral)</span>
+          <span>750+ (Prime)</span>
+          <span>900 (Elite)</span>
         </div>
       </div>
     </div>

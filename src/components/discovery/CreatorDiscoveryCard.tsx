@@ -202,9 +202,9 @@ export default function CreatorDiscoveryCard({
         )}
 
         {/* Upfront Trust Score Chip (Top Left) */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md bg-card/90 text-foreground border-border shadow-md">
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md bg-card/90 text-foreground border-border shadow-md" title="Dynamic Reliability Score (CIBIL-standard 300-900)">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
-          <span>Trust {creator.trustScore}</span>
+          <span>DRS {creator.trustScore}</span>
         </div>
 
         {/* Niche Badge (Top Right) */}

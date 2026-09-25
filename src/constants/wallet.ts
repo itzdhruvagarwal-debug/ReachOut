@@ -8,11 +8,22 @@ export const MIN_WALLET_TOPUP_PAISE = 10_000; // ₹100 (10,000 paise)
 export const MAX_WALLET_TOPUP_RUPEES = 1_000_000; // ₹10,00,000 (10 Lakh)
 export const MAX_WALLET_TOPUP_PAISE = 100_000_000; // ₹10,00,000 (100 million paise)
 
-// Withdrawal Limits
-export const MIN_WITHDRAWAL_AMOUNT_RUPEES = 500;
-export const MIN_WITHDRAWAL_AMOUNT_PAISE = 50_000; // ₹500 (50,000 paise)
-export const MAX_WITHDRAWAL_AMOUNT_RUPEES = 500_000; // ₹5,00,000 (5 Lakh)
-export const MAX_WITHDRAWAL_AMOUNT_PAISE = 50_000_000; // ₹5,00,000 per request
+// Withdrawal Limits (Configurable via environment variables or default limits)
+export const MIN_WITHDRAWAL_AMOUNT_PAISE =
+  (typeof process !== "undefined" &&
+    (Number(process.env.NEXT_PUBLIC_MIN_WITHDRAWAL_AMOUNT) ||
+      Number(process.env.MIN_WITHDRAWAL_AMOUNT))) ||
+  50_000; // ₹500 (50,000 paise)
+
+export const MIN_WITHDRAWAL_AMOUNT_RUPEES = Math.round(MIN_WITHDRAWAL_AMOUNT_PAISE / 100);
+
+export const MAX_WITHDRAWAL_AMOUNT_PAISE =
+  (typeof process !== "undefined" &&
+    (Number(process.env.NEXT_PUBLIC_MAX_WITHDRAWAL_AMOUNT) ||
+      Number(process.env.MAX_WITHDRAWAL_AMOUNT))) ||
+  50_000_000; // ₹5,00,000 per request (50,000,000 paise)
+
+export const MAX_WITHDRAWAL_AMOUNT_RUPEES = Math.round(MAX_WITHDRAWAL_AMOUNT_PAISE / 100);
 
 // Banking & Security Thresholds
 export const MAX_LINKED_BANK_ACCOUNTS = 5;

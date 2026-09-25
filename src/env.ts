@@ -135,6 +135,7 @@ const envSchema = z.object({
   PLATFORM_FEE_PERCENTAGE: z.coerce.number().default(10),
   GATEWAY_FEE_PERCENTAGE: z.coerce.number().default(2),
   MIN_WITHDRAWAL_AMOUNT: z.coerce.number().default(50000),
+  MAX_WITHDRAWAL_AMOUNT: z.coerce.number().default(50000000),
   E2E_MAGIC_OTP: z.string().optional(),
 
   // Storage
