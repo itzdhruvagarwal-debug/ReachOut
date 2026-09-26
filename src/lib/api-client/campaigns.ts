@@ -55,3 +55,60 @@ export function patchAction(
 ) {
   return patch(`/api/campaigns/${encodeURIComponent(id)}`, { action }, options);
 }
+
+/** GET /api/reports/brand/campaign/:id/roi — Campaign ROI & Deliverable Analytics */
+export function getRoiReport(id: string, options?: HttpOptions) {
+  return get<{
+    data: {
+      campaign: {
+        id: string;
+        title: string;
+        status: string;
+        totalBudgetPaise: number;
+        totalBudgetRupees: string;
+        targetCategories: string[];
+      };
+      summary: {
+        totalSpendPaise: number;
+        totalSpendRupees: string;
+        totalReach: number;
+        totalViews: number;
+        totalEngagements: number;
+        avgEngagementRate: number;
+        blendedCPE: string;
+        effectiveCpvPaise: number;
+        effectiveCpvRupees: string;
+        effectiveCprRupees: string;
+        categoryBaselineCpvPaise: number;
+        categoryBaselineCpvRupees: string;
+        efficiencyMultiplier: number | null;
+        influencerCount: number;
+      };
+      influencers: Array<{
+        dealId: string;
+        influencerId: string;
+        influencer: string;
+        handle?: string | null;
+        followers: number | null;
+        paid: number;
+        paidRupees: string;
+        reach: number;
+        views: number;
+        likes: number;
+        comments: number;
+        shares: number;
+        saves: number;
+        totalEngagements: number;
+        engagementRate: number;
+        cpvPaise: number;
+        costPerView: string;
+        costPerEngagement: string;
+        costPerReach: string;
+        rating?: number | null;
+        isEstimated: boolean;
+        snapshotInterval: string;
+      }>;
+      dataDisclaimer?: string | null;
+    };
+  }>(`/api/reports/brand/campaign/${encodeURIComponent(id)}/roi`, options);
+}

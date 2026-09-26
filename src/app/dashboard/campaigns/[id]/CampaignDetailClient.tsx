@@ -24,6 +24,7 @@ import {
   Tag,
   MapPin,
   Globe,
+  BarChart3,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatNumber } from "@/lib/utils-client";
 import { Button, Input, Textarea, Modal, Spinner } from "@/components/ui";
@@ -279,20 +280,32 @@ export default function CampaignDetailClient({
               </div>
             )}
             {(campaign.status === "ACTIVE" || campaign.status === "COMPLETED") && (
-              <a
-                href={`/api/reports/brand/campaign/${campaign.id}/roi?format=csv`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="inline-flex items-center gap-1.5 font-medium cursor-pointer"
+              <>
+                <Link href={`/dashboard/campaigns/${campaign.id}/roi`}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    className="inline-flex items-center gap-1.5 font-bold cursor-pointer shadow-xs"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    ROI Report
+                  </Button>
+                </Link>
+                <a
+                  href={`/api/reports/brand/campaign/${campaign.id}/roi?format=csv`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
-                  <Download className="w-4 h-4" />
-                  ROI Report (CSV)
-                </Button>
-              </a>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="inline-flex items-center gap-1.5 font-medium cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </Button>
+                </a>
+              </>
             )}
           </div>
         )}
@@ -359,8 +372,17 @@ export default function CampaignDetailClient({
             </div>
           </div>
 
-          {/* Campaign Status Badge */}
-          <div className="flex items-center gap-2 self-start">
+          {/* Campaign Status & Action Badges */}
+          <div className="flex items-center gap-2 self-start flex-wrap">
+            {isOwner && (
+              <Link
+                href={`/dashboard/campaigns/${campaign.id}/roi`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-border text-xs font-bold text-foreground hover:bg-muted transition-colors shadow-xs"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-primary" />
+                <span>ROI Analytics Report</span>
+              </Link>
+            )}
             {(() => {
               const s = campaign.status?.toUpperCase();
               let badgeStyle = "bg-muted text-foreground border-border";
@@ -544,6 +566,19 @@ export default function CampaignDetailClient({
                     {campaign.deliverables.length} Deliverables
                   </span>
                 </div>
+              </div>
+
+              <div className="pt-2 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-2xs text-muted-foreground">
+                  Realized views, CPV, and engagements aggregated from deliverable snapshots.
+                </span>
+                <Link
+                  href={`/dashboard/campaigns/${campaign.id}/roi`}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  <span>View Full CreatorIQ ROI Report →</span>
+                </Link>
               </div>
             </section>
           )}

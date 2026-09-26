@@ -29,6 +29,7 @@ export const createCampaignSchema = z.object({
     .min(1, "Please select at least one target category"),
   applicationDeadline: z.string().optional(),
   postingDeadline: z.string().min(1, "Posting deadline date is required"),
+  matchingPriority: z.enum(["BALANCED", "REACH_FOCUSED", "TRUST_FOCUSED", "ROI_FOCUSED"]).optional().default("BALANCED"),
 });
 
 export const createDisputeSchema = z.object({

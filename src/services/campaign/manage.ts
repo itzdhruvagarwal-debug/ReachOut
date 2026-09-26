@@ -12,6 +12,7 @@ import { resolveBrandPlatformFee } from "@/lib/platform-fees";
 import { assertNoContactDetails } from "./create";
 import { invalidateCampaignSearchCache } from "@/lib/search";
 import { checkCampaignCancelEligibility, checkCampaignActivationEligibility } from "@/lib/action-eligibility";
+import { encodeMatchingPriority, decodeMatchingPriority, type MatchingPriorityPreset } from "@/services/matching.service";
 
 export async function getCampaignById(
 campaignId: string,
@@ -67,12 +68,22 @@ return null;
 
 return campaign;
 }
-function buildBasicInfoUpdate(data: Record<string, unknown>, updateData: Prisma.CampaignUpdateInput) {
+function buildBasicInfoUpdate(
+  data: Record<string, unknown>,
+  updateData: Prisma.CampaignUpdateInput,
+  existingGuidelines?: string | null
+) {
   if (data.title !== undefined) updateData.title = safeStringCast(data.title);
   if (data.description !== undefined) updateData.description = safeStringCast(data.description);
   if (data.requirements !== undefined) updateData.requirements = safeStringCast(data.requirements);
-  if (data.guidelines !== undefined) {
-    updateData.guidelines = safeStringOrNullCast(data.guidelines);
+  if (data.guidelines !== undefined || data.matchingPriority !== undefined) {
+    const rawGuidelines = data.guidelines !== undefined
+      ? safeStringOrNullCast(data.guidelines)
+      : (existingGuidelines ? decodeMatchingPriority(existingGuidelines).cleanGuidelines : null);
+    const priority = (typeof data.matchingPriority === "string"
+      ? data.matchingPriority
+      : (existingGuidelines ? decodeMatchingPriority(existingGuidelines).priority : "BALANCED")) as MatchingPriorityPreset;
+    updateData.guidelines = encodeMatchingPriority(rawGuidelines, priority);
   }
 }
 function parseOptionalPositiveNumber(val: unknown): number | null {
@@ -152,9 +163,12 @@ function buildProductSeedingUpdate(data: Record<string, unknown>, updateData: Pr
     updateData.productDescription = safeStringCast(data.productDescription);
   }
 }
-function buildCampaignUpdatePayload(data: Record<string, unknown>): Prisma.CampaignUpdateInput {
+function buildCampaignUpdatePayload(
+  data: Record<string, unknown>,
+  existingGuidelines?: string | null
+): Prisma.CampaignUpdateInput {
   const updateData: Prisma.CampaignUpdateInput = {};
-  buildBasicInfoUpdate(data, updateData);
+  buildBasicInfoUpdate(data, updateData, existingGuidelines);
   buildDemographicsUpdate(data, updateData);
   buildFollowersAndEngagementUpdate(data, updateData);
   buildBudgetAndTimelineUpdate(data, updateData);
@@ -188,7 +202,7 @@ if (data.guidelines !== undefined) assertNoContactDetails(safeStringOrNullCast(d
 if (data.productName !== undefined) assertNoContactDetails(safeStringCast(data.productName), "product name");
 if (data.productDescription !== undefined) assertNoContactDetails(safeStringCast(data.productDescription), "product description");
 
-const updateData = buildCampaignUpdatePayload(data);
+const updateData = buildCampaignUpdatePayload(data, campaign.guidelines);
 
 const updatedCampaign = await tx.campaign.update({
 where: { id: campaignId },

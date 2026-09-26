@@ -96,6 +96,7 @@ id: true,
 title: true,
 perInfluencerBudget: true,
 targetCategories: true,
+guidelines: true,
 brand: { select: { companyName: true, logo: true } },
 },
 },
@@ -146,42 +147,112 @@ prisma.application.count({ where }),
     deals.map((d) => [`${d.campaignId}_${d.influencerId}`, { id: d.id, amount: d.amount, status: d.status }])
   );
 
-  const applicationsWithScores = await Promise.all(
-    applications.map(async (app) => {
-      const matchResult = await MatchingService.calculateMatchScore(
+  // Batch calculate match scores across campaigns with O(1) batched DB queries & 5-min Redis cache
+  const campaignCandidatesMap = new Map<
+    string,
+    {
+      campaign: (typeof applications)[0]["campaign"];
+      indices: number[];
+      candidates: Array<{
+        influencer: {
+          id: string;
+          categories: string;
+          instagramFollowers: number | null;
+          instagramEngagementRate: number | null;
+          youtubeSubscribers: number | null;
+          youtubeEngagementRate: number | null;
+          followerAuthenticityScore: number;
+          averageRating: number;
+          xp?: number;
+        };
+        proposedRatePaise?: number;
+      }>;
+    }
+  >();
+
+  for (let i = 0; i < applications.length; i++) {
+    const app = applications[i]!;
+    const campId = app.campaign.id;
+    let group = campaignCandidatesMap.get(campId);
+    if (!group) {
+      group = {
+        campaign: app.campaign,
+        indices: [],
+        candidates: [],
+      };
+      campaignCandidatesMap.set(campId, group);
+    }
+    group.indices.push(i);
+    group.candidates.push({
+      influencer: {
+        id: app.influencer.id,
+        categories: app.influencer.categories,
+        instagramFollowers: app.influencer.instagramFollowers,
+        instagramEngagementRate: app.influencer.instagramEngagementRate,
+        youtubeSubscribers: app.influencer.youtubeSubscribers,
+        youtubeEngagementRate: app.influencer.youtubeEngagementRate,
+        followerAuthenticityScore: app.influencer.followerAuthenticityScore,
+        averageRating: app.influencer.averageRating,
+        xp: app.influencer.user.xp,
+      },
+      proposedRatePaise: app.proposedRate,
+    });
+  }
+
+  const matchResultsByAppIndex = new Map<
+    number,
+    Awaited<ReturnType<typeof MatchingService.calculateMatchScore>>
+  >();
+
+  await Promise.all(
+    Array.from(campaignCandidatesMap.values()).map(async (group) => {
+      const scores = await MatchingService.calculateMatchScoresBatch(
         {
-          id: app.campaign.id,
-          targetCategories: app.campaign.targetCategories,
-          perInfluencerBudget: app.campaign.perInfluencerBudget,
+          id: group.campaign.id,
+          targetCategories: group.campaign.targetCategories,
+          perInfluencerBudget: group.campaign.perInfluencerBudget,
+          guidelines: group.campaign.guidelines,
         },
-        {
-          id: app.influencer.id,
-          categories: app.influencer.categories,
-          instagramFollowers: app.influencer.instagramFollowers,
-          instagramEngagementRate: app.influencer.instagramEngagementRate,
-          youtubeSubscribers: app.influencer.youtubeSubscribers,
-          youtubeEngagementRate: app.influencer.youtubeEngagementRate,
-          followerAuthenticityScore: app.influencer.followerAuthenticityScore,
-          averageRating: app.influencer.averageRating,
-          xp: app.influencer.user.xp,
-        },
-        app.proposedRate
+        group.candidates
       );
 
-      const dealInfo = app.status === "SELECTED"
+      for (let j = 0; j < group.indices.length; j++) {
+        const appIdx = group.indices[j]!;
+        const score = scores[j]!;
+        matchResultsByAppIndex.set(appIdx, score);
+      }
+    })
+  );
+
+  const applicationsWithScores = applications.map((app, index) => {
+    const matchResult = matchResultsByAppIndex.get(index) ?? {
+      matchScore: 50,
+      matchBreakdown: {
+        categoryScore: 50,
+        engagementScore: 50,
+        authenticityScore: 50,
+        qualityScore: 50,
+        roiScore: 50,
+        estimatedViews: 100,
+        estimatedCpvPaise: 100,
+        categoryBaselineCpvPaise: 35,
+      },
+    };
+
+    const dealInfo =
+      app.status === "SELECTED"
         ? (dealMap.get(`${app.campaignId}_${app.influencerId}`) ?? null)
         : null;
 
-      return {
-        ...app,
-        matchScore: matchResult.matchScore,
-        matchBreakdown: matchResult.matchBreakdown,
-        finalRate: dealInfo?.amount ?? null,
-        dealId: dealInfo?.id ?? null,
-        dealStatus: dealInfo?.status ?? null,
-      };
-    })
-  );
+    return {
+      ...app,
+      matchScore: matchResult.matchScore,
+      matchBreakdown: matchResult.matchBreakdown,
+      finalRate: dealInfo?.amount ?? null,
+      dealId: dealInfo?.id ?? null,
+      dealStatus: dealInfo?.status ?? null,
+    };
+  });
 
 // Sort by match score descending to bubble up highest matching/ROI candidates first
 const sortedApplications = [...applicationsWithScores].sort((a, b) => b.matchScore - a.matchScore);

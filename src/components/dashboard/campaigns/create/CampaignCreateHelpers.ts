@@ -23,6 +23,7 @@ productName: string;
 productValue: number;
 productDescription: string;
 deliverables: Array<{ type: string; count: number; rate: number }>;
+matchingPriority?: "BALANCED" | "REACH_FOCUSED" | "TRUST_FOCUSED" | "ROI_FOCUSED";
 }
 
 type ValidationResult = { success: boolean; fieldErrors?: Record<string, string>; error?: string };
@@ -88,6 +89,7 @@ minFollowers: formData.minFollowers,
 targetCategories: formData.targetCategories,
 applicationDeadline: formData.applicationDeadline || undefined,
 postingDeadline: formData.postingDeadline,
+matchingPriority: formData.matchingPriority || "BALANCED",
 });
 
 if (!result.success) {

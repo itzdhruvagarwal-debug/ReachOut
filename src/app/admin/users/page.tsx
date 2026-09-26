@@ -4,8 +4,9 @@ import React, { useState } from "react";
 import useSWR from "swr";
 import { useSession } from "next-auth/react";
 import { fetcher } from "@/lib/fetcher";
-import { banUser, unbanUser, awardBadgeAction } from "../actions";
+import { banUser, unbanUser, awardBadgeAction, resolveFraudAppealAction } from "../actions";
 import { checkAdminBanEligibility } from "@/lib/action-eligibility";
+import { analyzeInfluencerFraudProfile } from "@/lib/social-proof-core";
 import Image from "next/image";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Input, Select } from "@/components/ui";
@@ -19,6 +20,9 @@ import {
   Award,
   ChevronLeft,
   ChevronRight,
+  ShieldAlert,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 
 type AdminUserListElement = Prisma.PromiseReturnType<typeof AdminService.listUsers>["users"][number];
@@ -57,15 +61,231 @@ function taxStatusTone(user: TaxComplianceUser): "success" | "danger" | "warning
   return "warning";
 }
 
+interface AuthenticityAuditModalProps {
+  user: AdminUserListElement;
+  onClose: () => void;
+  onResolveAppeal: (decision: "APPROVE_APPEAL" | "CONFIRM_FLAG", notes: string) => Promise<void>;
+  isLoading: boolean;
+}
+
+function AuthenticityAuditModal({
+  user,
+  onClose,
+  onResolveAppeal,
+  isLoading,
+}: AuthenticityAuditModalProps) {
+  const [notes, setNotes] = useState("");
+  const profile = user.influencerProfile;
+  if (!profile) return null;
+
+  const analysis = analyzeInfluencerFraudProfile({
+    id: profile.id,
+    instagramFollowers: profile.instagramFollowers,
+    instagramEngagementRate: profile.instagramEngagementRate,
+    youtubeSubscribers: profile.youtubeSubscribers,
+    youtubeEngagementRate: profile.youtubeEngagementRate,
+    followerAuthenticityScore: profile.followerAuthenticityScore,
+    userCreatedAt: user.createdAt,
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
+      <div className="bg-card border border-border rounded-2xl max-w-xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-bold text-foreground">Follower Authenticity & Fraud Audit</h2>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Explainable rule-based signals & appeal resolution for {profile.displayName || user.email}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground text-sm font-bold p-1 rounded-lg hover:bg-muted"
+            aria-label="Close modal"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Score & Risk Summary Banner */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3.5 rounded-xl bg-muted/40 border border-border">
+          <div>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground block">Authenticity Score</span>
+            <div className="flex items-baseline gap-1 mt-0.5">
+              <span className="text-2xl font-black text-foreground">{analysis.followerAuthenticityScore}</span>
+              <span className="text-xs text-muted-foreground">/100</span>
+            </div>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground block">Fraud Risk Tier</span>
+            <Badge
+              variant={analysis.fraudRiskLevel === "HIGH" ? "danger" : analysis.fraudRiskLevel === "MEDIUM" ? "warning" : "success"}
+              className="mt-1 font-bold text-xs"
+            >
+              {analysis.fraudRiskLevel} RISK
+            </Badge>
+          </div>
+          <div>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground block">Account Status</span>
+            <Badge
+              variant={user.status === "FLAGGED" ? "danger" : user.status === "ACTIVE" ? "success" : "ghost"}
+              className="mt-1 font-bold text-xs"
+            >
+              {user.status}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Channel Metrics & Cross-Platform ER Comparison */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Connected Channels</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            <div className="p-3 rounded-xl bg-card border border-border space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-foreground">📸 Instagram</span>
+                <span className="text-muted-foreground font-mono">
+                  {analysis.metrics.instagramFollowers.toLocaleString()} followers
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-muted-foreground text-[11px]">
+                <span>Engagement Rate</span>
+                <span className="font-semibold text-foreground">
+                  {analysis.metrics.instagramEngagementRate.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-card border border-border space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-foreground">▶️ YouTube</span>
+                <span className="text-muted-foreground font-mono">
+                  {analysis.metrics.youtubeSubscribers.toLocaleString()} subscribers
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-muted-foreground text-[11px]">
+                <span>Engagement Rate</span>
+                <span className="font-semibold text-foreground">
+                  {analysis.metrics.youtubeEngagementRate.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {analysis.metrics.crossPlatformRatio && analysis.metrics.crossPlatformRatio > 1 && (
+            <div className="p-2.5 rounded-lg bg-muted/30 border border-border text-xs flex items-center justify-between">
+              <span className="text-muted-foreground">Cross-Platform ER Divergence:</span>
+              <span className={`font-mono font-bold ${analysis.metrics.crossPlatformRatio >= 10 ? "text-danger" : analysis.metrics.crossPlatformRatio >= 6 ? "text-warning" : "text-foreground"}`}>
+                {analysis.metrics.crossPlatformRatio}x ratio
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Detected Fraud Signals (Explainability) */}
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Rule-Based Audit Signals ({analysis.fraudSignals.length})
+          </h3>
+          {analysis.fraudSignals.length === 0 ? (
+            <div className="p-3.5 rounded-xl bg-success/10 border border-success/30 text-xs text-foreground flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-success" />
+              <span>No anomalous fraud signals detected. All metrics match platform authentic benchmarks.</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {analysis.fraudSignals.map((signal, idx) => (
+                <div
+                  key={`${signal.code}-${idx}`}
+                  className="p-3 rounded-xl bg-card border border-border space-y-1.5"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-bold text-xs text-foreground flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 text-warning" /> {signal.label}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Badge
+                        variant={signal.severity === "HIGH" ? "danger" : signal.severity === "MEDIUM" ? "warning" : "ghost"}
+                        className="text-[9px] uppercase"
+                      >
+                        {signal.severity}
+                      </Badge>
+                      <span className="text-[10px] font-mono font-bold text-danger">
+                        {signal.impactScore} pts
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    {signal.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Dispute & Appeal Resolution Workflow */}
+        <div className="space-y-3 pt-2 border-t border-border">
+          <div>
+            <h3 className="text-xs font-bold text-foreground">Dispute & Appeal Resolution</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              If creator has submitted valid evidence (e.g. viral post metrics, format transition), you can approve the appeal to reset their flag and recalibrate their score.
+            </p>
+          </div>
+
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Reason for decision (e.g., 'Verified genuine viral reel on Instagram, audience shift confirmed')..."
+            rows={2}
+            className="w-full text-xs p-2.5 rounded-xl bg-muted/30 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <Button
+              variant="secondary"
+              onClick={onClose}
+              disabled={isLoading}
+              className="min-h-[40px] px-3 font-semibold text-xs cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => onResolveAppeal("CONFIRM_FLAG", notes)}
+              disabled={isLoading}
+              className="min-h-[40px] px-3 font-bold text-xs cursor-pointer"
+            >
+              Confirm / Uphold Flag
+            </Button>
+            <Button
+              variant="success"
+              onClick={() => onResolveAppeal("APPROVE_APPEAL", notes)}
+              disabled={isLoading}
+              className="min-h-[40px] px-3 font-bold text-xs cursor-pointer"
+            >
+              Approve Appeal & Recalibrate
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface UserRowProps {
   readonly user: AdminUserListElement;
   readonly onBan: (id: string) => void;
   readonly onUnban: (id: string) => void;
   readonly onAwardBadge: (e: React.FormEvent<HTMLFormElement>, id: string) => void;
+  readonly onInspectFraud: (user: AdminUserListElement) => void;
   readonly isActionLoading?: boolean;
 }
 
-function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRowProps) {
+function UserRow({ user, onBan, onUnban, onAwardBadge, onInspectFraud, isActionLoading }: UserRowProps) {
   const { data: session } = useSession();
   const banEligibility = checkAdminBanEligibility(session?.user?.id || "", user.id);
 
@@ -137,6 +357,47 @@ function UserRow({ user, onBan, onUnban, onAwardBadge, isActionLoading }: UserRo
         <Badge variant={getStatusVariant(user.status)} className="text-[10px] uppercase">
           {user.status.toLowerCase().replaceAll("_", " ")}
         </Badge>
+      </td>
+
+      {/* Authenticity / Fraud Risk */}
+      <td className="px-5 py-4 text-xs">
+        {user.userType === "INFLUENCER" && user.influencerProfile ? (
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-black text-sm text-foreground">
+                {user.influencerProfile.followerAuthenticityScore ?? 75}
+              </span>
+              <span className="text-[10px] text-muted-foreground">/100</span>
+              <Badge
+                variant={
+                  user.status === "FLAGGED" || (user.influencerProfile.followerAuthenticityScore ?? 75) < 40
+                    ? "danger"
+                    : (user.influencerProfile.followerAuthenticityScore ?? 75) < 60
+                    ? "warning"
+                    : "success"
+                }
+                className="text-[9px] uppercase px-1.5 py-0"
+              >
+                {user.status === "FLAGGED"
+                  ? "FLAGGED"
+                  : (user.influencerProfile.followerAuthenticityScore ?? 75) < 40
+                  ? "HIGH RISK"
+                  : (user.influencerProfile.followerAuthenticityScore ?? 75) < 60
+                  ? "MED RISK"
+                  : "GENUINE"}
+              </Badge>
+            </div>
+            <button
+              type="button"
+              onClick={() => onInspectFraud(user)}
+              className="text-[10px] text-primary hover:underline font-semibold mt-0.5 block cursor-pointer"
+            >
+              Inspect Signals &rarr;
+            </button>
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
       </td>
 
       {/* Tax */}
@@ -250,6 +511,7 @@ export default function AdminUsersPage() {
   const [status, setStatus] = useState("ALL");
   const [page, setPage] = useState(1);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
+  const [auditUser, setAuditUser] = useState<AdminUserListElement | null>(null);
   const limit = 50;
 
   const queryParams = new URLSearchParams();
@@ -308,6 +570,21 @@ export default function AdminUsersPage() {
       mutate();
     } catch (err) {
       alert(formatUserError(err, "Failed to award badge. Please try again."));
+    } finally {
+      setLoadingAction(null);
+    }
+  };
+
+  const handleResolveAppeal = async (decision: "APPROVE_APPEAL" | "CONFIRM_FLAG", notes: string) => {
+    if (!auditUser) return;
+    setLoadingAction(auditUser.id);
+    try {
+      await resolveFraudAppealAction(auditUser.id, decision, notes);
+      alert(decision === "APPROVE_APPEAL" ? "Appeal approved! Profile status restored and score recalibrated." : "Fraud flag confirmed.");
+      setAuditUser(null);
+      mutate();
+    } catch (err) {
+      alert(formatUserError(err, "Failed to resolve appeal. Please try again."));
     } finally {
       setLoadingAction(null);
     }
@@ -414,6 +691,38 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
 
+                {user.userType === "INFLUENCER" && user.influencerProfile && (
+                  <div className="flex items-center justify-between pt-1.5 border-t border-border/60 text-xs">
+                    <div>
+                      <span className="block text-[10px] uppercase font-bold text-muted-foreground">Authenticity</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="font-black text-sm text-foreground">
+                          {user.influencerProfile.followerAuthenticityScore ?? 75}/100
+                        </span>
+                        <Badge
+                          variant={
+                            user.status === "FLAGGED" || (user.influencerProfile.followerAuthenticityScore ?? 75) < 40
+                              ? "danger"
+                              : (user.influencerProfile.followerAuthenticityScore ?? 75) < 60
+                              ? "warning"
+                              : "success"
+                          }
+                          className="text-[9px] uppercase px-1.5 py-0"
+                        >
+                          {user.status === "FLAGGED" ? "FLAGGED" : "AUDITED"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={() => setAuditUser(user)}
+                      className="min-h-[36px] px-2.5 text-xs font-semibold cursor-pointer"
+                    >
+                      Audit Signals
+                    </Button>
+                  </div>
+                )}
+
                 {user.userType !== "ADMIN" && (
                   <div className="flex items-center gap-2 pt-2 border-t border-border">
                     {user.status === "FLAGGED" && (
@@ -458,7 +767,7 @@ export default function AdminUsersPage() {
           <table className="w-full text-left border-collapse" aria-label="Platform users">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                {["User", "Role", "Status", "Tax Compliance", "Trust", "Joined", "Actions"].map(
+                {["User", "Role", "Status", "Authenticity", "Tax Compliance", "Trust", "Joined", "Actions"].map(
                   (heading) => (
                     <th
                       key={heading}
@@ -480,6 +789,7 @@ export default function AdminUsersPage() {
                   onBan={handleBan}
                   onUnban={handleUnban}
                   onAwardBadge={handleAwardBadge}
+                  onInspectFraud={setAuditUser}
                 />
               ))}
             </tbody>
@@ -502,7 +812,7 @@ export default function AdminUsersPage() {
               User Directory
             </h1>
             <p className="text-sm text-muted-foreground">
-              Search, moderate, award credentials, and inspect tax readiness.
+              Search, moderate, award credentials, inspect tax readiness, and review fraud signals.
             </p>
           </div>
         </div>
@@ -582,7 +892,7 @@ export default function AdminUsersPage() {
             aria-label="Previous page"
             aria-disabled={page <= 1}
             disabled={page <= 1}
-            className="gap-1 font-bold min-h-[44px] px-4 flex-1 sm:flex-initial"
+            className="gap-1 font-bold min-h-[44px] px-4 flex-1 sm:flex-initial cursor-pointer"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
             Previous
@@ -593,7 +903,7 @@ export default function AdminUsersPage() {
             aria-label="Next page"
             aria-disabled={page >= totalPages}
             disabled={page >= totalPages}
-            className="gap-1 font-bold min-h-[44px] px-4 flex-1 sm:flex-initial"
+            className="gap-1 font-bold min-h-[44px] px-4 flex-1 sm:flex-initial cursor-pointer"
           >
             Next
             <ChevronRight className="w-3.5 h-3.5" />
@@ -604,6 +914,16 @@ export default function AdminUsersPage() {
           Page {page} of {totalPages} &bull; Showing {users.length} of {total} accounts
         </span>
       </div>
+
+      {/* Authenticity & Fraud Audit Modal */}
+      {auditUser && (
+        <AuthenticityAuditModal
+          user={auditUser}
+          onClose={() => setAuditUser(null)}
+          onResolveAppeal={handleResolveAppeal}
+          isLoading={loadingAction === auditUser.id}
+        />
+      )}
     </div>
   );
 }

@@ -497,12 +497,14 @@ export default function BrandDashboard({ data, currentFY }: BrandDashboardProps)
             <div className="space-y-2.5">
               {recentCampaigns.length > 0 ? (
                 recentCampaigns.map((camp) => (
-                  <Link
+                  <div
                     key={camp.id}
-                    href={`/dashboard/campaigns/${camp.id}`}
-                    className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border hover:border-border/80 transition-all group"
+                    className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border hover:border-border/80 transition-all group gap-2"
                   >
-                    <div className="min-w-0 flex-1 pr-3">
+                    <Link
+                      href={`/dashboard/campaigns/${camp.id}`}
+                      className="min-w-0 flex-1 pr-2 block"
+                    >
                       <h4 className="text-sm font-bold text-foreground truncate group-hover:text-primary transition-colors">
                         {camp.title}
                       </h4>
@@ -511,16 +513,26 @@ export default function BrandDashboard({ data, currentFY }: BrandDashboardProps)
                         <span>•</span>
                         <span>{camp.dealsCount} creators</span>
                       </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-sm font-extrabold text-foreground tabular-nums">
-                        {formatCurrency(camp.budget)}
+                    </Link>
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="text-right">
+                        <div className="text-sm font-extrabold text-foreground tabular-nums">
+                          {formatCurrency(camp.budget)}
+                        </div>
+                        <Badge variant={camp.status === "ACTIVE" ? "success" : "ghost"} className="text-[10px]">
+                          {camp.status}
+                        </Badge>
                       </div>
-                      <Badge variant={camp.status === "ACTIVE" ? "success" : "ghost"} className="text-[10px]">
-                        {camp.status}
-                      </Badge>
+                      <Link
+                        href={`/dashboard/campaigns/${camp.id}/roi`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-border bg-card hover:bg-muted text-xs font-bold text-foreground transition-colors shadow-2xs"
+                        title="View Delivered ROI Report"
+                      >
+                        <TrendingUp className="w-3.5 h-3.5 text-primary" />
+                        <span className="hidden sm:inline">ROI</span>
+                      </Link>
                     </div>
-                  </Link>
+                  </div>
                 ))
               ) : (
                 <EmptyState

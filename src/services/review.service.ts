@@ -104,6 +104,11 @@ const deal = await getDealAndVerifyParticipant(data.dealId, reviewerId);
 if (deal.status !== "COMPLETED")
 throw AppError.badRequest("Deal must be completed before reviewing");
 
+// Review Authenticity Guard 1: Must be a genuine settled deal (monetary payout or physical product)
+if (deal.amount <= 0 && !deal.requiresProduct) {
+throw AppError.badRequest("Reviews are only permitted for deals with verified monetary or product escrow settlement.");
+}
+
 const participants = [deal.influencer.userId, deal.brand?.userId].filter(
 Boolean,
 ) as string[];
@@ -119,7 +124,7 @@ if (targetId === reviewerId) throw AppError.badRequest("Cannot review yourself")
 if (!participants.includes(targetId))
 throw AppError.badRequest("Target user is not part of this deal");
 
-// Check if review already exists
+// Check if review already exists for this exact deal
 const existing = await prisma.review.findUnique({
 where: {
 dealId_reviewerId_receiverId: {
@@ -131,6 +136,48 @@ receiverId: targetId,
 });
 if (existing)
 throw AppError.badRequest("You have already reviewed this user for this deal");
+
+// Review Authenticity Guard 2: Pairwise review velocity / anti-farming cooldown
+const recentReviewsCount = await prisma.review.count({
+where: {
+reviewerId: reviewerId,
+receiverId: targetId,
+createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+},
+});
+if (recentReviewsCount >= 3) {
+throw AppError.badRequest(
+"Review farming limit reached: A brand-creator pair cannot submit more than 3 reviews within a 30-day window without manual moderation."
+);
+}
+
+const recentReviewWithinDay = await prisma.review.findFirst({
+where: {
+reviewerId: reviewerId,
+receiverId: targetId,
+createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+},
+});
+if (recentReviewWithinDay) {
+throw AppError.badRequest(
+"Review velocity cooldown: Please wait at least 24 hours before submitting another review for the same collaboration partner."
+);
+}
+
+// Review Authenticity Guard 3: Duplicate/canned review comment prevention
+if (data.comment && data.comment.trim().length >= 10) {
+const duplicateComment = await prisma.review.findFirst({
+where: {
+reviewerId: reviewerId,
+comment: data.comment.trim(),
+},
+});
+if (duplicateComment) {
+throw AppError.badRequest(
+"Duplicate review text detected. Each review must contain unique, authentic feedback for the specific collaboration."
+);
+}
+}
 
 const receiverId = targetId; // ensure it's set for transaction usage
 

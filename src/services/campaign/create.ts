@@ -19,6 +19,7 @@ import { createDealAndReserveFunds } from "@/services/deal/helpers";
 import { checkMessageForContacts } from "@/lib/contact-filter";
 import { BlockService } from "@/services/block.service";
 import { invalidateCampaignSearchCache } from "@/lib/search";
+import { encodeMatchingPriority, type MatchingPriorityPreset } from "@/services/matching.service";
 
 export function assertNoContactDetails(text: string | null | undefined, fieldName: string) {
 if (!text) return;
@@ -301,7 +302,9 @@ minFollowers
 const title = safeStringCast(data.title).trim();
 const description = safeStringCast(data.description).trim();
 const requirements = safeStringCast(data.requirements).trim();
-const guidelines = safeStringOrNullCast(data.guidelines)?.trim() ?? null;
+const rawGuidelines = safeStringOrNullCast(data.guidelines)?.trim() ?? null;
+const matchingPriority = (typeof data.matchingPriority === "string" ? data.matchingPriority : "BALANCED") as MatchingPriorityPreset;
+const guidelines = encodeMatchingPriority(rawGuidelines, matchingPriority);
 
 if (!title || !description || !requirements) {
 throw AppError.badRequest("Missing required fields: title, description, requirements");
@@ -310,7 +313,7 @@ throw AppError.badRequest("Missing required fields: title, description, requirem
 assertNoContactDetails(title, "title");
 assertNoContactDetails(description, "description");
 assertNoContactDetails(requirements, "requirements");
-assertNoContactDetails(guidelines, "guidelines");
+assertNoContactDetails(rawGuidelines, "guidelines");
 
 const contentDeadline = new Date(data.contentDeadline as string);
 const postingDeadline = new Date(data.postingDeadline as string);

@@ -140,6 +140,7 @@ productDescription: z.string().max(5000).optional(),
 
 invitedInfluencerId: dbIdSchema.optional(),
 status: z.enum(["DRAFT", "ACTIVE"]).optional(),
+matchingPriority: z.enum(["BALANCED", "REACH_FOCUSED", "TRUST_FOCUSED", "ROI_FOCUSED"]).optional().default("BALANCED"),
 })
 .superRefine((value, ctx) => {
   validateBudgetSettings(value, ctx);

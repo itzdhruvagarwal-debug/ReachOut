@@ -12,7 +12,9 @@ import {
   X,
   ReceiptText,
   Wallet,
+  Sliders,
 } from "lucide-react";
+import { MATCHING_PRIORITY_META } from "@/lib/matching-priority";
 
 interface CampaignSummarySidebarProps {
   readonly formData: CampaignFormData;
@@ -104,6 +106,18 @@ function SidebarContent({ formData, walletBalancePaise = 0 }: CampaignSummarySid
             </span>
             <span className="font-bold text-foreground tabular-nums">
               {formatDate(formData.postingDeadline)}
+            </span>
+          </div>
+        )}
+
+        {formData.matchingPriority && (
+          <div className="flex items-center justify-between text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Sliders className="w-3.5 h-3.5 text-primary" />
+              <span>Match Priority</span>
+            </span>
+            <span className="font-bold text-foreground">
+              {MATCHING_PRIORITY_META[formData.matchingPriority]?.label.split(" ")[0]}
             </span>
           </div>
         )}

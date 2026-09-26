@@ -13,6 +13,7 @@ import {
   Star,
   CheckCircle2,
   Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { Badge, Button } from "@/components/ui";
 
@@ -129,7 +130,7 @@ export function CampaignDiscoveryCard({
         </div>
 
         {/* Right: Budget + deadline + CTA */}
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <div className="text-right hidden sm:block">
             <div className="text-xs text-muted-foreground">Budget</div>
             <div className="text-base font-extrabold font-mono tabular-nums text-foreground">
@@ -142,6 +143,18 @@ export function CampaignDiscoveryCard({
               {formatDate(campaign.postingDeadline)}
             </div>
           </div>
+          {isBrand && (
+            <Button
+              href={`/dashboard/campaigns/${campaign.id}/roi`}
+              variant="secondary"
+              size="sm"
+              className="font-bold text-xs gap-1 shadow-2xs hidden sm:inline-flex"
+              aria-label={`View ROI report for ${campaign.title}`}
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-primary" />
+              ROI
+            </Button>
+          )}
           <Button
             href={`/dashboard/campaigns/${campaign.id}`}
             variant={isApplied ? "secondary" : "primary"}
@@ -336,16 +349,30 @@ export function CampaignDiscoveryCard({
           </span>
         </div>
 
-        <Button
-          href={`/dashboard/campaigns/${campaign.id}`}
-          variant={isApplied ? "secondary" : "primary"}
-          size="sm"
-          className="font-bold text-xs gap-1 shadow-sm"
-          aria-label={`View brief for ${campaign.title}`}
-        >
-          {isApplied ? "View Application" : isBrand ? "Manage Brief" : "View Brief"}
-          <ArrowRight className="w-3.5 h-3.5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {isBrand && (
+            <Button
+              href={`/dashboard/campaigns/${campaign.id}/roi`}
+              variant="secondary"
+              size="sm"
+              className="font-bold text-xs gap-1 shadow-2xs"
+              aria-label={`View ROI report for ${campaign.title}`}
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-primary" />
+              ROI
+            </Button>
+          )}
+          <Button
+            href={`/dashboard/campaigns/${campaign.id}`}
+            variant={isApplied ? "secondary" : "primary"}
+            size="sm"
+            className="font-bold text-xs gap-1 shadow-sm"
+            aria-label={`View brief for ${campaign.title}`}
+          >
+            {isApplied ? "View Application" : isBrand ? "Manage Brief" : "View Brief"}
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
       </div>
     </article>
   );

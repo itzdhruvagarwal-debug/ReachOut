@@ -99,7 +99,19 @@ status: true,
 trustScore: true,
 createdAt: true,
 verificationLevel: true,
-influencerProfile: { select: { displayName: true, avatar: true } },
+influencerProfile: {
+  select: {
+    id: true,
+    displayName: true,
+    avatar: true,
+    followerAuthenticityScore: true,
+    contentQualityScore: true,
+    instagramFollowers: true,
+    instagramEngagementRate: true,
+    youtubeSubscribers: true,
+    youtubeEngagementRate: true,
+  },
+},
 brandProfile: { select: { companyName: true, logo: true } },
 taxCompliance: {
 select: {
@@ -502,5 +514,69 @@ where,
 orderBy: { timestamp: "desc" },
 take: 100,
 });
+}
+
+static async resolveInfluencerFraudAppeal(
+  adminUserId: string,
+  targetUserId: string,
+  action: "APPROVE_APPEAL" | "CONFIRM_FLAG",
+  notes?: string
+) {
+  const user = await prisma.user.findUnique({
+    where: { id: targetUserId },
+    include: { influencerProfile: true },
+  });
+  if (!user || user.userType !== "INFLUENCER" || !user.influencerProfile) {
+    throw AppError.notFound("Influencer profile not found");
+  }
+
+  if (action === "APPROVE_APPEAL") {
+    // If appeal approved: reset flag, recalibrate score to verified safe baseline (e.g. 75)
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: targetUserId },
+        data: { status: "ACTIVE" },
+      }),
+      prisma.influencerProfile.update({
+        where: { id: user.influencerProfile.id },
+        data: {
+          followerAuthenticityScore: Math.max(75, user.influencerProfile.followerAuthenticityScore || 75),
+        },
+      }),
+    ]);
+
+    await createActivityLog({
+      userId: adminUserId,
+      action: "USER_STATUS_CHANGE" as ActivityAction,
+      entityId: targetUserId,
+      entityType: "User",
+      metadata: { notes: notes || "Fraud flag cleared via admin appeal review" },
+    });
+
+    await NotificationService.createNotification({
+      userId: targetUserId,
+      type: "system",
+      title: "Authenticity Flag Cleared",
+      message: "Your social proof authenticity appeal has been reviewed and approved by platform admins. Your profile status is active.",
+    });
+
+    return { success: true, message: "Appeal approved and flag cleared." };
+  } else {
+    // Confirm flag / suspend
+    await prisma.user.update({
+      where: { id: targetUserId },
+      data: { status: "FLAGGED" },
+    });
+
+    await createActivityLog({
+      userId: adminUserId,
+      action: "USER_STATUS_CHANGE" as ActivityAction,
+      entityId: targetUserId,
+      entityType: "User",
+      metadata: { notes: notes || "Fraud flag confirmed by admin" },
+    });
+
+    return { success: true, message: "Fraud flag confirmed." };
+  }
 }
 }

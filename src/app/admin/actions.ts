@@ -516,3 +516,20 @@ export async function awardBadgeAction(formData: FormData) {
   }
   await awardBadgeManually(userId, badgeId);
 }
+
+export async function resolveFraudAppealAction(
+  targetUserId: string,
+  decision: "APPROVE_APPEAL" | "CONFIRM_FLAG",
+  notes?: string
+) {
+  const session = await requireAdmin();
+  const result = await AdminService.resolveInfluencerFraudAppeal(
+    session.user.id,
+    targetUserId,
+    decision,
+    notes
+  );
+  revalidatePath("/admin/users");
+  revalidatePath(`/admin/users/${targetUserId}`);
+  return result;
+}

@@ -16,6 +16,7 @@ import EmptyState from "@/components/ui/EmptyState";
 import { formatCurrency, formatNumber } from "@/lib/utils-client";
 import { CampaignApplication } from "./CampaignDetailHelpers";
 import { checkApplicationAcceptanceEligibility } from "@/lib/action-eligibility";
+import { MatchScoreBadge } from "../MatchScoreBadge";
 
 interface ApplicationsListProps {
   readonly loading: boolean;
@@ -135,19 +136,11 @@ export function ApplicationsList({
               {/* Status & Match Score Badges */}
               <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                 {matchScore !== undefined && (
-                  <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold border ${
-                      matchScore >= 80
-                        ? "bg-verified-muted text-verified border-verified-border"
-                        : matchScore >= 50
-                        ? "bg-pending-muted text-pending border-pending-border"
-                        : "bg-muted text-muted-foreground border-border"
-                    }`}
-                    title={`Match Score Details:\n- Niche Fit: ${application.matchBreakdown?.categoryScore}%\n- Engagement: ${application.matchBreakdown?.engagementScore}%\n- Authenticity: ${application.matchBreakdown?.authenticityScore}%\n- Projected CPV: ₹${(((application.matchBreakdown?.estimatedCpvPaise || 0) / 100).toFixed(2))}`}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    {matchScore}% Match
-                  </span>
+                  <MatchScoreBadge
+                    score={matchScore}
+                    breakdown={application.matchBreakdown}
+                    creatorName={application.influencer.displayName}
+                  />
                 )}
 
                 <span
