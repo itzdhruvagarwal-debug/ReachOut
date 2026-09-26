@@ -23,10 +23,6 @@ import { transitionDealState } from "@/lib/deal-state-machine";
 import { randomUUID } from "node:crypto";
 import { recordPaymentFailure } from "@/lib/observability";
 
-import {
-  MIN_WALLET_TOPUP_PAISE,
-  MAX_WALLET_TOPUP_PAISE,
-} from "@/constants";
 import { checkWalletTopUpEligibility } from "@/lib/action-eligibility";
 
 export class PaymentService {
@@ -36,7 +32,13 @@ export class PaymentService {
     idempotencyKey?: string,
   ) {
     if (!Number.isInteger(amountInPaise)) {
-      throw AppError.badRequest("Top-up amount in paise must be an integer");
+      throw AppError.badRequest("Top-up amount in paise must be an integer (Minimum top-up amount is ₹1)");
+    }
+    if (amountInPaise < 100) {
+      throw AppError.badRequest("Minimum top-up amount is ₹1");
+    }
+    if (amountInPaise > 100_000_000) {
+      throw AppError.badRequest("Top-up amount exceeds maximum allowed (₹10,00,000)");
     }
 
     // L9 FIX: Blocked/suspended users must not be able to top up.

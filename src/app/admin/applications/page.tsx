@@ -2,6 +2,7 @@ import { AdminService } from "@/services/admin.service";
 import { Prisma } from "@prisma/client";
 import { approveFlaggedApplication, rejectFlaggedApplication } from "../actions";
 import { formatCurrency, formatDate } from "@/lib/utils-client";
+import { checkAdminApplicationReviewEligibility } from "@/lib/action-eligibility";
 import { z } from "zod";
 import EmptyState from "@/components/ui/EmptyState";
 import { Badge, Button, Input } from "@/components/ui";
@@ -108,6 +109,8 @@ export default async function AdminApplicationsPage() {
               await rejectFlaggedApplication(app.id, reason);
             };
 
+            const reviewEligibility = checkAdminApplicationReviewEligibility(app.status);
+
             return (
               <div
                 key={app.id}
@@ -178,8 +181,18 @@ export default async function AdminApplicationsPage() {
 
                 {/* Action buttons */}
                 <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 border-t border-border pt-4">
+                  {!reviewEligibility.allowed && reviewEligibility.reason && (
+                    <span className="text-xs text-destructive font-semibold mr-auto">
+                      {reviewEligibility.reason}
+                    </span>
+                  )}
                   <form action={approveAction} className="w-full sm:w-auto">
-                    <Button type="submit" variant="success" className="w-full sm:w-auto min-h-[44px] font-bold">
+                    <Button
+                      type="submit"
+                      variant="success"
+                      disabled={!reviewEligibility.allowed}
+                      className="w-full sm:w-auto min-h-[44px] font-bold"
+                    >
                       Approve Application
                     </Button>
                   </form>
@@ -190,7 +203,12 @@ export default async function AdminApplicationsPage() {
                       placeholder="Rejection reason (optional)..."
                       className="text-sm min-h-[44px]"
                     />
-                    <Button type="submit" variant="danger" className="min-h-[44px] px-5 font-bold">
+                    <Button
+                      type="submit"
+                      variant="danger"
+                      disabled={!reviewEligibility.allowed}
+                      className="min-h-[44px] px-5 font-bold"
+                    >
                       Reject
                     </Button>
                   </form>

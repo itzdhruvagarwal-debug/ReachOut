@@ -436,6 +436,7 @@ return await prisma.application.findMany({
 where: { status: "FLAGGED" },
 select: {
 id: true,
+status: true,
 proposedRate: true,
 createdAt: true,
 influencer: {

@@ -11,7 +11,7 @@ import { calculateProductHandlingFee, assertSufficientBalance } from "@/lib/util
 import { resolveBrandPlatformFee } from "@/lib/platform-fees";
 import { assertNoContactDetails } from "./create";
 import { invalidateCampaignSearchCache } from "@/lib/search";
-import { checkCampaignCancelEligibility } from "@/lib/action-eligibility";
+import { checkCampaignCancelEligibility, checkCampaignActivationEligibility } from "@/lib/action-eligibility";
 
 export async function getCampaignById(
 campaignId: string,
@@ -227,8 +227,20 @@ include: { brand: { select: { userId: true } } },
 if (!campaignData || campaignData.deletedAt || campaignData.brand?.userId !== userId) {
 throw AppError.notFound("Campaign not found or unauthorized");
 }
-if (campaignData.status !== "DRAFT") {
-throw AppError.badRequest("Campaign is not in DRAFT status");
+
+const draftEligibility = checkCampaignActivationEligibility(
+  {
+    status: campaignData.status,
+    totalBudget: campaignData.totalBudget,
+    perInfluencerBudget: campaignData.perInfluencerBudget,
+    maxInfluencers: campaignData.maxInfluencers,
+    productValue: campaignData.productValue,
+    requiresProduct: campaignData.requiresProduct,
+  },
+  campaignData.brand?.userId === userId,
+);
+if (!draftEligibility.allowed) {
+  throw AppError.badRequest(draftEligibility.reason || "Campaign is not in DRAFT status");
 }
 
 const tierCheck = await checkVerificationTierForAmount(
@@ -286,6 +298,23 @@ throw AppError.badRequest("Campaign is not in DRAFT status");
 const wallet = await tx.wallet.findUnique({ where: { userId } });
 if (!wallet) {
   throw AppError.badRequest("Brand wallet not found");
+}
+
+const walletEligibility = checkCampaignActivationEligibility(
+  {
+    status: campaign.status,
+    totalBudget: campaign.totalBudget,
+    perInfluencerBudget: campaign.perInfluencerBudget,
+    maxInfluencers: campaign.maxInfluencers,
+    productValue: campaign.productValue,
+    requiresProduct: campaign.requiresProduct,
+  },
+  campaign.brand?.userId === userId,
+  { balance: wallet.balance, isFrozen: wallet.isFrozen },
+  { requiredTotalAmountPaise: amountPaise },
+);
+if (!walletEligibility.allowed) {
+  throw AppError.badRequest(walletEligibility.reason || "Insufficient wallet balance or frozen wallet");
 }
 
 assertSufficientBalance(wallet, amountPaise);

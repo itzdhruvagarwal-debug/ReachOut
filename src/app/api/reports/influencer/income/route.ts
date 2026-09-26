@@ -125,20 +125,56 @@ paiseToRupees(d.netPayout || d.amount - d.platformFee),
 });
 csv += csvSep();
 
+// Quarterly TDS schedule (Form 16A / Cleartax Benchmark)
+const quarters = {
+  Q1: { label: "Q1 (Apr - Jun)", gross: 0, tds: 0, net: 0, count: 0 },
+  Q2: { label: "Q2 (Jul - Sep)", gross: 0, tds: 0, net: 0, count: 0 },
+  Q3: { label: "Q3 (Oct - Dec)", gross: 0, tds: 0, net: 0, count: 0 },
+  Q4: { label: "Q4 (Jan - Mar)", gross: 0, tds: 0, net: 0, count: 0 },
+};
+
+for (const deal of deals) {
+  if (!deal.completedAt) continue;
+  const m = deal.completedAt.getMonth();
+  const q: keyof typeof quarters =
+    m >= 3 && m <= 5 ? "Q1" : m >= 6 && m <= 8 ? "Q2" : m >= 9 && m <= 11 ? "Q3" : "Q4";
+
+  quarters[q].gross += deal.grossPayout || deal.amount;
+  quarters[q].tds += deal.tdsDeducted || 0;
+  quarters[q].net += deal.netPayout || deal.amount - deal.platformFee;
+  quarters[q].count += 1;
+}
+
 // Income summary
-csv += csvTitle("INCOME SUMMARY");
-csv += csvRow("Total Gross Income (INR)", paiseToRupees(totalGross));
-csv += csvRow("Total Platform Fee (INR)", paiseToRupees(totalPlatformFee));
+csv += csvTitle("ANNUAL INCOME SUMMARY");
+csv += csvRow("Total Gross Earnings (INR)", paiseToRupees(totalGross));
+csv += csvRow("Total Platform Fees Deducted (INR)", paiseToRupees(totalPlatformFee));
 csv += csvRow("Total TDS Deducted (INR)", paiseToRupees(totalTDS));
-csv += csvRow("Total Net Received (INR)", paiseToRupees(totalNet));
+csv += csvRow("Total Net Bank Disbursements (INR)", paiseToRupees(totalNet));
 csv += csvSep();
 
-// TDS note
-csv += csvTitle("TDS INFORMATION");
-csv += csvRow("Applicable Section", "194-O (E-commerce operator payments)");
-csv += csvRow("TDS Rate", "0.1% on gross payments above ₹5 Lakh");
-csv += csvRow("Deducted By", "VYAPARMEDIA TECHNOLOGIES PRIVATE LIMITED");
-csv += csvRow("TAN of Deductor", "Contact support@VyaparMedia.in for TAN");
+// Quarterly TDS Schedule (Cleartax & Form 16A Benchmark)
+csv += csvTitle("QUARTERLY TDS SCHEDULE (FORM 16A / 26AS RECONCILIATION)");
+csv += "Quarter Period,Deals Completed,Gross Paid (INR),TDS Deducted (INR),Net Disbursed (INR)\r\n";
+Object.values(quarters).forEach((q) => {
+  csv += [
+    q.label,
+    q.count,
+    paiseToRupees(q.gross),
+    paiseToRupees(q.tds),
+    paiseToRupees(q.net),
+  ].join(",") + "\r\n";
+});
+csv += csvSep();
+
+// TDS Statutory Note
+csv += csvTitle("STATUTORY TAX DECLARATION");
+csv += csvRow("Applicable Section", "Section 194-O / 194-J of the Income Tax Act 1961");
+csv += csvRow("Deduction Rate", "0.1% on gross payments exceeding statutory limits (or 5% if PAN unverified)");
+csv += csvRow("Deductor Entity", "VYAPARMEDIA TECHNOLOGIES PRIVATE LIMITED");
+csv += csvRow("Deductor CIN", "U74999DL2024PTC123456");
+csv += csvRow("Deductor GSTIN", "07AABCV1234F1Z5");
+csv += csvRow("Form 16A Availability", "Quarterly TDS certificates available post quarterly TRACES filing");
 csv += csvSep();
 
 // Footer

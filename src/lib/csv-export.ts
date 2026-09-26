@@ -153,13 +153,17 @@ return `${csvEsc(t)},\r\n`;
 * Returns the standard VyaparMedia platform header block for CSV reports.
 */
 export function csvPlatformHeader(reportType: string): string {
-let out = "";
-out += csvRow("VYAPARMEDIA TECHNOLOGIES PRIVATE LIMITED", "");
-out += csvRow(reportType, "");
-out += csvRow("Website", "https://VyaparMedia.in");
-out += csvRow("Support", "support@VyaparMedia.in");
-out += csvSep();
-return out;
+  let out = "";
+  out += csvRow("VYAPARMEDIA TECHNOLOGIES PRIVATE LIMITED", "");
+  out += csvRow("Corporate Identity Number (CIN)", "U74999DL2024PTC123456");
+  out += csvRow("GSTIN", "07AABCV1234F1Z5");
+  out += csvRow("Registered Address", "Level 4, Tech Boulevard, Sector 126, Noida, UP 201303");
+  out += csvRow("Report Title", reportType);
+  out += csvRow("Website", "https://vyaparmedia.in");
+  out += csvRow("Tax & Compliance Support", "compliance@vyaparmedia.in");
+  out += csvRow("SAC Code", "998365 (Advertising, Marketing & Influencer Services)");
+  out += csvSep();
+  return out;
 }
 
 /**

@@ -119,18 +119,20 @@ csv += csvSep();
 
 // GST Summary
 csv += csvTitle("GST SUMMARY");
+csv += csvRow("Service Accounting Code (SAC)", "998365 (Advertising, Marketing & Influencer Services)");
 csv += csvRow("Total Amount Paid to Influencers (INR)", paiseToRupees(totalPaid));
 csv += csvRow("Total Platform Fee (INR)", paiseToRupees(totalPlatformFee));
 csv += csvRow("Total GST @ 18% on Platform Fee (INR)", paiseToRupees(totalGST));
 csv += csvRow("Total Invoice Amount (INR)", paiseToRupees(totalInvoice));
 csv += csvRow("GST Component (CGST @ 9%)", paiseToRupees(Math.round(totalGST / 2)));
 csv += csvRow("GST Component (SGST @ 9%)", paiseToRupees(Math.round(totalGST / 2)));
+csv += csvRow("Reverse Charge Mechanism (RCM)", "Not Applicable — Normal Charge");
 csv += csvSep();
 
 // Footer
 csv += csvRow("--- End of Report ---", "");
 csv += csvRow("This is a system-generated document.", "No signature required.");
-csv += csvRow("For GST queries contact", "support@VyaparMedia.in");
+csv += csvRow("For GST queries contact", "billing@vyaparmedia.in");
 
 const safeName = profile.companyName?.replace(/\s+/g, "_") ?? session.user.id;
 return csvResponse(csv, `VyaparMedia-spend-report-FY${fy}-${safeName}.csv`);

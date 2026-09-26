@@ -8,6 +8,7 @@ import { calculateTotalAmount } from "@/lib/razorpay";
 import { NotificationService } from "@/services/notification.service";
 import { createActivityLog } from "@/lib/audit";
 import { assertAccountCanTransact, formatCurrency } from "@/lib/utils";
+import { checkOfferAcceptanceEligibility } from "@/lib/action-eligibility";
 
 const updateMessageSchema = z.object({
   status: z.enum(["ACCEPTED", "DECLINED"]),
@@ -212,6 +213,17 @@ async function executeOfferEscrowTransaction(params: EscrowTxParams) {
 
       if (!brandWallet) {
         throw new Error("Brand wallet not found.");
+      }
+
+      const eligibility = checkOfferAcceptanceEligibility({
+        offerAmount: params.offerAmount,
+        userType: "BRAND",
+        walletBalance: brandWallet.balance,
+        isWalletFrozen: brandWallet.isFrozen,
+      });
+
+      if (!eligibility.allowed) {
+        throw new Error(eligibility.reason || "Wallet eligibility check failed.");
       }
 
       const brandWalletUpdate = await tx.wallet.updateMany({

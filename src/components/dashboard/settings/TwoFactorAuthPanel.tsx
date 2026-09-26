@@ -344,7 +344,7 @@ export default function TwoFactorAuthPanel({
                   const data = (await apiClient.users.disable2fa({
                     token: disable2FAPassword,
                     password: disable2FAPassword,
-                  } as any)) as { success?: boolean; error?: string };
+                  })) as { success?: boolean; error?: string };
                   if (data.success) {
                     setIs2FAEnabled(false);
                     setDisable2FAPassword("");

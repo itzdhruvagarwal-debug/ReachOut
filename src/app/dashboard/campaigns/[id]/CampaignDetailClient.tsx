@@ -29,10 +29,11 @@ import { formatCurrency, formatDate, formatNumber } from "@/lib/utils-client";
 import { Button, Input, Textarea, Modal, Spinner } from "@/components/ui";
 import { ApplicationsList } from "@/components/dashboard/campaigns/details/ApplicationsList";
 import { useCampaignDetail } from "@/components/dashboard/campaigns/details/useCampaignDetail";
-import { checkCampaignCancelEligibility, checkCampaignApplicationEligibility } from "@/lib/action-eligibility";
+import { checkCampaignCancelEligibility, checkCampaignApplicationEligibility, checkCampaignActivationEligibility } from "@/lib/action-eligibility";
+import { useWallet } from "@/hooks/api/useWallet";
 
 interface CampaignDetailClientProps {
-  readonly user: { readonly id: string; readonly userType?: string };
+  readonly user: { readonly id: string; readonly userType?: string; readonly verificationLevel?: string };
   readonly influencerProfile?: {
     readonly id: string;
     readonly instagramFollowers: number | null;
@@ -40,11 +41,13 @@ interface CampaignDetailClientProps {
     readonly youtubeSubscribers: number | null;
     readonly youtubeEngagementRate: number | null;
   } | null;
+  readonly kycTier?: number;
 }
 
 export default function CampaignDetailClient({
   user,
   influencerProfile = null,
+  kycTier = 0,
 }: CampaignDetailClientProps) {
   const { id: campaignId } = useParams() as { id: string };
   const router = useRouter();
@@ -91,6 +94,24 @@ export default function CampaignDetailClient({
       isOwner
     );
   }, [campaign, isOwner]);
+
+  const { walletData } = useWallet();
+
+  const activateEligibility = React.useMemo(() => {
+    if (!campaign) return { allowed: false, reason: "Campaign details not loaded" };
+    return checkCampaignActivationEligibility(
+      {
+        status: campaign.status,
+        totalBudget: campaign.totalBudget,
+        perInfluencerBudget: campaign.perInfluencerBudget,
+        maxInfluencers: campaign.maxInfluencers,
+        productValue: campaign.productValue,
+        requiresProduct: campaign.requiresProduct,
+      },
+      isOwner,
+      walletData ? { balance: walletData.balance, isFrozen: walletData.isFrozen } : undefined,
+    );
+  }, [campaign, isOwner, walletData]);
 
   if (loading) {
     return (
@@ -152,6 +173,8 @@ export default function CampaignDetailClient({
       userType: user?.userType,
       hasApplied,
       applicationStatus,
+      kycTier,
+      verificationLevel: user?.verificationLevel,
       followerCount: influencerProfile
         ? Math.max(influencerProfile.instagramFollowers || 0, influencerProfile.youtubeSubscribers || 0)
         : 0,
@@ -181,16 +204,43 @@ export default function CampaignDetailClient({
                 >
                   Edit Draft
                 </Button>
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => handleCampaignAction("ACTIVATE")}
-                  className="inline-flex items-center gap-1.5 font-bold shadow-sm"
-                >
-                  <Rocket className="w-4 h-4" />
-                  Launch Campaign
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    disabled={!activateEligibility.allowed}
+                    title={activateEligibility.reason}
+                    onClick={() => {
+                      if (!activateEligibility.allowed) {
+                        setNotice({
+                          type: "error",
+                          message: activateEligibility.reason || "Cannot launch campaign",
+                        });
+                        return;
+                      }
+                      handleCampaignAction("ACTIVATE");
+                    }}
+                    className="inline-flex items-center gap-1.5 font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Rocket className="w-4 h-4" />
+                    Launch Campaign
+                  </Button>
+                  {!activateEligibility.allowed && (
+                    <span className="text-[11px] text-amber-600 dark:text-amber-400 font-medium inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                      <span>{activateEligibility.reason}</span>
+                      {activateEligibility.ctaText && activateEligibility.ctaHref && (
+                        <Link
+                          href={activateEligibility.ctaHref}
+                          className="underline font-bold text-primary hover:text-primary/80"
+                        >
+                          {activateEligibility.ctaText} →
+                        </Link>
+                      )}
+                    </span>
+                  )}
+                </div>
               </>
             )}
             {campaign.status === "ACTIVE" && (
@@ -803,6 +853,43 @@ export default function CampaignDetailClient({
             )}
           </div>
 
+          {/* Inline KYC Tier check for proposed rate in modal */}
+          {(() => {
+            const modalRateEligibility = checkCampaignApplicationEligibility(
+              campaign,
+              {
+                id: influencerProfile?.id,
+                userId: user?.id,
+                userType: user?.userType,
+                hasApplied: false,
+                kycTier,
+                verificationLevel: user?.verificationLevel,
+                proposedRate,
+              }
+            );
+
+            if (!modalRateEligibility.allowed && modalRateEligibility.reason) {
+              return (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-700 dark:text-amber-300 space-y-1">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>{modalRateEligibility.reason}</span>
+                  </div>
+                  {modalRateEligibility.ctaText && modalRateEligibility.ctaHref && (
+                    <Link
+                      href={modalRateEligibility.ctaHref}
+                      className="inline-flex items-center gap-1 font-bold text-primary underline text-xs pt-0.5"
+                    >
+                      <span>{modalRateEligibility.ctaText}</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </Link>
+                  )}
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           <div className="flex justify-end gap-2.5 pt-4 border-t border-border">
             <Button
               type="button"
@@ -816,7 +903,19 @@ export default function CampaignDetailClient({
               type="button"
               variant="primary"
               onClick={handleApply}
-              disabled={isSubmitting || proposedRate <= 0}
+              disabled={
+                isSubmitting ||
+                proposedRate <= 0 ||
+                !checkCampaignApplicationEligibility(campaign, {
+                  id: influencerProfile?.id,
+                  userId: user?.id,
+                  userType: user?.userType,
+                  hasApplied: false,
+                  kycTier,
+                  verificationLevel: user?.verificationLevel,
+                  proposedRate,
+                }).allowed
+              }
               className="font-bold"
             >
               {isSubmitting ? <Spinner size="sm" /> : "Submit Proposal"}

@@ -8,6 +8,8 @@ import { useMessages } from "./useMessages";
 import { Message, formatMessageDateDivider } from "./MessagesHelpers";
 import { formatCurrency, formatDateTime } from "@/lib/utils-client";
 import { formatUserError, USER_SUCCESS_MESSAGES } from "@/lib/user-messages";
+import { useWallet } from "@/hooks/api/useWallet";
+import { checkOfferAcceptanceEligibility } from "@/lib/action-eligibility";
 import { DealContextMiniCard } from "./DealContextMiniCard";
 import { ContactLeakWarningBanner } from "./ContactLeakWarningBanner";
 import {
@@ -309,16 +311,30 @@ function OfferMessageBubble({
   msg,
   onAccept,
   onDecline,
+  walletBalance,
+  isWalletFrozen,
+  userType,
 }: {
   msg: Message;
   onAccept: () => void;
   onDecline: () => void;
+  walletBalance?: number | null | undefined;
+  isWalletFrozen?: boolean | null | undefined;
+  userType?: string | null | undefined;
 }) {
   const offer = msg.metadata || {};
   const amount = Number(offer.amount || 0);
   const isPending = offer.status === "PENDING";
   const isAccepted = offer.status === "ACCEPTED";
   const isDeclined = offer.status === "DECLINED";
+
+  const eligibility = checkOfferAcceptanceEligibility({
+    offerAmount: amount,
+    userType,
+    walletBalance,
+    isWalletFrozen,
+    offerStatus: offer.status as string | undefined,
+  });
 
   const statusBadge = isAccepted ? (
     <span className="text-[10px] uppercase font-extrabold px-2 py-0.5 rounded-full bg-verified-muted text-verified border border-verified-border">
@@ -368,23 +384,44 @@ function OfferMessageBubble({
       </div>
 
       {isPending && !msg.isMe && (
-        <div className="flex gap-2 mt-1 w-full">
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onAccept}
-            className="flex-1 text-xs py-2 font-bold"
-          >
-            ✓ Accept Offer
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={onDecline}
-            className="flex-1 text-xs py-2 text-destructive hover:bg-destructive/10"
-          >
-            ✕ Decline
-          </Button>
+        <div className="flex flex-col gap-2 mt-1 w-full">
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={onAccept}
+              disabled={!eligibility.allowed}
+              className="flex-1 text-xs py-2 font-bold"
+            >
+              ✓ Accept Offer
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onDecline}
+              disabled={false}
+              className="flex-1 text-xs py-2 text-destructive hover:bg-destructive/10"
+            >
+              ✕ Decline
+            </Button>
+          </div>
+
+          {!eligibility.allowed && eligibility.reason && (
+            <div className="flex flex-col gap-1 p-2 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-[11px]">
+              <div className="flex items-center gap-1 font-semibold">
+                <AlertTriangle className="w-3 h-3 shrink-0" />
+                <span>{eligibility.reason}</span>
+              </div>
+              {eligibility.ctaText && eligibility.ctaHref && (
+                <Link
+                  href={eligibility.ctaHref}
+                  className="text-primary underline font-bold hover:text-primary/80 mt-0.5 inline-block"
+                >
+                  {eligibility.ctaText} →
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -411,6 +448,7 @@ function OfferMessageBubble({
 // Message List — scroll area with date dividers and all bubble types
 // ─────────────────────────────────────────────────────────────────────────────
 function MessageList({ state }: Readonly<ChatPanelProps>) {
+  const { walletData } = useWallet();
   const {
     messages,
     isPeerTyping,
@@ -429,6 +467,9 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
           msg={msg}
           onAccept={() => state.handleUpdateOfferStatus?.(msg.id, "ACCEPTED")}
           onDecline={() => state.handleUpdateOfferStatus?.(msg.id, "DECLINED")}
+          walletBalance={walletData?.balance}
+          isWalletFrozen={walletData?.isFrozen}
+          userType={state.session?.user?.userType}
         />
       );
     }
@@ -564,6 +605,7 @@ function MessageList({ state }: Readonly<ChatPanelProps>) {
 // Chat Input Area — file attach, offer modal, contact-leak warning
 // ─────────────────────────────────────────────────────────────────────────────
 function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
+  const { walletData } = useWallet();
   const {
     newMessage,
     isChatUserBlocked,
@@ -579,6 +621,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
 
   const [offerTitle, setOfferTitle] = useState("");
   const [offerAmount, setOfferAmount] = useState("");
@@ -586,6 +629,25 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
   const [offerDeliverables, setOfferDeliverables] = useState("");
   const [offerContentDeadline, setOfferContentDeadline] = useState("");
   const [offerPostingDeadline, setOfferPostingDeadline] = useState("");
+
+  const amountVal = Number(offerAmount);
+  const isInvalidAmount = Number.isNaN(amountVal) || amountVal < 100 || amountVal > 1000000;
+  const isBrand = state.session?.user?.userType === "BRAND";
+  const amountPaise = Math.round((amountVal || 0) * 100);
+
+  const sendEligibility = checkOfferAcceptanceEligibility({
+    offerAmount: amountPaise,
+    userType: isBrand ? "BRAND" : "INFLUENCER",
+    walletBalance: walletData?.balance,
+    isWalletFrozen: walletData?.isFrozen,
+    offerStatus: "PENDING",
+  });
+
+  const canSendOffer =
+    offerTitle.trim().length > 0 &&
+    !isInvalidAmount &&
+    !isSubmittingOffer &&
+    (isBrand ? sendEligibility.allowed : true);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -629,6 +691,7 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
       showToast("error", "Please enter a valid amount");
       return;
     }
+    setIsSubmittingOffer(true);
     try {
       await handleSendOffer?.({
         title: offerTitle,
@@ -648,6 +711,8 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
       setOfferPostingDeadline("");
     } catch (err) {
       showToast("error", formatUserError(err, "Failed to send offer. Please try again."));
+    } finally {
+      setIsSubmittingOffer(false);
     }
   };
 
@@ -821,6 +886,19 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
                 fullWidth
               />
             </div>
+            {isBrand && !sendEligibility.allowed && sendEligibility.reason && (
+              <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive flex flex-col gap-1">
+                <span className="font-semibold flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  {sendEligibility.reason}
+                </span>
+                {sendEligibility.ctaText && sendEligibility.ctaHref && (
+                  <Link href={sendEligibility.ctaHref} className="text-primary underline font-bold">
+                    {sendEligibility.ctaText} →
+                  </Link>
+                )}
+              </div>
+            )}
             <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-3 border-t border-border">
               <Button
                 type="button"
@@ -830,8 +908,13 @@ function ChatInputArea({ state }: Readonly<ChatPanelProps>) {
               >
                 Cancel
               </Button>
-              <Button type="submit" variant="primary" className="w-full sm:w-auto min-h-[44px] font-bold">
-                Send Proposal
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!canSendOffer}
+                className="w-full sm:w-auto min-h-[44px] font-bold"
+              >
+                {isSubmittingOffer ? "Sending..." : "Send Proposal"}
               </Button>
             </div>
           </form>
@@ -853,6 +936,7 @@ export function ReportUserModal({ state }: Readonly<ChatPanelProps>) {
     reportDescription,
     setReportDescription,
     handleReportSubmit,
+    submittingReport,
     selectedChat,
   } = state;
 
@@ -896,8 +980,13 @@ export function ReportUserModal({ state }: Readonly<ChatPanelProps>) {
           >
             Cancel
           </Button>
-          <Button type="submit" variant="danger" className="w-full sm:w-auto min-h-[44px] font-bold">
-            Submit Report
+          <Button
+            type="submit"
+            variant="danger"
+            disabled={submittingReport || !reportReason.trim()}
+            className="w-full sm:w-auto min-h-[44px] font-bold"
+          >
+            {submittingReport ? "Submitting..." : "Submit Report"}
           </Button>
         </div>
       </form>

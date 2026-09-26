@@ -1,6 +1,6 @@
 import { addUserXp } from "@/lib/gamification-engine";
 import { checkChallengeProgress } from "@/lib/weekly-challenges";
-import { ContractTerms, checkRevisionLimit } from "@/lib/contract-engine";
+import { ContractTerms } from "@/lib/contract-engine";
 import { assertSufficientBalance } from "@/lib/utils";
 import { checkMessageForContacts } from "@/lib/contact-filter";
 import { updateTrustAndLevel } from "@/lib/trust-engine";

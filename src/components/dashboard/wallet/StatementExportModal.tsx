@@ -3,26 +3,42 @@
 import React, { useState } from "react";
 import { apiClient } from "@/lib/api-client";
 import { formatUserError } from "@/lib/user-messages";
-import { Download, FileText, Calendar, Filter, CheckCircle2, AlertCircle, Printer } from "lucide-react";
+import { Download, FileText, Calendar, Filter, CheckCircle2, AlertCircle, Printer, Loader2 } from "lucide-react";
 import { Button, Input, Modal } from "@/components/ui";
+import { StatementPrintView, type StatementTransaction } from "./StatementPrintView";
 
 interface StatementExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   userType?: string | null | undefined;
   userName?: string | null | undefined;
+  userEmail?: string | null | undefined;
+  userId?: string | null | undefined;
+  currentBalance?: number | undefined;
 }
 
 export function StatementExportModal({
   isOpen,
   onClose,
+  userType,
+  userName,
+  userEmail,
+  userId,
+  currentBalance = 0,
 }: StatementExportModalProps) {
   const [period, setPeriod] = useState<"30D" | "CURRENT_MONTH" | "90D" | "FY2526" | "CUSTOM">("CURRENT_MONTH");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [txnType, setTxnType] = useState<"ALL" | "CREDIT" | "WITHDRAWAL">("ALL");
   const [isExporting, setIsExporting] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [printData, setPrintData] = useState<{
+    transactions: StatementTransaction[];
+    periodLabel: string;
+    startStr: string;
+    endStr: string;
+  } | null>(null);
 
   if (!isOpen) return null;
 
@@ -79,8 +95,52 @@ export function StatementExportModal({
     }
   };
 
-  const handlePrintStatement = () => {
-    window.print();
+  const handlePrintStatement = async () => {
+    setIsPrinting(true);
+    setExportError(null);
+    try {
+      const { startStr, endStr } = calculateDateRange();
+      const params: Parameters<typeof apiClient.wallet.getTransactions>[0] = {
+        startDate: startStr,
+        endDate: endStr,
+        limit: 100,
+      };
+      if (txnType !== "ALL") {
+        params.type = txnType;
+      }
+      const res = await apiClient.wallet.getTransactions(params);
+
+      const txns: StatementTransaction[] = (res?.data?.transactions || []).map((t) => ({
+        id: t.id,
+        type: t.type,
+        amount: t.amount,
+        status: t.status,
+        description: t.description,
+        createdAt: t.createdAt,
+      }));
+
+      const label =
+        period === "CURRENT_MONTH"
+          ? "This Month"
+          : period === "30D"
+          ? "Last 30 Days"
+          : period === "90D"
+          ? "Last Quarter"
+          : period === "FY2526"
+          ? "Financial Year 2025-26"
+          : `${startStr} to ${endStr}`;
+
+      setPrintData({
+        transactions: txns,
+        periodLabel: label,
+        startStr,
+        endStr,
+      });
+    } catch (err: unknown) {
+      setExportError(formatUserError(err, "Failed to load statement for print preview. Please try again."));
+    } finally {
+      setIsPrinting(false);
+    }
   };
 
   const headerTitle = (
@@ -100,11 +160,12 @@ export function StatementExportModal({
   );
 
   return (
-    <Modal
-      open={isOpen}
-      onClose={onClose}
-      title={headerTitle}
-      maxWidth="32rem"
+    <>
+      <Modal
+        open={isOpen && !printData}
+        onClose={onClose}
+        title={headerTitle}
+        maxWidth="32rem"
     >
       <div className="space-y-5">
         {/* Period Selector */}
@@ -220,9 +281,20 @@ export function StatementExportModal({
             variant="secondary"
             size="sm"
             onClick={handlePrintStatement}
-            className="gap-1.5 text-xs"
+            disabled={isPrinting || isExporting}
+            className="gap-1.5 text-xs font-semibold"
           >
-            <Printer className="w-3.5 h-3.5" /> Print
+            {isPrinting ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Preparing PDF...</span>
+              </>
+            ) : (
+              <>
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print / Save PDF</span>
+              </>
+            )}
           </Button>
 
           <div className="flex items-center gap-2">
@@ -231,7 +303,7 @@ export function StatementExportModal({
               variant="secondary"
               size="sm"
               onClick={onClose}
-              disabled={isExporting}
+              disabled={isExporting || isPrinting}
             >
               Cancel
             </Button>
@@ -240,7 +312,7 @@ export function StatementExportModal({
               variant="primary"
               size="sm"
               onClick={handleDownloadCsv}
-              disabled={isExporting}
+              disabled={isExporting || isPrinting}
               className="gap-1.5 font-bold"
             >
               <Download className="w-4 h-4" />
@@ -250,5 +322,27 @@ export function StatementExportModal({
         </div>
       </div>
     </Modal>
+
+    {/* Official RazorpayX / Stripe Benchmark Printable Statement */}
+    {printData && (
+      <StatementPrintView
+        user={{
+          id: userId || "VM-USER",
+          email: userEmail,
+          name: userName,
+          userType,
+        }}
+        transactions={printData.transactions}
+        periodLabel={printData.periodLabel}
+        startDate={printData.startStr}
+        endDate={printData.endStr}
+        currentBalance={currentBalance}
+        onClose={() => {
+          setPrintData(null);
+          onClose();
+        }}
+      />
+    )}
+    </>
   );
 }

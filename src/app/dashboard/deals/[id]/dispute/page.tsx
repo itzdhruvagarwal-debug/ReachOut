@@ -126,10 +126,16 @@ export default function DealDisputePage({ params }: Readonly<DisputePageProps>) 
   );
 
   const disputeEligibility = useMemo(() => {
-    if (!deal) return { allowed: false, reason: "Loading deal details..." };
+    type DealWithParties = {
+      influencer?: { userId?: string | null };
+      influencerUserId?: string | null;
+      brand?: { userId?: string | null };
+      brandUserId?: string | null;
+    };
+    const typedDeal = deal as unknown as DealWithParties;
     return checkDisputeEligibility(deal, session?.user?.id, {
-      influencerUserId: (deal as any).influencer?.userId || (deal as any).influencerUserId,
-      brandUserId: (deal as any).brand?.userId || (deal as any).brandUserId,
+      influencerUserId: typedDeal.influencer?.userId || typedDeal.influencerUserId,
+      brandUserId: typedDeal.brand?.userId || typedDeal.brandUserId,
     });
   }, [deal, session?.user?.id]);
 

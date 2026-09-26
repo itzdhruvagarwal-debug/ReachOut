@@ -160,7 +160,7 @@ export function verify2fa(
 
 /** POST /api/user/2fa/disable */
 export function disable2fa(
-  data: { token: string },
+  data: { token?: string; password?: string; code?: string; otp?: string },
   options?: HttpOptions,
 ) {
   return post("/api/user/2fa/disable", data, options);

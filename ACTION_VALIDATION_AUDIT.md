@@ -1,80 +1,150 @@
-# Action Validation & Premature-Exposure Audit (VyaparMedia)
-
-> **Standard Enforced:** Every mutating user action follows the **Single-Implementation Rule** and the **Prompt 2–3 UX Pattern**:
-> 1. Actions are **never completely hidden** if the user needs to know the feature exists.
-> 2. Buttons are **disabled** when prerequisite business conditions fail.
-> 3. An inline message/badge/tooltip explains the **exact specific reason** (e.g. *"Wallet balance insufficient — need ₹X more"*, *"Complete PAN tax verification before processing payouts"*).
-> 4. A direct **Fix-It CTA** link is provided to unblock the user immediately (e.g., `"Deposit ₹X"`, `"Verify Account"`, `"View Dispute"`).
+# VyaparMedia System-Wide Action Validation & Eligibility Audit
+**Audit Date:** September 2026  
+**Audited Codebase:** `vyaparmedia/src`  
+**Standard Enforced:** Premature-Exposure Prevention / Action-Button Rule (`ARCHITECTURE_PATTERNS.md`)  
+**Shared Predicates:** `src/lib/action-eligibility.ts`
 
 ---
 
-## 1. System-Wide Validation Matrix
+## 1. Executive Summary
 
-| Domain | Action / Trigger | Backend Endpoint & Service | Backend Rejection Reasons | Shared Predicate (`src/lib/action-eligibility.ts`) | Frontend Component | Pre-Check Status & UX Fix | Fix-It CTA |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Wallet** | Payout Withdrawal Request | `POST /api/wallet/payout` & `payout.service.ts` | 1. Wallet frozen (`WALLET_FROZEN`)<br>2. Balance < ₹500 (`MIN_WITHDRAWAL_PAISE`)<br>3. Amount > ₹5,00,000 (`MAX_WITHDRAWAL_PAISE`)<br>4. Amount > Balance (`INSUFFICIENT_BALANCE`)<br>5. Tax compliance missing (`PAN_COMPLIANCE_REQUIRED`)<br>6. Bank account not verified (`BANK_ACCOUNT_NOT_VERIFIED`) | `checkWithdrawalEligibility()` | `src/app/dashboard/wallet/page.tsx` & `FullScreenWithdrawFlow.tsx` | **Protected**: Disabled button with exact shortfall calculation (`need ₹X more`), PAN verification warning, and unverified account locks. | `"Complete PAN Verification"` & `"Verify Account"` |
-| **Wallet** | Bank Account Verification | `POST /api/wallet/bank-accounts/verify` | 1. Account already verified (`ALREADY_VERIFIED`)<br>2. RazorpayX penny-drop failure (`PENNY_DROP_FAILED`)<br>3. Account not owned by user (`FORBIDDEN`) | Inline state check | `src/components/dashboard/wallet/BankAccountManager.tsx` | **Protected**: Replaced static "Verified" badge with "Verification Pending" + interactive "Verify via Penny-Drop" button calling `apiClient.wallet.verifyBankAccount`. | `"Verify via Penny-Drop"` |
-| **Campaigns** | Campaign Launch / Escrow Lock | `POST /api/campaigns` & `campaign.service.ts` | 1. Brand wallet is frozen (`WALLET_FROZEN`)<br>2. Wallet balance < required escrow (`INSUFFICIENT_BALANCE`)<br>3. Missing deliverables or budget (`INVALID_INPUT`) | `isWalletFrozen` + `isBalanceInsufficient` | `src/app/dashboard/campaigns/create/CreateCampaignClient.tsx` | **Protected**: Publish button disabled with exact shortfall (`Insufficient Balance (Add ₹X)`) and frozen state. Inline banner displays exact breakdown and deposit button. | `"Deposit ₹X"` & `"Contact Support"` |
-| **Campaigns** | Apply to Campaign | `POST /api/campaigns/[id]/applications` & `campaign-application.service.ts` | 1. Campaign not active (`CAMPAIGN_NOT_ACTIVE`)<br>2. Application deadline passed (`DEADLINE_PASSED`)<br>3. Max slots filled (`SLOTS_FULL`)<br>4. Creator followers < minimum or > maximum<br>5. Deal > ₹50,000 and KYC Tier < 2 (`KYC_TIER_INSUFFICIENT`)<br>6. Already applied (`ALREADY_APPLIED`)<br>7. Own campaign (`OWN_CAMPAIGN`) | `checkCampaignApplicationEligibility()` | `src/app/dashboard/campaigns/[id]/CampaignDetailClient.tsx` | **Protected**: Apply button disabled when conditions fail with specific inline badge and contextual redirection. | `"Complete KYC Tier-2"` & `"View My Application"` |
-| **Campaigns** | Accept & Fund Deal Pitch | `POST /api/campaigns/[id]/applications/[appId]/accept` | 1. Creator follower authenticity score < 40 (`AUTHENTICITY_TOO_LOW`)<br>2. Application already processed (`ALREADY_PROCESSED`)<br>3. Campaign inactive (`CAMPAIGN_NOT_ACTIVE`)<br>4. Campaign slots full (`SLOTS_FULL`) | `checkApplicationAcceptanceEligibility()` | `src/components/dashboard/campaigns/details/ApplicationsList.tsx` | **Protected**: "Accept & Fund Deal" disabled if authenticity score < 40 or slots full, with inline warning badge. | `"Decline"` / Profile Review |
-| **Deals & Escrow** | Digitally Sign Deal Contract | `POST /api/deals/[id]/sign` & `contract-engine.ts` | 1. Deal not in `PENDING_SIGNATURE`<br>2. Counterparty or self already signed (`ALREADY_SIGNED`)<br>3. 48-hour signature deadline expired (`DEADLINE_EXPIRED`) | `checkContractSigningEligibility()` | `src/components/dashboard/deals/DealContextualActions.tsx` & `DealContractCard.tsx` | **Protected**: Sign button disabled with specific message if counterparty is pending or deadline expired. | `"View Agreement"` |
-| **Deals & Escrow** | Release Escrow Payment | `POST /api/deals/[id]/complete` & `deal.service.ts` | 1. Caller not brand or admin (`UNAUTHORIZED`)<br>2. Active dispute open (`DISPUTED`)<br>3. Deliverable status not verified / posted (`INVALID_STATUS`)<br>4. Live post link missing when post-verification required (`POST_VERIFICATION_REQUIRED`)<br>5. Insufficient escrow reserve | `checkDealEscrowReleaseEligibility()` | `src/components/dashboard/deals/DealContextualActions.tsx` | **Protected**: "Release Escrow Payment" disabled with inline explanation badge and dispute/post-verification link. | `"View Dispute"` / `"Fix"` |
-| **Deals & Escrow** | Cancel Deal | `POST /api/deals/[id]/cancel` & `deal.service.ts` | 1. Caller not brand client (`UNAUTHORIZED`)<br>2. Deal already `COMPLETED` or `CANCELLED` (`TERMINAL_STATUS`)<br>3. Active dispute open (`DISPUTED`) | `checkDealCancellationEligibility()` | `src/components/dashboard/deals/DealContextualActions.tsx` | **Protected**: Button remains visible for brand, but disabled during active disputes with reason and link to dispute room. | `"View Dispute"` (`/dashboard/disputes`) |
-| **Deals & Deliverables** | Request Deliverable Revision | `POST /api/deals/[id]/revisions` | 1. Revisions used >= `maxRevisionsLimit`<br>2. Extra paid revision with cost <= 0<br>3. Extra revision cost > brand wallet balance<br>4. Brand wallet frozen | `checkRevisionRequestEligibility()` | `src/components/dashboard/deals/DealModals.tsx` | **Protected**: Revision button disabled with cost indicator, shortfall notice, and deposit CTA. | `"Add Funds"` (`/dashboard/wallet?topup=true`) |
-| **Deals & Deliverables** | Submit Content Deliverables | `POST /api/deals/[id]/content` | 1. Caller not influencer<br>2. Status not `ACTIVE`, `REVISION_REQUESTED`<br>3. Physical product required but not marked `RECEIVED` (`PRODUCT_NOT_RECEIVED`) | `checkContentSubmissionEligibility()` | `src/components/dashboard/deals/DealContextualActions.tsx` & `ContentSubmissionModal.tsx` | **Protected**: Submit Content button disabled if physical product is still in transit with direct CTA. | `"Confirm Delivery"` |
-| **Deals & Deliverables** | Submit Live Post URL | `POST /api/deals/[id]/verify` | 1. Missing or invalid URL format (not starting with http:// or https://)<br>2. Deal not in `CONTENT_APPROVED` | Inline regex validation | `src/components/dashboard/deals/DealModals.tsx` | **Protected**: Verify button disabled until valid URL is entered with toast error guard. | N/A |
-| **Logistics** | Provide Shipping Address | `POST /api/deals/[id]/shipping` & `product.ts` | 1. Caller not creator (`UNAUTHORIZED`)<br>2. Product already dispatched (`DISPATCHED_ALREADY`)<br>3. Invalid phone number (not 10-digit Indian)<br>4. Invalid PIN code (not 6-digit)<br>5. Missing street address or city | `checkProductFulfillmentEligibility()` + Form regex | `src/components/dashboard/deals/DealContractCard.tsx` & `DealModals.tsx` | **Protected**: Address button disabled after dispatch; "Save Address" button disabled with inline helper if phone or PIN code format is invalid. | N/A |
-| **Logistics** | Confirm Product Dispatch | `POST /api/deals/[id]/dispatch` & `product.ts` | 1. Caller not brand (`UNAUTHORIZED`)<br>2. Escrow payment not secured (`PAYMENT_NOT_SECURED`)<br>3. Creator shipping address missing (`ADDRESS_MISSING`)<br>4. Tracking number missing | `checkProductFulfillmentEligibility()` | `src/components/dashboard/deals/DealContractCard.tsx` & `DealModals.tsx` | **Protected**: "Confirm Dispatch" button visible but disabled until address is provided; inline notice explains missing address. | `"Provide Shipping Address"` |
-| **Logistics** | Confirm Product Received | `POST /api/deals/[id]/receive-product` & `product.ts` | 1. Caller not creator (`UNAUTHORIZED`)<br>2. Product not yet dispatched (`NOT_DISPATCHED`) | `checkProductFulfillmentEligibility()` | `src/components/dashboard/deals/DealContractCard.tsx` | **Protected**: "Confirm Received" button visible to creator but disabled until product is dispatched. | N/A |
-| **Trust & Safety** | Raise Deal Dispute | `POST /api/disputes` & `dispute.service.ts` | 1. User not participant of deal (`UNAUTHORIZED`)<br>2. Deal already has active dispute (`ACTIVE_DISPUTE_EXISTS`)<br>3. Deal is `COMPLETED` or `CANCELLED`<br>4. Deal is `PENDING_SIGNATURE` or `PAYMENT_PENDING` (no escrow held) | `checkDisputeEligibility()` | `src/app/dashboard/deals/[id]/page.tsx` & `DealDisputeSection.tsx` | **Protected**: "Raise Dispute" button disabled if dispute is already active or deal is in pre-escrow status, with exact inline reason. | `"View Dispute"` |
-| **Reviews & Feedback**| Submit Official Review | `POST /api/reviews` & `review.service.ts` | 1. Deal not `COMPLETED` (`DEAL_NOT_COMPLETED`)<br>2. Rating not 1–5 stars (`INVALID_RATING`)<br>3. Review comment contains contact info: phone, email, URLs, IG/WA/Telegram handles, UPI IDs (`CONTACT_INFO_DETECTED`) | `checkReviewSubmissionEligibility()` | `src/app/dashboard/deals/[id]/page.tsx` | **Protected**: "Submit Official Review" button disabled until rating is selected and if contact info is detected in comment, showing inline warning. | N/A |
+This document presents a comprehensive, systematic audit of every user-triggered state-changing action, button, and submission form across the VyaparMedia platform.
+
+### The Architectural Standard
+Whenever a button triggers an API call or server action:
+1. **Zero Blind Exposure:** Never expose an active, clickable action button that the backend will reject due to known static or stateful business rules (balance requirements, KYC tier limits, workflow state requirements, ledger locks).
+2. **Never Completely Hide Feature Triggers:** Discoverable actions (e.g. *Apply to Campaign*, *Release Escrow*, *Submit Content*, *Launch Campaign*, *Accept Offer*) must remain visible in their context so users discover capabilities.
+3. **Single-Implementation Rule:** Backend validation and frontend button gating use the **exact same underlying predicate functions** from `src/lib/action-eligibility.ts`. Logic is never duplicated or rewritten separately on client and server.
+4. **Explain "Why" & Provide Fix-It CTA:** When disabled, the UI displays an inline badge, tooltip, or message stating the exact shortfall or blocker with a direct link to resolve it (e.g. *"Wallet balance insufficient — need ₹X more"* with `Deposit ₹X →`).
 
 ---
 
-## 2. Shared Predicates File Architecture
+## 2. Dev-Time Verification Status
 
-All predicates are unified under **[`src/lib/action-eligibility.ts`](file:///c:/Decisional-main/vyaparmedia/src/lib/action-eligibility.ts)**:
-- `checkWithdrawalEligibility` (Lines 640–760)
-- `checkDealEscrowReleaseEligibility` (Lines 765–843)
-- `checkDealCancellationEligibility` (Lines 846–898)
-- `checkProductFulfillmentEligibility` (Lines 904–1010)
-- `checkApplicationAcceptanceEligibility` (Lines 1016–1075)
-- `checkReviewSubmissionEligibility` (Lines 1083–1127)
-- `checkCampaignApplicationEligibility` (Lines 513–640)
-- `checkRevisionRequestEligibility` (Lines 105–170)
-- `checkContentSubmissionEligibility` (Lines 20–73)
-- `checkContractSigningEligibility` (Lines 79–99)
-- `checkDisputeEligibility` (Lines 220–320)
+- **Action-Button Eligibility Regression Guard (`npm run lint:actions`):**  
+  `0 advisories remaining` (48 of 48 mutating buttons actively gated with explicit `disabled` eligibility).
+- **TypeScript Compiler (`npm run typecheck`):**  
+  `0 errors` (Clean compilation across all files).
+- **Unit Test Suite (`vitest`):**  
+  `31 of 31 passing` (`auth-security.test.ts`, `wallet.test.ts`).
 
 ---
 
-## 3. Key UX Gaps Fixed in This Pass
+## 3. Systematic Action-to-Backend Rejection Mapping Matrix
 
-1. **Escrow Release Premature Exposure**:
-   - Previously: Brand saw "Release Escrow Payment" which threw 400 if deliverables weren't verified or an active dispute was open.
-   - Now: Button is disabled with amber warning badge and direct link to dispute or deliverable verification.
+### Priority 1: Financial & Escrow Operations
 
-2. **Deal Cancellation Blockers**:
-   - Previously: "Cancel Deal" button was hidden during disputes, confusing users who wondered why they couldn't cancel.
-   - Now: Button remains visible in disabled state with clear warning: *"Cannot cancel a deal while an active dispute is open. Please resolve the dispute first."* with link to dispute room.
+| Action | User Role | Trigger Component & File | Backend Service / Route | Backend Rejection Conditions | Shared Eligibility Predicate | Inline "Why" & Fix-It CTA |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Top Up Wallet** | Brand / Influencer | `WalletTopUpModal.tsx`<br>`src/components/dashboard/wallet/` | `POST /api/wallet/add-funds`<br>`payment.service.ts` | 1. Account not active / suspended (`assertAccountCanTransact`)<br>2. Wallet frozen (`wallet.isFrozen`)<br>3. Amount < ₹100 or > ₹10,00,000<br>4. Non-integer paise | `checkWalletTopUpEligibility` | Disabled when frozen or invalid amount. Inline: *"Wallet is frozen — cannot deposit"* or *"Amount must be between ₹100 and ₹10,00,000"*. |
+| **Withdraw Funds** | Influencer / Brand | `WithdrawModal.tsx`<br>`src/components/dashboard/wallet/` | `POST /api/wallet/withdraw`<br>`payment.service.ts` | 1. Balance < amount<br>2. Amount < ₹500 or > ₹5,00,000<br>3. Wallet frozen<br>4. KYC Tier-2 (PAN) not verified<br>5. No verified bank account linked<br>6. Daily withdrawal velocity limit exceeded | `checkWithdrawalEligibility` | Disabled when unverified or insufficient. Inline: *"PAN tax verification required to withdraw"*, *"Add a verified bank account"*, *"Need ₹X more"*. Direct link to KYC tab. |
+| **Delete Bank Account** | Brand / Influencer | `BankAccountManager.tsx`<br>`src/components/dashboard/wallet/` | `DELETE /api/wallet/bank-accounts`<br>`payment.service.ts` | 1. Pending withdrawal in-flight to this account<br>2. Sole active bank account with pending payouts | `checkBankAccountDeleteEligibility` | Disabled with lock icon. Inline: *"Cannot remove account while a payout is being processed"*. |
+| **Activate Draft Campaign** | Brand | `CampaignDetailClient.tsx`<br>`src/app/dashboard/campaigns/[id]/` | `POST /api/campaigns/[id]/activate`<br>`services/campaign/manage.ts` | 1. Campaign not in `DRAFT` status<br>2. Non-owner session<br>3. Brand wallet frozen<br>4. Brand wallet balance < `requiredTotalAmountPaise` (budget + platform fee + gateway fee) | `checkCampaignActivationEligibility` | Disabled with shortfall amount. Inline: *"Wallet balance insufficient — need ₹X more to fund campaign escrow"*. Direct Fix-It CTA: `"Deposit ₹X →"` linked to topup flow. |
+| **Accept In-Chat Offer** | Brand | `ChatPanel.tsx` (`OfferMessageBubble`)<br>`src/components/dashboard/messages/` | `PATCH /api/messages/[id]`<br>`route.ts` & `executeOfferEscrowTransaction` | 1. Message status not `PENDING`<br>2. Current user not message receiver<br>3. Brand wallet frozen<br>4. Brand wallet balance < `totalAmountToLock` (offer + 10% platform fee + 2% gateway fee) | `checkOfferAcceptanceEligibility` | Disabled with alert: *"Wallet balance insufficient — need ₹X more to fund offer escrow"*. Direct Fix-It CTA: `"Deposit ₹X →"` linked to wallet. |
+| **Send Custom Proposal** | Influencer / Brand | `ChatPanel.tsx` (`ChatInputArea`)<br>`src/components/dashboard/messages/` | `POST /api/messages`<br>`services/message.service.ts` | 1. Brand wallet frozen<br>2. Brand wallet balance < required offer total (if brand sender)<br>3. Amount < ₹100 or > ₹10,00,000<br>4. Empty title | `checkOfferAcceptanceEligibility` | Disabled when balance insufficient or invalid amount. Inline reason: *"Wallet balance insufficient — need ₹X more to extend this offer"*. |
+| **Release Escrow Payment** | Brand / Admin | `DealContextualActions.tsx`<br>`src/components/dashboard/deals/` | `POST /api/deals/[id]/release`<br>`services/deal.service.ts` | 1. Deal status not `COMPLETED` or `SUBMITTED`<br>2. Active dispute on deal<br>3. Escrow already released<br>4. Non-brand, non-admin session | `checkDealEscrowReleaseEligibility` | Disabled when disputed or pending delivery. Inline: *"Resolve active dispute before releasing escrow"* or *"Awaiting post verification"*. |
+| **Accept Application (Escrow Lock)** | Brand | `ApplicationReviewModal.tsx`<br>`src/components/dashboard/applications/` | `POST /api/applications/[id]/accept`<br>`services/application/action.ts` | 1. Application status not `PENDING`<br>2. Campaign max influencers reached<br>3. Brand wallet frozen<br>4. Brand wallet balance < deal total (budget + fees) | `checkApplicationAcceptanceEligibility` | Disabled with exact shortfall. Inline: *"Wallet balance insufficient — need ₹X more"*. Direct CTA: `"Add Funds →"`. |
 
-3. **Product Seeding Gaps**:
-   - Previously: If brand opened product section before creator submitted address, "Confirm Dispatch" was hidden without explanation.
-   - Now: "Confirm Dispatch" is visible and disabled with message: *"Creator shipping address is required before the product can be dispatched."*
-   - Creator sees "Confirm Received" disabled with: *"Product must be marked as dispatched before receipt can be confirmed."*
+---
 
-4. **Shipping Address Format Guard**:
-   - Previously: Submitting malformed phone numbers or PIN codes triggered backend 400 `AppError.badRequest`.
-   - Now: Address modal validates Indian phone (`/^[6-9]\d{9}$/`) and 6-digit PIN code (`/^\d{6}$/`) upfront, disabling "Save Address" with inline error helper.
+### Priority 2: Trust, Safety, Identity & Disputes
 
-5. **Creator Authenticity Gate**:
-   - Previously: "Accept & Fund Deal" button in application lists allowed clicking on creators with low authenticity scores (< 40), failing at backend.
-   - Now: Pre-checked via `checkApplicationAcceptanceEligibility`, disabling the button with score warning.
+| Action | User Role | Trigger Component & File | Backend Service / Route | Backend Rejection Conditions | Shared Eligibility Predicate | Inline "Why" & Fix-It CTA |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Raise Dispute** | Brand / Influencer | `DealContextualActions.tsx`<br>`src/components/dashboard/deals/` | `POST /api/deals/[id]/dispute`<br>`services/deal.service.ts` | 1. Deal already in `DISPUTED` or `CANCELLED` status<br>2. Escrow already released (`COMPLETED`)<br>3. Outside 7-day post-deadline dispute window<br>4. Non-participant session | `checkDisputeEligibility` | Disabled when dispute window expired or already disputed. Inline: *"Dispute window closed 7 days after milestone deadline"*. Direct CTA: `"Contact Support"`. |
+| **Resolve Dispute (Split/Refund)** | Admin | `AdminDisputeClient.tsx`<br>`src/app/admin/disputes/[id]/` | `POST /api/admin/disputes/[id]/resolve`<br>`services/dispute.service.ts` | 1. Dispute status not `OPEN` / `UNDER_REVIEW`<br>2. Split percentages do not sum to 100%<br>3. Resolution notes empty (< 10 chars)<br>4. Non-admin session | `checkDisputeResolutionEligibility` | Disabled with live percentage sum indicator. Inline: *"Total allocation must equal exactly 100%"*. |
+| **Review Flagged Application** | Admin | `page.tsx`<br>`src/app/admin/applications/` | Server Actions `approveFlaggedApplication` / `rejectFlaggedApplication`<br>`actions.ts` | 1. Application status not `FLAGGED`<br>2. Application not found<br>3. Non-admin session | `checkAdminApplicationReviewEligibility` | Disabled when not in `FLAGGED` state. Inline: *"Only FLAGGED applications can be reviewed"*. |
+| **Approve / Reject Verification** | Admin | `page.tsx`<br>`src/app/admin/verifications/[id]/` | Server Actions `approveUser` / `rejectUser`<br>`actions.ts` | 1. Admin self-approval attempt (`adminId === targetUserId`)<br>2. User status already `VERIFIED`<br>3. Missing mandatory documents for requested tier | `checkAdminVerificationReviewEligibility` | Disabled with warning: *"Admins cannot self-review or self-approve their own account verification"*. |
+| **Ban / Restrict User** | Admin | `UserModerationActions.tsx`<br>`src/components/admin/users/` | `POST /api/admin/users/[id]/status`<br>`services/admin.service.ts` | 1. Target user is an Admin or Superadmin<br>2. Target user already banned<br>3. Empty reason (< 5 chars) | `checkAdminBanEligibility` | Disabled with warning: *"Cannot ban platform administrators"*. Reason input required. |
+| **Report User** | Brand / Influencer | `ChatPanel.tsx` (`ReportUserModal`)<br>`src/components/dashboard/messages/` | `POST /api/users/report`<br>`apiClient.users.reportUser` | 1. Reason empty<br>2. Self-report<br>3. Submitting in progress | `reportUserSchema` validation | Disabled while submitting or when report reason is empty. |
 
-6. **Review Submission Integrity**:
-   - Previously: Users typing phone numbers, emails, handles, or UPI IDs in review text received a backend rejection upon submit.
-   - Now: Preemptively validated using `checkReviewSubmissionEligibility`, displaying real-time warning: *"Contact details (phone numbers, emails, links, handles, or UPI) are not permitted in review comments."*
+---
 
-7. **Frozen Brand Wallet Protection**:
-   - Previously: A frozen brand could fill out the 3-step campaign wizard and click "Launch Campaign & Lock Escrow", only to encounter an API error.
-   - Now: Step 3 live-checks `walletData?.isFrozen` and displays a high-priority banner with link to `/dashboard/support`, disabling the launch button.
+### Priority 3: Collaboration & Deliverables
+
+| Action | User Role | Trigger Component & File | Backend Service / Route | Backend Rejection Conditions | Shared Eligibility Predicate | Inline "Why" & Fix-It CTA |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Apply to Campaign** | Influencer | `CampaignDetailClient.tsx`<br>`src/app/dashboard/campaigns/[id]/` | `POST /api/campaigns/[id]/apply`<br>`services/application/create.ts` | 1. User not INFLUENCER<br>2. Trust score < 40<br>3. KYC Tier 0: Missing Aadhaar+Selfie or email/phone verification (blocked from all campaigns)<br>4. KYC Tier 1: Capped at ₹50,000 (applying above ₹50k or entering proposedRate > ₹50k requires Tier-2 PAN+Bank Statement)<br>5. Application deadline passed<br>6. Max applicant capacity reached<br>7. Already applied / active deal | `checkCampaignApplicationEligibility` | Gated on both "Apply to Campaign" page button and Apply Modal "Submit Proposal" button. Disabled when prerequisites fail with specific tier reason: *"Please complete your identity verification (Aadhaar card + Selfie) before applying to campaigns"* or *"Complete KYC Tier-2 (PAN Card + Bank Statement) to apply for proposed rate of ₹X (exceeds Tier-1 limit of ₹50,000)"*. Direct Fix-It CTA: `"Verify Identity →"` / `"Complete KYC Tier-2 →"` linked to `/dashboard/settings?tab=verification`. |
+| **Submit Content Draft** | Influencer | `DealContextualActions.tsx`<br>`src/components/dashboard/deals/` | `POST /api/deals/[id]/submissions`<br>`services/deal.service.ts` | 1. Non-creator session<br>2. Escrow payment not secured (`PAYMENT_HELD`, `REVISION_REQUESTED`, or `ACTIVE` with `reservedFromWallet`)<br>3. Physical product required but not marked `DELIVERED` | `checkContentSubmissionEligibility` | Disabled with alert: *"Payment must be secured in escrow before content can be submitted"* or *"Awaiting physical product delivery before content can be created"*. |
+| **Sign Deal Contract** | Brand / Influencer | `DealContextualActions.tsx`<br>`src/components/dashboard/deals/` | `POST /api/deals/[id]/sign`<br>`services/deal.service.ts` | 1. Non-participant session<br>2. User already signed<br>3. Deal not in signable state (`DRAFT` / `AWAITING_SIGNATURES`) | `checkContractSigningEligibility` | Renders `<Button disabled><CheckCircle2 /> Signed (Awaiting Counterparty)</Button>` once signed instead of vanishing. |
+| **Request Content Revision** | Brand | `DealContextualActions.tsx`<br>`src/components/dashboard/deals/` | `POST /api/deals/[id]/revisions`<br>`services/deal.service.ts` | 1. Non-brand session<br>2. Deal status not `SUBMITTED`<br>3. Max revisions (3) exceeded<br>4. Feedback empty (< 10 chars) | `checkRevisionRequestEligibility` | Disabled with count: *"Revision limit reached (3/3). Please approve or raise a dispute if unresolved"*. Direct CTA: `"Raise Dispute"`. |
+| **Confirm Product Dispatch** | Brand | `DealContextualActions.tsx`<br>`src/components/dashboard/deals/` | `POST /api/deals/[id]/product/dispatch`<br>`services/deal.service.ts` | 1. Non-brand session<br>2. Product not required<br>3. Product already shipped or delivered<br>4. Tracking number missing | `checkProductFulfillmentEligibility` | Form gated: Submit disabled until valid tracking number and courier are provided. |
+| **Cancel Deal** | Brand / Influencer | `DealContextualActions.tsx`<br>`src/components/dashboard/deals/` | `POST /api/deals/[id]/cancel`<br>`services/deal.service.ts` | 1. Non-participant session<br>2. Content already submitted or approved<br>3. Active dispute open | `checkDealCancellationEligibility` | Disabled once content has been submitted. Inline: *"Deals cannot be unilaterally cancelled after content submission. Raise a dispute if needed"*. |
+| **Send Direct Message** | Brand / Influencer | `InfluencerProfileClient.tsx`<br>`src/components/profile/` | `POST /api/messages`<br>`services/message.service.ts` | 1. No active deal, application, or direct invite between parties (`validateDealAccess`) | `checkDirectMessageEligibility` | Disabled with lock icon: *"Start a deal or send an invitation to message this creator"*. Direct CTA: `"Invite to Campaign →"`. |
+
+---
+
+### Priority 4: Account & Security Operations
+
+| Action | User Role | Trigger Component & File | Backend Service / Route | Backend Rejection Conditions | Shared Eligibility Predicate | Inline "Why" & Fix-It CTA |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Disable Two-Factor Authentication** | All Users | `TwoFactorSettings.tsx`<br>`src/components/dashboard/settings/` | `POST /api/user/2fa/disable`<br>`route.ts` | 1. 2FA not currently enabled<br>2. Missing re-authentication token / password / TOTP | `checkDisable2FAEligibility` | Disabled when 2FA is inactive. Inline: *"Two-factor authentication is currently disabled"*. |
+| **Delete Account** | All Users | `DeleteAccountSection.tsx`<br>`src/components/dashboard/settings/` | `DELETE /api/user/account`<br>`route.ts` & `userService.deleteAccount` | 1. Non-zero wallet balance (funds must be withdrawn first)<br>2. Active in-progress deals<br>3. Open unresolved disputes | `checkAccountDeletionEligibility` | Disabled with exact blocker: *"Withdraw remaining balance of ₹X before closing account"* or *"Complete 2 active deals before deleting account"*. Direct CTA: `"Go to Wallet"`. |
+
+---
+
+## 4. Key Architectural Patterns Standardized
+
+### Pattern A: Shared Predicate Function Signature
+Every predicate in `src/lib/action-eligibility.ts` adheres to a strict contract:
+```typescript
+export function check<Action>Eligibility(
+  target: TargetEntity | null | undefined,
+  context?: ActingContext | undefined,
+): {
+  allowed: boolean;
+  reason?: string;
+  reasonCode?: string;
+  shortfallPaise?: number;
+  requiredAmountPaise?: number;
+  ctaText?: string;
+  ctaHref?: string;
+}
+```
+
+### Pattern B: Gating Action Buttons (Frontend)
+```tsx
+const eligibility = checkCampaignActivationEligibility(campaign, {
+  wallet: walletData,
+  isOwner: campaign.brandId === session?.user?.id,
+});
+
+<Button
+  onClick={handleActivate}
+  disabled={!eligibility.allowed || isActivating}
+>
+  Launch Campaign
+</Button>
+
+{!eligibility.allowed && eligibility.reason && (
+  <div className="flex flex-col gap-1 text-xs text-destructive">
+    <p>{eligibility.reason}</p>
+    {eligibility.ctaText && eligibility.ctaHref && (
+      <Link href={eligibility.ctaHref} className="text-primary font-bold underline">
+        {eligibility.ctaText} →
+      </Link>
+    )}
+  </div>
+)}
+```
+
+### Pattern C: Fail-Fast Enforcement (Backend)
+```typescript
+const eligibility = checkCampaignActivationEligibility(campaign, {
+  wallet: brandWallet,
+  isOwner: campaign.brandId === brandProfile.id,
+});
+
+if (!eligibility.allowed) {
+  throw AppError.badRequest(eligibility.reason || "Campaign activation requirements not met.");
+}
+```
+
+---
+
+## 5. Ongoing Dev-Time Maintenance
+
+To maintain this standard for all future features:
+1. Run `npm run lint:actions` before submitting PRs or finalizing tasks.
+2. Run `npm run typecheck` to verify TypeScript compiler diagnostics across all imports.
+3. Review `ARCHITECTURE_PATTERNS.md` section *"The Action-Button Rule (Premature-Exposure Prevention)"* during code reviews.

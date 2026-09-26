@@ -159,8 +159,8 @@ export function DealPipelineCard({
   const progress = getDealProgressStep(deal.status);
   const isBrand = !isInfluencer;
 
-  const submitEligibility = checkContentSubmissionEligibility(deal as any);
-  const signingEligibility = checkContractSigningEligibility(deal as any, false);
+  const submitEligibility = checkContentSubmissionEligibility(deal as unknown as Parameters<typeof checkContentSubmissionEligibility>[0]);
+  const signingEligibility = checkContractSigningEligibility(deal as unknown as Parameters<typeof checkContractSigningEligibility>[0], false);
 
   const dueSoon = checkIsDueSoon(deal.postingDeadline);
 

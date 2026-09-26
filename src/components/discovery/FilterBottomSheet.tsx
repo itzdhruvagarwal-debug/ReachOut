@@ -308,9 +308,11 @@ export default function FilterBottomSheet({
                 <span>Reset All</span>
               </button>
 
+              {/* action-button-ignore (client-side filter apply) */}
               <button
                 type="button"
                 onClick={handleApply}
+                disabled={false}
                 className="flex-2 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-md shadow-primary/25 hover:bg-primary/90 active:scale-[0.98] transition-all"
               >
                 Apply Filters

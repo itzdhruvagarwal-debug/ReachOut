@@ -206,7 +206,7 @@ export function checkDisputeEligibility(
     }
   }
 
-  if (!ALLOWED_DISPUTE_DEAL_STATUSES.includes(deal.status as any)) {
+  if (!(ALLOWED_DISPUTE_DEAL_STATUSES as readonly string[]).includes(deal.status)) {
     return {
       allowed: false,
       reason: `Cannot raise dispute on a deal in ${deal.status.replace(/_/g, " ")} status. Disputes can only be raised once escrow payment is secured and work is underway.`,
@@ -355,7 +355,7 @@ export function checkDisable2FAEligibility(
     authInput.token?.trim()
   );
   if (!hasCredential) {
-    return { allowed: false, reason: "Please enter your current account password to disable 2FA." };
+    return { allowed: false, reason: "Re-authentication required: Please enter your current account password to disable 2FA." };
   }
   return { allowed: true };
 }
@@ -508,6 +508,8 @@ export interface InfluencerApplicationViewerInput {
   applicationStatus?: string | null | undefined;
   followerCount?: number | null | undefined;
   kycTier?: number | undefined;
+  verificationLevel?: string | undefined;
+  proposedRate?: number | undefined;
 }
 
 export function checkCampaignApplicationEligibility(
@@ -596,17 +598,45 @@ export function checkCampaignApplicationEligibility(
     }
   }
 
-  // KYC Tier check: if deal amount > ₹50,000 and kycTier is 1 or 0
+  // Resolve effective KYC tier (either explicit numeric tier 0..3 or verificationLevel string)
+  let effectiveTier: number | undefined = influencer?.kycTier;
+  if (effectiveTier === undefined && influencer?.verificationLevel) {
+    if (influencer.verificationLevel === "NONE") effectiveTier = 0;
+    else if (influencer.verificationLevel === "BASIC") effectiveTier = 1;
+    else if (["VERIFIED", "ENTERPRISE"].includes(influencer.verificationLevel)) effectiveTier = 2;
+  }
+
+  // KYC Tier 0: Identity (Aadhaar + Selfie) not verified -> Cannot apply to any campaigns
+  if (effectiveTier !== undefined && effectiveTier === 0) {
+    return {
+      allowed: false,
+      reason: "Please complete your identity verification (Aadhaar card + Selfie) before applying to campaigns.",
+      reasonCode: "KYC_TIER1_REQUIRED",
+      ctaText: "Verify Identity",
+      ctaHref: "/dashboard/settings?tab=verification",
+    };
+  }
+
+  // KYC Tier 1: Capped at ₹50,000 monthly / per deal limit -> Requires Tier 2 (PAN + Bank statement)
   const campaignBudget = (campaign.requiresProduct && campaign.totalBudget === 0)
     ? (campaign.productValue ?? 0)
     : (campaign.perInfluencerBudget ?? 0);
 
-  if (campaignBudget > 5000000 && influencer?.kycTier !== undefined && influencer.kycTier < 2) {
+  const effectiveAmountPaise =
+    typeof influencer?.proposedRate === "number" && influencer.proposedRate > 0
+      ? Math.round(influencer.proposedRate * 100)
+      : campaignBudget;
+
+  if (effectiveAmountPaise > 5000000 && effectiveTier !== undefined && effectiveTier < 2) {
+    const rateText = typeof influencer?.proposedRate === "number" && influencer.proposedRate > 0
+      ? `proposed rate of ₹${influencer.proposedRate.toLocaleString("en-IN")}`
+      : `campaign budget of ₹${(campaignBudget / 100).toLocaleString("en-IN")}`;
+
     return {
       allowed: false,
-      reason: "Complete KYC Tier-2 to apply for campaigns above ₹50,000.",
+      reason: `Complete KYC Tier-2 (PAN Card + Bank Statement) to apply for ${rateText} (exceeds Tier-1 limit of ₹50,000).`,
       reasonCode: "KYC_TIER2_REQUIRED",
-      ctaText: "Complete KYC",
+      ctaText: "Complete KYC Tier-2",
       ctaHref: "/dashboard/settings?tab=verification",
     };
   }
@@ -1130,4 +1160,239 @@ export function checkReviewSubmissionEligibility(
 
   return { allowed: true };
 }
+
+// ---------------------------------------------------------------------------
+// 19. CAMPAIGN LAUNCH / ACTIVATION ELIGIBILITY (BRAND)
+// ---------------------------------------------------------------------------
+
+export interface CampaignActivationEligibilityInput {
+  status: string;
+  totalBudget: number; // in paise
+  perInfluencerBudget?: number | null | undefined;
+  maxInfluencers?: number | null | undefined;
+  productValue?: number | null | undefined;
+  requiresProduct?: boolean | null | undefined;
+}
+
+export interface CampaignActivationWalletInput {
+  balance?: number | null | undefined;
+  isFrozen?: boolean | null | undefined;
+}
+
+export function calculateCampaignActivationCostPaise(params: {
+  totalBudget: number;
+  perInfluencerBudget?: number | null | undefined;
+  maxInfluencers?: number | null | undefined;
+  productValue?: number | null | undefined;
+  requiresProduct?: boolean | null | undefined;
+  platformFeePercent?: number | undefined;
+  gatewayFeePercent?: number | undefined;
+}): number {
+  const {
+    totalBudget,
+    perInfluencerBudget,
+    maxInfluencers,
+    productValue,
+    requiresProduct,
+    platformFeePercent = 10,
+    gatewayFeePercent = 2,
+  } = params;
+
+  let slots = 1;
+  if (maxInfluencers && maxInfluencers > 0) {
+    slots = maxInfluencers;
+  } else if (perInfluencerBudget && perInfluencerBudget > 0) {
+    slots = Math.max(1, Math.floor(totalBudget / perInfluencerBudget));
+  }
+
+  const isProductOnly = Boolean(requiresProduct && totalBudget === 0);
+  let handlingFeePerSlot = 0;
+  if (requiresProduct && productValue) {
+    if (isProductOnly) {
+      handlingFeePerSlot = Math.max(0, Math.round((productValue * platformFeePercent) / 100));
+    } else {
+      handlingFeePerSlot = Math.max(0, Math.round(productValue * 0.02));
+    }
+  }
+
+  const totalProductHandlingFee = handlingFeePerSlot * slots;
+  const platformFee = Math.round((totalBudget * platformFeePercent) / 100) + totalProductHandlingFee;
+  const gatewayFee = Math.round(((totalBudget + platformFee) * gatewayFeePercent) / 100);
+
+  return totalBudget + platformFee + gatewayFee;
+}
+
+export function checkCampaignActivationEligibility(
+  campaign: CampaignActivationEligibilityInput | null | undefined,
+  isOwner: boolean,
+  wallet?: CampaignActivationWalletInput | null | undefined,
+  options?: {
+    customPlatformFeePercent?: number | undefined;
+    requiredTotalAmountPaise?: number | undefined;
+  },
+): {
+  allowed: boolean;
+  reason?: string | undefined;
+  reasonCode?: "CAMPAIGN_NOT_FOUND" | "UNAUTHORIZED" | "NOT_DRAFT" | "WALLET_FROZEN" | "INSUFFICIENT_FUNDS" | undefined;
+  requiredAmountPaise?: number | undefined;
+  shortfallPaise?: number | undefined;
+  ctaText?: string | undefined;
+  ctaHref?: string | undefined;
+} {
+  if (!campaign) {
+    return { allowed: false, reason: "Campaign details not loaded", reasonCode: "CAMPAIGN_NOT_FOUND" };
+  }
+
+  if (!isOwner) {
+    return {
+      allowed: false,
+      reason: "Only the campaign owner can launch this campaign.",
+      reasonCode: "UNAUTHORIZED",
+    };
+  }
+
+  if (campaign.status !== "DRAFT") {
+    return {
+      allowed: false,
+      reason: `Only draft campaigns can be launched (currently ${campaign.status.replace(/_/g, " ").toLowerCase()}).`,
+      reasonCode: "NOT_DRAFT",
+    };
+  }
+
+  if (wallet?.isFrozen) {
+    return {
+      allowed: false,
+      reason: "Your brand wallet is currently frozen. Cannot activate campaign.",
+      reasonCode: "WALLET_FROZEN",
+      ctaText: "Contact Support",
+      ctaHref: "/dashboard/support",
+    };
+  }
+
+  const requiredAmountPaise =
+    options?.requiredTotalAmountPaise ??
+    calculateCampaignActivationCostPaise({
+      totalBudget: campaign.totalBudget,
+      perInfluencerBudget: campaign.perInfluencerBudget,
+      maxInfluencers: campaign.maxInfluencers,
+      productValue: campaign.productValue,
+      requiresProduct: campaign.requiresProduct,
+      platformFeePercent: options?.customPlatformFeePercent,
+    });
+
+  if (wallet && wallet.balance !== undefined && wallet.balance !== null) {
+    if (wallet.balance < requiredAmountPaise) {
+      const shortfallPaise = requiredAmountPaise - wallet.balance;
+      return {
+        allowed: false,
+        reason: `Wallet balance insufficient — need ₹${(shortfallPaise / 100).toFixed(2)} more to fund campaign escrow (Total required: ₹${(requiredAmountPaise / 100).toFixed(2)}).`,
+        reasonCode: "INSUFFICIENT_FUNDS",
+        requiredAmountPaise,
+        shortfallPaise,
+        ctaText: `Deposit ₹${Math.ceil(shortfallPaise / 100)}`,
+        ctaHref: `/dashboard/wallet?topup=true&amount=${Math.ceil(shortfallPaise / 100)}`,
+      };
+    }
+  }
+
+  return { allowed: true, requiredAmountPaise };
+}
+
+// ---------------------------------------------------------------------------
+// 21. IN-CHAT CUSTOM OFFER ACCEPTANCE
+// ---------------------------------------------------------------------------
+
+export interface OfferAcceptanceEligibilityInput {
+  offerAmount: number; // in paise
+  userType?: string | null | undefined;
+  walletBalance?: number | null | undefined;
+  isWalletFrozen?: boolean | null | undefined;
+  offerStatus?: string | null | undefined;
+}
+
+export function checkOfferAcceptanceEligibility(
+  input: OfferAcceptanceEligibilityInput
+): {
+  allowed: boolean;
+  reason?: string | undefined;
+  shortfallPaise?: number | undefined;
+  requiredTotalPaise?: number | undefined;
+  ctaText?: string | undefined;
+  ctaHref?: string | undefined;
+} {
+  if (input.offerStatus && input.offerStatus !== "PENDING") {
+    return {
+      allowed: false,
+      reason: `Offer has already been ${input.offerStatus.toLowerCase()}`,
+    };
+  }
+
+  if (input.userType === "BRAND") {
+    if (input.isWalletFrozen) {
+      return {
+        allowed: false,
+        reason: "Your brand wallet is currently frozen. Cannot accept offers until restrictions are lifted.",
+        ctaText: "Contact Support",
+        ctaHref: "/dashboard/support",
+      };
+    }
+
+    const platformFee = Math.round((input.offerAmount * 10) / 100);
+    const gatewayFee = Math.round(((input.offerAmount + platformFee) * 2) / 100);
+    const requiredTotalPaise = input.offerAmount + platformFee + gatewayFee;
+    const balance = input.walletBalance ?? 0;
+
+    if (input.walletBalance !== undefined && input.walletBalance !== null && balance < requiredTotalPaise) {
+      const shortfallPaise = requiredTotalPaise - balance;
+      const shortfallRupees = Math.ceil(shortfallPaise / 100);
+      return {
+        allowed: false,
+        reason: `Wallet balance insufficient — need ₹${shortfallRupees.toLocaleString("en-IN")} more to fund offer escrow.`,
+        shortfallPaise,
+        requiredTotalPaise,
+        ctaText: `Deposit ₹${shortfallRupees.toLocaleString("en-IN")}`,
+        ctaHref: `/dashboard/wallet?topup=true&amount=${shortfallRupees}`,
+      };
+    }
+  }
+
+  return { allowed: true };
+}
+
+// ---------------------------------------------------------------------------
+// 22. ADMIN REVIEW ACTIONS (APPLICATIONS & VERIFICATIONS)
+// ---------------------------------------------------------------------------
+
+export function checkAdminApplicationReviewEligibility(
+  applicationStatus: string | null | undefined
+): { allowed: boolean; reason?: string | undefined } {
+  if (applicationStatus !== "FLAGGED") {
+    return {
+      allowed: false,
+      reason: `Only FLAGGED applications can be reviewed (currently ${applicationStatus || "UNKNOWN"}).`,
+    };
+  }
+  return { allowed: true };
+}
+
+export function checkAdminVerificationReviewEligibility(
+  targetUserId: string,
+  adminUserId?: string | null | undefined,
+  currentStatus?: string | null | undefined
+): { allowed: boolean; reason?: string | undefined } {
+  if (adminUserId && targetUserId === adminUserId) {
+    return {
+      allowed: false,
+      reason: "Admins cannot self-review or self-approve their own account verification.",
+    };
+  }
+  if (currentStatus === "VERIFIED") {
+    return {
+      allowed: false,
+      reason: "User account is already fully verified.",
+    };
+  }
+  return { allowed: true };
+}
+
 

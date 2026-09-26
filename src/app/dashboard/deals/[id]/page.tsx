@@ -35,6 +35,7 @@ import { EngagementCard } from "@/components/dashboard/deals/EngagementCard";
 import { ContentSubmissionsCard } from "@/components/dashboard/deals/ContentSubmissionsCard";
 import { ContentSubmissionModal } from "@/components/dashboard/deals/ContentSubmissionModal";
 import { DealModals } from "@/components/dashboard/deals/DealModals";
+import { ContractPrintView } from "@/components/dashboard/deals/ContractPrintView";
 import { Button, Skeleton, Textarea, ToastContainer } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import { formatCurrency, formatDate, formatUserError } from "@/lib/utils-client";
@@ -239,6 +240,7 @@ export default function DealDetailPage() {
 
   const isClient = session?.user?.userType === "BRAND";
   const isInfluencer = session?.user?.userType === "INFLUENCER";
+  const [showContractPrint, setShowContractPrint] = React.useState(false);
 
   const disputeEligibility = React.useMemo(() => {
     if (!deal) return { allowed: false };
@@ -358,9 +360,9 @@ export default function DealDetailPage() {
               {/* Contract Summary PDF CTA (Upwork Benchmark) */}
               <button
                 type="button"
-                onClick={() => window.print()}
+                onClick={() => setShowContractPrint(true)}
                 className="hidden sm:inline-flex items-center gap-1.5 px-3.5 min-h-[44px] rounded-xl bg-card border border-border text-xs font-semibold text-foreground hover:bg-muted transition-all cursor-pointer shadow-xs"
-                title="Print or save digital contract summary"
+                title="View, print, or download official digital contract agreement"
               >
                 <FileText className="w-3.5 h-3.5 text-primary" />
                 <span>Contract PDF</span>
@@ -630,6 +632,14 @@ export default function DealDetailPage() {
             fetchDeal();
             showToast("success", "Content submitted for review!");
           }}
+        />
+      )}
+
+      {/* Official Upwork / Deel Printable Contract Agreement Modal */}
+      {showContractPrint && deal && (
+        <ContractPrintView
+          deal={deal}
+          onClose={() => setShowContractPrint(false)}
         />
       )}
 

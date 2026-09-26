@@ -288,7 +288,7 @@ export default function WalletPage() {
     return checkWalletTopUpEligibility(
       topUpAmount,
       walletData ? { isFrozen: walletData.isFrozen } : null,
-      (session?.user as any)?.status
+      (session?.user as { status?: string } | undefined)?.status
     );
   }, [topUpAmount, walletData, session?.user]);
 
@@ -735,6 +735,9 @@ export default function WalletPage() {
         onClose={() => setShowStatementModal(false)}
         userType={userType}
         userName={session?.user?.name}
+        userEmail={session?.user?.email}
+        userId={session?.user?.id}
+        currentBalance={walletData?.balance || 0}
       />
 
       {/* ── Interactive Transaction Receipt Modal ──────────────────────────── */}

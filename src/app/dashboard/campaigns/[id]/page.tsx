@@ -3,33 +3,44 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/db";
 import DashboardShell from "@/components/dashboard/DashboardShell";
+import { getUserVerificationTier } from "@/lib/verification-tiers";
 
 import CampaignDetailClient from "./CampaignDetailClient";
 
 export default async function CampaignDetailPage() {
-const session = await auth();
+  const session = await auth();
 
-if (!session?.user) {
-redirect("/login");
-}
+  if (!session?.user) {
+    redirect("/login");
+  }
 
-let influencerProfile = null;
-if (session.user.userType === "INFLUENCER") {
-influencerProfile = await prisma.influencerProfile.findUnique({
-where: { userId: session.user.id },
-select: {
-id: true,
-instagramFollowers: true,
-instagramEngagementRate: true,
-youtubeSubscribers: true,
-youtubeEngagementRate: true,
-},
-});
-}
+  let influencerProfile = null;
+  let kycTier = 0;
+  if (session.user.userType === "INFLUENCER") {
+    const [profile, tier] = await Promise.all([
+      prisma.influencerProfile.findUnique({
+        where: { userId: session.user.id },
+        select: {
+          id: true,
+          instagramFollowers: true,
+          instagramEngagementRate: true,
+          youtubeSubscribers: true,
+          youtubeEngagementRate: true,
+        },
+      }),
+      getUserVerificationTier(session.user.id, "INFLUENCER"),
+    ]);
+    influencerProfile = profile;
+    kycTier = tier;
+  }
 
-return (
-<DashboardShell user={session.user}>
-<CampaignDetailClient user={session.user} influencerProfile={influencerProfile} />
-</DashboardShell>
-);
+  return (
+    <DashboardShell user={session.user}>
+      <CampaignDetailClient
+        user={session.user}
+        influencerProfile={influencerProfile}
+        kycTier={kycTier}
+      />
+    </DashboardShell>
+  );
 }

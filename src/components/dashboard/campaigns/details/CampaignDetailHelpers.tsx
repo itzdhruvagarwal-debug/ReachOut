@@ -36,6 +36,8 @@ deals?: number;
 };
 maxInfluencers: number | null;
 acceptedCount: number;
+requiresProduct?: boolean | null;
+productValue?: number | null;
 }
 
 export interface CampaignApplication {
@@ -119,6 +121,8 @@ deals: Number(raw?._count?.deals || 0),
 },
 maxInfluencers: raw.maxInfluencers ?? null,
 acceptedCount: raw.applications ? raw.applications.length : 0,
+requiresProduct: Boolean(raw.requiresProduct),
+productValue: raw.productValue !== null && raw.productValue !== undefined ? Number(raw.productValue) : null,
 };
 }
 

@@ -357,27 +357,45 @@ export default function BankAccountManager({
       )}
 
       {/* Delete Confirmation Alert Modal/Box */}
-      {deleteConfirmId && (
-        <div className="rounded-2xl p-5 bg-disputed-muted/60 border border-disputed-border space-y-3">
-          <div className="flex items-start gap-2.5">
-            <AlertCircle className="w-5 h-5 text-disputed shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-bold text-disputed">Confirm Removal of Beneficiary Account</h4>
-              <p className="text-xs text-foreground/80 mt-0.5">
-                Are you sure you want to remove this account? Ongoing and future milestone payouts cannot be routed to it.
-              </p>
+      {deleteConfirmId && (() => {
+        const accountToDelete = accounts.find((a) => a.id === deleteConfirmId);
+        const deleteEligibility = checkBankAccountDeleteEligibility(accountToDelete);
+
+        return (
+          <div className="rounded-2xl p-5 bg-disputed-muted/60 border border-disputed-border space-y-3">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-disputed shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-bold text-disputed">Confirm Removal of Beneficiary Account</h4>
+                <p className="text-xs text-foreground/80 mt-0.5">
+                  Are you sure you want to remove this account? Ongoing and future milestone payouts cannot be routed to it.
+                </p>
+              </div>
+            </div>
+            {!deleteEligibility.allowed && (
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 font-medium">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>{deleteEligibility.reason}</span>
+              </div>
+            )}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={!deleteEligibility.allowed}
+                title={deleteEligibility.reason}
+                onClick={handleDeleteConfirm}
+                className="text-xs font-bold min-h-[44px] px-4 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Yes, Delete Account
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setDeleteConfirmId(null)} className="text-xs min-h-[44px] px-4 flex items-center justify-center">
+                Cancel
+              </Button>
             </div>
           </div>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
-            <Button variant="danger" size="sm" onClick={handleDeleteConfirm} className="text-xs font-bold min-h-[44px] px-4 flex items-center justify-center">
-              Yes, Delete Account
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => setDeleteConfirmId(null)} className="text-xs min-h-[44px] px-4 flex items-center justify-center">
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Add Account Form Card */}
       {showForm && (

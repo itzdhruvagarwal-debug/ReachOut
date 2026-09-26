@@ -14,7 +14,11 @@ import { createActivityLog } from "@/lib/audit";
 import { AdminService } from "@/services/admin.service";
 import { requireActiveAdmin } from "@/lib/admin-auth";
 import { invalidateUserKYCCache } from "@/lib/kyc";
-import { checkAdminBanEligibility } from "@/lib/action-eligibility";
+import {
+  checkAdminBanEligibility,
+  checkAdminApplicationReviewEligibility,
+  checkAdminVerificationReviewEligibility,
+} from "@/lib/action-eligibility";
 
 async function requireAdmin() {
 const session = await auth();
@@ -72,8 +76,9 @@ message:
 
 export async function approveUser(userId: string) {
   const _session = await requireAdmin();
-  if (_session.user.id === userId) {
-    throw AppError.forbidden("Admins cannot self-approve their own account verification");
+  const reviewEligibility = checkAdminVerificationReviewEligibility(userId, _session.user.id);
+  if (!reviewEligibility.allowed) {
+    throw AppError.forbidden(reviewEligibility.reason || "Admins cannot self-approve their own account verification");
   }
 
   // Custom logic not yet in Service, keeping here but using transaction
@@ -167,6 +172,10 @@ await createActivityLog({
 
 export async function rejectUser(userId: string, reason: string) {
   const _session = await requireAdmin();
+  const reviewEligibility = checkAdminVerificationReviewEligibility(userId, _session.user.id);
+  if (!reviewEligibility.allowed) {
+    throw AppError.forbidden(reviewEligibility.reason || "Admins cannot review their own account verification");
+  }
   const validatedReason = z
     .string()
     .trim()
@@ -392,8 +401,9 @@ export async function approveFlaggedApplication(applicationId: string) {
   });
 
   if (!existingApp) throw AppError.notFound("Application not found");
-  if (existingApp.status !== "FLAGGED") {
-    throw AppError.badRequest(`Cannot approve application with status ${existingApp.status}. Only FLAGGED applications can be approved.`);
+  const eligibility = checkAdminApplicationReviewEligibility(existingApp.status);
+  if (!eligibility.allowed) {
+    throw AppError.badRequest(eligibility.reason || `Cannot approve application with status ${existingApp.status}.`);
   }
 
   const app = await prisma.application.update({
@@ -431,8 +441,9 @@ export async function rejectFlaggedApplication(applicationId: string, reason: st
   });
 
   if (!existingApp) throw AppError.notFound("Application not found");
-  if (existingApp.status !== "FLAGGED") {
-    throw AppError.badRequest(`Cannot reject application with status ${existingApp.status}. Only FLAGGED applications can be rejected.`);
+  const eligibility = checkAdminApplicationReviewEligibility(existingApp.status);
+  if (!eligibility.allowed) {
+    throw AppError.badRequest(eligibility.reason || `Cannot reject application with status ${existingApp.status}.`);
   }
 
   const app = await prisma.application.update({

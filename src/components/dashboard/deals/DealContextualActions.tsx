@@ -16,6 +16,7 @@ import { DealDetail, getFlatDeliverablesList, ContentUrlEntry } from "./DealDeta
 import {
   checkDealEscrowReleaseEligibility,
   checkDealCancellationEligibility,
+  checkContentSubmissionEligibility,
 } from "@/lib/action-eligibility";
 
 
@@ -25,7 +26,7 @@ export interface DealContextualActionsProps {
   isInfluencer: boolean;
   isBrand: boolean;
   isSubmitting: boolean;
-  canSubmitContent: boolean;
+  canSubmitContent?: boolean;
   deal: DealDetail;
   handleSignContract: () => void;
   handleRejectInvite: () => void;
@@ -45,7 +46,7 @@ export function DealContextualActions({
   isInfluencer,
   isBrand,
   isSubmitting,
-  canSubmitContent,
+  canSubmitContent: _canSubmitContent,
   deal,
   handleSignContract,
   handleRejectInvite,
@@ -74,6 +75,7 @@ export function DealContextualActions({
     deal,
     isBrand
   );
+  const submissionEligibility = checkContentSubmissionEligibility(deal);
 
   return (
     <div className="bg-card border border-border rounded-2xl p-5 mb-6 shadow-sm">
@@ -173,16 +175,28 @@ export function DealContextualActions({
 
         {/* Action CTAs */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {dealStatus === "PENDING_SIGNATURE" && !userHasSigned && (
-            <Button
-              variant="primary"
-              onClick={handleSignContract}
-              disabled={isSubmitting}
-              className="gap-1.5"
-            >
-              <FileCheck className="w-4 h-4" />
-              Sign Contract
-            </Button>
+          {dealStatus === "PENDING_SIGNATURE" && (
+            userHasSigned ? (
+              <Button
+                variant="secondary"
+                disabled
+                className="gap-1.5 opacity-75 cursor-not-allowed bg-muted text-muted-foreground"
+                title="You have already signed. Waiting for counterparty to countersign."
+              >
+                <CheckCircle2 className="w-4 h-4 text-verified" />
+                Signed (Awaiting Counterparty)
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                onClick={handleSignContract}
+                disabled={isSubmitting}
+                className="gap-1.5"
+              >
+                <FileCheck className="w-4 h-4" />
+                Sign Contract
+              </Button>
+            )
           )}
 
           {dealStatus === "PENDING_SIGNATURE" && isInfluencer && !userHasSigned && (
@@ -196,29 +210,44 @@ export function DealContextualActions({
           )}
 
           {isInfluencer && ["ACTIVE", "PAYMENT_HELD", "REVISION_REQUESTED"].includes(dealStatus) && (
-            <Button
-              variant="primary"
-              onClick={() => {
-                const latestSub = deal?.contentSubmissions?.[0];
-                const prevUrls: Record<string, string> = {};
-                if (latestSub?.contentUrls && Array.isArray(latestSub.contentUrls)) {
-                  latestSub.contentUrls.forEach((item: ContentUrlEntry) => {
-                    prevUrls[item.type] = item.url || "";
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                variant="primary"
+                onClick={() => {
+                  if (!submissionEligibility.allowed) return;
+                  const latestSub = deal?.contentSubmissions?.[0];
+                  const prevUrls: Record<string, string> = {};
+                  if (latestSub?.contentUrls && Array.isArray(latestSub.contentUrls)) {
+                    latestSub.contentUrls.forEach((item: ContentUrlEntry) => {
+                      prevUrls[item.type] = item.url || "";
+                    });
+                  }
+                  setItemizedUrls(prevUrls);
+                  setContentForm({
+                    contentUrl: latestSub?.contentUrl || "",
+                    notes: latestSub?.notes || "",
                   });
-                }
-                setItemizedUrls(prevUrls);
-                setContentForm({
-                  contentUrl: latestSub?.contentUrl || "",
-                  notes: latestSub?.notes || "",
-                });
-                setShowSubmitModal(true);
-              }}
-              disabled={!canSubmitContent || isSubmitting}
-              className="gap-1.5"
-            >
-              <UploadCloud className="w-4 h-4" />
-              {dealStatus === "REVISION_REQUESTED" ? "Re-submit Content" : "Submit Content"}
-            </Button>
+                  setShowSubmitModal(true);
+                }}
+                disabled={!submissionEligibility.allowed || isSubmitting}
+                title={submissionEligibility.reason}
+                className="gap-1.5 disabled:opacity-50"
+              >
+                <UploadCloud className="w-4 h-4" />
+                {dealStatus === "REVISION_REQUESTED" ? "Re-submit Content" : "Submit Content"}
+              </Button>
+              {!submissionEligibility.allowed && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-500 bg-amber-500/10 px-2.5 py-1 rounded-md mt-1">
+                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span>{submissionEligibility.reason}</span>
+                  {submissionEligibility.ctaText && (
+                    <span className="font-bold text-primary ml-1">
+                      ({submissionEligibility.ctaText})
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
           {isInfluencer && dealStatus === "CONTENT_APPROVED" && (

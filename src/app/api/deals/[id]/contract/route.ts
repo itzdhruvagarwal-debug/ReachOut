@@ -155,7 +155,7 @@ const productRows = terms.requiresProduct ? [
 { "Section": "PRODUCT DETAILS", "Field": "", "Value": "" },
 { "Section": "", "Field": "Product Required", "Value": "Yes" },
 { "Section": "", "Field": "Product Name", "Value": terms.productName || "" },
-{ "Section": "", "Field": "Product Value ()", "Value": terms.productValue ? paiseToRupees(terms.productValue) : "" },
+{ "Section": "", "Field": "Product Value (INR)", "Value": terms.productValue ? paiseToRupees(terms.productValue) : "" },
 { "Section": "", "Field": "Product Description", "Value": terms.productDescription || "" },
 { "Section": "", "Field": "", "Value": "" }
 ] : [];
@@ -295,12 +295,12 @@ const mandatoryRows = buildMandatoryContractCsvRows(deal, terms, platform);
 
 const financialRows = [
 { "Section": "FINANCIAL TERMS", "Field": "", "Value": "" },
-{ "Section": "", "Field": "Creator Fee ()", "Value": paiseToRupees(terms.dealAmount || 0) },
-{ "Section": "", "Field": "Platform Fee ()", "Value": paiseToRupees(terms.platformFee || 0) },
-{ "Section": "", "Field": "Gateway Fee ()", "Value": paiseToRupees(terms.gatewayFee || 0) },
+{ "Section": "", "Field": "Creator Consideration (INR)", "Value": paiseToRupees(terms.dealAmount || 0) },
+{ "Section": "", "Field": "Platform Escrow Fee (INR)", "Value": paiseToRupees(terms.platformFee || 0) },
+{ "Section": "", "Field": "Gateway Processing Fee (INR)", "Value": paiseToRupees(terms.gatewayFee || 0) },
 { "Section": "", "Field": "Platform Fee %", "Value": `${terms.platformFeePercent ?? DEFAULT_BRAND_PLATFORM_FEE_PERCENT}%` },
-{ "Section": "", "Field": "Total Payable ()", "Value": paiseToRupees(terms.totalAmount || 0) },
-{ "Section": "", "Field": "Influencer Payout ()", "Value": paiseToRupees(terms.influencerPayout || 0) },
+{ "Section": "", "Field": "Total Payable Into Escrow (INR)", "Value": paiseToRupees(terms.totalAmount || 0) },
+{ "Section": "", "Field": "Influencer Net Payout (INR)", "Value": paiseToRupees(terms.influencerPayout || 0) },
 { "Section": "", "Field": "", "Value": "" }
 ];
 
@@ -317,7 +317,7 @@ const timelineRows = [
 const revisionRows = [
 { "Section": "REVISIONS", "Field": "", "Value": "" },
 { "Section": "", "Field": "Included Revisions", "Value": String(terms.includedRevisions || DEFAULT_INCLUDED_REVISIONS) },
-{ "Section": "", "Field": "Cost Per Extra Revision ()", "Value": paiseToRupees(terms.costPerExtraRevision || DEFAULT_COST_PER_EXTRA_REVISION_PAISE) },
+{ "Section": "", "Field": "Cost Per Extra Revision (INR)", "Value": paiseToRupees(terms.costPerExtraRevision || DEFAULT_COST_PER_EXTRA_REVISION_PAISE) },
 { "Section": "", "Field": "", "Value": "" }
 ];
 

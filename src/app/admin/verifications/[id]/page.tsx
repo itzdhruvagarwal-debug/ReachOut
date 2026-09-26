@@ -1,5 +1,7 @@
 import prisma from "@/lib/db";
 import { notFound } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { checkAdminVerificationReviewEligibility } from "@/lib/action-eligibility";
 import {
   approveUser,
   rejectUser,
@@ -40,6 +42,7 @@ export default async function VerificationDetailPage({
   readonly params: Promise<{ readonly id: string }>;
 }) {
   const { id } = await params;
+  const session = await auth();
   const user = await prisma.user.findUnique({
     where: { id },
     include: {
@@ -52,6 +55,12 @@ export default async function VerificationDetailPage({
   });
 
   if (!user) notFound();
+
+  const adminEligibility = checkAdminVerificationReviewEligibility(
+    user.id,
+    session?.user?.id,
+    user.status
+  );
 
   // Regenerate presigned URLs for all KYC documents on load.
   const docsWithRefreshedUrls = await Promise.all(
@@ -335,7 +344,13 @@ export default async function VerificationDetailPage({
                         required
                         className="flex-1 text-xs"
                       />
-                      <Button type="submit" variant="danger" size="sm" className="gap-1 shrink-0 font-bold">
+                      <Button
+                        type="submit"
+                        variant="danger"
+                        size="sm"
+                        disabled={!adminEligibility.allowed}
+                        className="gap-1 shrink-0 font-bold"
+                      >
                         <XCircle className="w-3.5 h-3.5" />
                         Reject
                       </Button>
@@ -357,11 +372,22 @@ export default async function VerificationDetailPage({
           <p className="text-xs text-muted-foreground mt-0.5">
             Finalize user status. Passing verification enables escrow withdrawals, deal bidding, and public listing.
           </p>
+          {!adminEligibility.allowed && adminEligibility.reason && (
+            <p className="text-xs text-destructive font-semibold mt-2">
+              {adminEligibility.reason}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 pt-2">
           <form action={approveUser.bind(null, user.id)} className="shrink-0">
-            <Button variant="success" size="lg" className="w-full md:w-auto gap-2 font-bold px-6 shadow-sm">
+            <Button
+              type="submit"
+              variant="success"
+              size="lg"
+              disabled={!adminEligibility.allowed}
+              className="w-full md:w-auto gap-2 font-bold px-6 shadow-sm"
+            >
               <ShieldCheck className="w-5 h-5" />
               Approve & Verify Account
             </Button>
@@ -384,7 +410,13 @@ export default async function VerificationDetailPage({
               required
               className="flex-1"
             />
-            <Button type="submit" variant="danger" size="lg" className="shrink-0 gap-2 font-bold px-6">
+            <Button
+              type="submit"
+              variant="danger"
+              size="lg"
+              disabled={!adminEligibility.allowed}
+              className="shrink-0 gap-2 font-bold px-6"
+            >
               <AlertCircle className="w-4 h-4" />
               Reject Account
             </Button>

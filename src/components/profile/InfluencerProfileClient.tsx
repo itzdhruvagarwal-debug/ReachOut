@@ -377,7 +377,7 @@ export default function InfluencerProfileClient({
                       <span>Send Message</span>
                     </Link>
                   ) : (
-                    <div className="relative group inline-flex items-center gap-1.5">
+                    <div className="relative group inline-flex flex-col sm:flex-row items-start sm:items-center gap-1.5">
                       <button
                         type="button"
                         disabled
@@ -391,7 +391,7 @@ export default function InfluencerProfileClient({
                       <button
                         type="button"
                         onClick={() => setShowInviteModal(true)}
-                        className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline px-1 py-0.5"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline px-1 py-0.5"
                         title="Start a deal first to message this creator"
                       >
                         <span>Start Deal to Chat →</span>
@@ -1048,20 +1048,42 @@ export default function InfluencerProfileClient({
                 <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
               </Link>
 
-              <Link
-                href={`/dashboard/messages?with=${profile.userId}`}
-                className="p-3.5 rounded-2xl bg-muted/40 hover:bg-muted/80 border border-border flex items-center justify-between group transition-all"
-              >
-                <div className="space-y-0.5">
-                  <span className="font-bold text-xs text-foreground block group-hover:text-primary transition-colors">
-                    Direct Negotiation Chat
-                  </span>
-                  <span className="text-[11px] text-muted-foreground block">
-                    Discuss brief &amp; deliverables before creating agreement
-                  </span>
+              {canMessageState ? (
+                <Link
+                  href={`/dashboard/messages?with=${profile.userId}`}
+                  className="p-3.5 rounded-2xl bg-muted/40 hover:bg-muted/80 border border-border flex items-center justify-between group transition-all"
+                >
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-xs text-foreground block group-hover:text-primary transition-colors">
+                      Direct Negotiation Chat
+                    </span>
+                    <span className="text-[11px] text-muted-foreground block">
+                      Discuss brief &amp; deliverables before creating agreement
+                    </span>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+                </Link>
+              ) : (
+                <div
+                  className="p-3.5 rounded-2xl bg-muted/20 border border-border/60 flex items-center justify-between opacity-75 cursor-not-allowed"
+                  title={messageEligibility.reason || "Start a deal first to message this creator"}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-xs text-muted-foreground block">
+                        Direct Negotiation Chat
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                        Deal Required
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-muted-foreground block">
+                      {messageEligibility.reason || "Start a deal first to message this creator."}
+                    </span>
+                  </div>
+                  <Lock className="w-4 h-4 text-muted-foreground shrink-0 ml-2" />
                 </div>
-                <ArrowRight className="w-4 h-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-              </Link>
+              )}
             </div>
           </div>
         </Modal>

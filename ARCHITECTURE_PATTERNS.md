@@ -295,43 +295,48 @@ To prevent code drift and ensure predictable development across all modules:
 #### The Anti-Pattern to Eliminate ("Premature Exposure"):
 Leaving an action button enabled, letting the user fill forms or click with expectation of success, only to receive a toast or 400/403 `AppError` rejection from the backend (e.g., *"Wallet balance insufficient"*, *"Tax compliance required"*, *"Active dispute open"*, *"Product sample not received"*).
 
-#### The 4-Pillar UX Standard:
-1. **Never Completely Hide Feature Buttons**:
-   - Do **NOT** hide action buttons just because prerequisites fail. If a feature exists (e.g. "Apply to Campaign", "Release Escrow Payment", "Cancel Deal", "Confirm Dispatch"), the user needs to know it exists.
-   - *Only exception:* Genuinely inapplicable user actions (e.g., "Message Yourself" on your own profile).
-2. **Disabled State When Prerequisites Fail**:
-   - The button must be disabled: `disabled={isSubmitting || !eligibility.allowed}`.
-3. **Inline Specific Reason ("Why")**:
-   - Provide an immediate, contextual badge, tooltip, or inline message explaining the exact reason:
-     - *"Wallet balance insufficient — need ₹X more"*
-     - *"PAN tax compliance is required before withdrawals"*
-     - *"Physical product must be marked as received before submitting content"*
-     - *"Creator authenticity score (32/100) is below platform threshold of 40"*
-4. **Direct Actionable Fix-It CTA**:
-   - When a blocker can be resolved by the user, provide an instant link or action trigger:
-     - `"Add Funds"` / `"Deposit ₹X"` → `/dashboard/wallet?topup=true`
-     - `"Complete KYC"` → `/dashboard/settings?tab=verification`
-     - `"View Dispute"` → `/dashboard/disputes`
-     - `"Confirm Delivery"` → Product Logistics section
+#### The 5-Step Action-Button Workflow:
+1. **Find All Backend Rejections First**: Before styling or wiring a button/form, open the target API route and service layer. Catalogue every `throw`, `AppError`, rejections, balance requirement, ledger lock, KYC tier limit, or workflow deadline.
+2. **Never Completely Hide Discoverable Triggers**: Do **NOT** hide action buttons just because prerequisites fail. If a feature exists (e.g., "Apply to Campaign", "Release Escrow Payment", "Cancel Deal", "Confirm Dispatch", "Accept Offer"), users need to discover that the platform capability exists. *Only exception:* Genuinely inapplicable user actions (e.g., "Message Yourself" on your own profile).
+3. **Wire Frontend Disabled State**: Wire `disabled={isSubmitting || !eligibility.allowed}` using shared predicates. Never allow a click that will predictably fail on the server.
+4. **Show Inline Specific Reason ("Why")**: Display an immediate, contextual badge, tooltip, or inline message explaining the exact reason:
+   - *"Wallet balance insufficient — need ₹X more"*
+   - *"Complete PAN tax verification before processing payouts"*
+   - *"Physical product must be marked as received before submitting content"*
+   - *"Creator authenticity score (32/100) is below platform threshold of 40"*
+5. **Provide a Direct Fix-It CTA**: Link directly to the resolution flow:
+   - `"Add Funds"` / `"Deposit ₹X"` → `/dashboard/wallet?topup=true`
+   - `"Complete KYC"` / `"Verify Identity"` → `/dashboard/settings?tab=verification`
+   - `"View Dispute"` → `/dashboard/disputes`
+   - `"Confirm Delivery"` → Product Logistics section
 
 #### Single-Implementation Rule (`src/lib/action-eligibility.ts`):
 - All business rejection conditions must be authored in a **shared predicate function** inside `@/lib/action-eligibility.ts`.
 - Both the backend API handler/service and the frontend React component must import and use this exact same predicate. Never duplicate eligibility logic across layers.
 
+#### Dev-Time Automated Regression Check:
+- Run `npm run lint:actions` (or `npm run validate`) to scan the codebase for any mutating buttons missing explicit `disabled` eligibility gating.
+- If a button is strictly non-mutating (e.g. client-side tab switcher, slide-up filter sheet drawer), mark it with `{/* action-button-ignore */}`.
+
 ---
 
-## 7. Definition of Done Checklist for New Features
+## 7. Definition of Done Checklist for New Features & Code Reviews
 
-When writing new code or modifying existing code, verify against this checklist:
+When writing new code, reviewing PRs, or developing features with Antigravity, verify against this checklist:
 
-1. [ ] **File Location**: Is the component in the appropriate feature folder (`components/dashboard/<feature>/` or `components/ui/`)?
-2. [ ] **File Casing**: Is the component file PascalCase (`MyNewCard.tsx`)?
-3. [ ] **Export Style**: Does the component provide a named export (`export function MyNewCard`)?
-4. [ ] **Service Pattern**: Is new backend business logic encapsulated in a static class service (`export class FeatureService`) in `src/services/`?
-5. [ ] **Import Aliasing**: Are all imports utilizing `@/...` rather than deep `../../` relative paths?
-6. [ ] **Formatting Utilities**: Does all currency and date rendering use `formatCurrency` and `formatDate` from `@/lib/utils-client`?
-7. [ ] **Loading States**: Are skeleton shimmer loaders (`<Skeleton>`) used for asynchronous data fetching instead of raw full-page spinners?
-8. [ ] **Action-Button Eligibility Gating**: Does every state-changing / API-triggering button pre-check backend rejection conditions using shared predicates from `src/lib/action-eligibility.ts`? Is it disabled with an inline "why" explanation and actionable fix-it CTA rather than blindly depending on backend runtime rejections?
-9. [ ] **Type Integrity**: Does `npm run typecheck` pass with 0 diagnostics?
-10. [ ] **Test Coverage**: Does `npm test` execute and pass 100% of the test suite?
+1. [ ] **Action-Button Rule (Premature-Exposure Prevention)**: Has every state-changing / API-triggering button or form pre-checked its backend rejection conditions? Is it disabled with `disabled={!eligibility.allowed}`?
+2. [ ] **Single-Implementation Rule**: Is the business eligibility predicate authored once in `src/lib/action-eligibility.ts` and shared between backend validation (`throw AppError`) and frontend gating?
+3. [ ] **Inline Reason ("Why") & Fix-It CTA**: Does the disabled button present a clear explanation of the shortfall/blocker, accompanied by a direct action link (`Deposit Funds`, `Verify PAN`, `Contact Support`)?
+4. [ ] **No Inadvertent Hiding**: Are discoverable buttons kept visible in their disabled state rather than vanishing?
+5. [ ] **Automated Action Guard**: Does `npm run lint:actions` pass with 0 ungated advisories?
+6. [ ] **File Location**: Is the component in the appropriate feature folder (`components/dashboard/<feature>/` or `components/ui/`)?
+7. [ ] **File Casing**: Is the component file PascalCase (`MyNewCard.tsx`)?
+8. [ ] **Export Style**: Does the component provide a named export (`export function MyNewCard`)?
+9. [ ] **Service Pattern**: Is new backend business logic encapsulated in a static class service (`export class FeatureService`) in `src/services/`?
+10. [ ] **Import Aliasing**: Are all imports utilizing `@/...` rather than deep `../../` relative paths?
+11. [ ] **Formatting Utilities**: Does all currency and date rendering use `formatCurrency` and `formatDate` from `@/lib/utils-client`?
+12. [ ] **Loading States**: Are skeleton shimmer loaders (`<Skeleton>`) used for asynchronous data fetching instead of raw full-page spinners?
+13. [ ] **Type Integrity**: Does `npm run typecheck` pass with 0 diagnostics?
+14. [ ] **Test Coverage**: Does `npm test` execute and pass 100% of the test suite?
+
 
